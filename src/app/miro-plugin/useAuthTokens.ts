@@ -48,9 +48,24 @@ export function useAuthTokens(isInitMode: boolean | null) {
         }
       };
 
+      // Listen to postMessage from the popup window directly (bypasses iframe BroadcastChannel partitioning)
+      const handlePopupMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        const { type, tokens } = event.data || {};
+        if (type === 'FIGMA_AUTH_SUCCESS' && tokens?.accessToken) {
+          setFigmaToken(tokens.accessToken);
+        }
+        if (type === 'MIRO_AUTH_SUCCESS' && tokens?.accessToken) {
+          setMiroToken(tokens.accessToken);
+        }
+      };
+
+      window.addEventListener('message', handlePopupMessage);
+
       return () => {
         syncChannel.close();
         oauthChannel.close();
+        window.removeEventListener('message', handlePopupMessage);
       };
     }
   }, [isInitMode]);
