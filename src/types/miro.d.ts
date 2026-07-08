@@ -22,7 +22,6 @@ interface MiroBoardInfo {
 interface MiroBoard {
   get(): Promise<MiroItem[]>;
   getSelection(): Promise<MiroItem[]>;
-  on(event: string, callback: () => void): void;
   viewport: {
     get(): Promise<MiroViewport>;
   };

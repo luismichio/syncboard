@@ -189,7 +189,7 @@ export default function MiroPluginPage() {
         await handleSelection();
 
         // Listen for canvas selection updates
-        miro.board.on('selection_updated', handleSelection);
+        miro.board.ui.on('selection:update', handleSelection);
       }
     };
 
@@ -349,6 +349,9 @@ export default function MiroPluginPage() {
         // 4. Attach metadata for robust selection detection
         try {
           console.log("Setting syncboard metadata on new image:", image.id);
+          if (typeof image.setMetadata !== 'function') {
+            throw new Error("image.setMetadata is not a function on the returned object");
+          }
           await image.setMetadata('syncboard', {
             fileKey: figmaNodeInfo.fileKey,
             nodeId: figmaNodeInfo.nodeId,
@@ -357,12 +360,14 @@ export default function MiroPluginPage() {
           // Explicitly sync the state changes to Miro's database
           await image.sync();
           console.log("Metadata synchronized successfully!");
-        } catch (metaErr) {
+          
+          setSyncStatus('Image placed successfully!');
+          setIsSyncing(false);
+        } catch (metaErr: any) {
           console.error("Failed to write metadata during image creation:", metaErr);
+          setSyncStatus(`Placement warning: Image created, but connection metadata failed to save (${metaErr.message || metaErr})`);
+          setIsSyncing(false);
         }
-
-        setSyncStatus('Image placed successfully!');
-        setIsSyncing(false);
       };
 
       reader.readAsDataURL(blob);
