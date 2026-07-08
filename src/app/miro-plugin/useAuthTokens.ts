@@ -27,17 +27,31 @@ export function useAuthTokens(isInitMode: boolean | null) {
   useEffect(() => {
     if (isInitMode === false) {
       const syncChannel = new BroadcastChannel('figma_miro_sync');
+      const oauthChannel = new BroadcastChannel('oauth_callback');
       
       syncChannel.onmessage = (event: MessageEvent) => {
         const { type, tokenData } = event.data;
         if (type === 'TOKENS_UPDATED' && tokenData) {
-          const typedData = tokenData as { figmaToken?: string; miroToken?: string };
-          if (typedData.figmaToken) setFigmaToken(typedData.figmaToken);
-          if (typedData.miroToken) setMiroToken(typedData.miroToken);
+          const typedData = tokenData as { figmaToken?: string | null; miroToken?: string | null };
+          if (typedData.figmaToken !== undefined) setFigmaToken(typedData.figmaToken);
+          if (typedData.miroToken !== undefined) setMiroToken(typedData.miroToken);
         }
       };
 
-      return () => syncChannel.close();
+      oauthChannel.onmessage = (event: MessageEvent) => {
+        const { type, tokens } = event.data;
+        if (type === 'FIGMA_AUTH_SUCCESS' && tokens?.accessToken) {
+          setFigmaToken(tokens.accessToken);
+        }
+        if (type === 'MIRO_AUTH_SUCCESS' && tokens?.accessToken) {
+          setMiroToken(tokens.accessToken);
+        }
+      };
+
+      return () => {
+        syncChannel.close();
+        oauthChannel.close();
+      };
     }
   }, [isInitMode]);
 
