@@ -42,8 +42,11 @@ export async function GET(request: Request) {
     const figmaData = await figmaResponse.json();
 
     if (!figmaResponse.ok) {
+      const retryAfter = figmaResponse.headers.get('Retry-After');
+      const retryMsg = retryAfter ? ` Please wait ${retryAfter}s before retrying.` : '';
+      const baseError = figmaData.err || figmaData.message || 'Figma image rendering failed';
       return NextResponse.json(
-        { error: figmaData.err || 'Figma image rendering failed' },
+        { error: `${baseError}.${retryMsg}` },
         { status: figmaResponse.status }
       );
     }

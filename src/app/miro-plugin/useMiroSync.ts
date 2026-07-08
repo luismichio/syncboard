@@ -80,8 +80,12 @@ export function useMiroSync(
         });
 
         if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || 'Failed to update image on board');
+          const errData = await response.json().catch(() => ({}));
+          const errMsg = errData.error || 'Failed to update image on board';
+          if (response.status === 429) {
+            throw new Error(`Rate limited by Figma. ${errMsg}`);
+          }
+          throw new Error(errMsg);
         }
       }
 
