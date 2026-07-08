@@ -160,8 +160,23 @@ export default function MiroPluginPage() {
                       nodeId: syncData.nodeId,
                       nodeName: syncData.nodeName || 'Unnamed Screen',
                     });
+                  } else if (item.title) {
+                    // Fallback to title parsing for older items or direct copy-pastes
+                    const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]\s*(.*)$/);
+                    if (match) {
+                      console.log("SyncBoard title fallback match found! FileKey:", match[1], "NodeID:", match[2]);
+                      synced.push({
+                        id: item.id,
+                        title: item.title,
+                        fileKey: match[1],
+                        nodeId: match[2],
+                        nodeName: match[3] || 'Unnamed Screen',
+                      });
+                    } else {
+                      console.log("Item lacks SyncBoard metadata and title pattern");
+                    }
                   } else {
-                    console.log("Item lacks SyncBoard metadata");
+                    console.log("Item lacks SyncBoard metadata and title");
                   }
                 } catch (metaErr) {
                   console.error("Failed to read metadata for item:", item.id, metaErr);
@@ -413,7 +428,14 @@ export default function MiroPluginPage() {
       for (const selected of selectedItems) {
         // Find the selected item on the board as well as any duplicates/copies
         const matches = imagesWithMetadata.filter(pair => {
-          return pair.syncData?.fileKey === selected.fileKey && pair.syncData?.nodeId === selected.nodeId;
+          if (pair.syncData?.fileKey === selected.fileKey && pair.syncData?.nodeId === selected.nodeId) {
+            return true;
+          }
+          if (pair.item.title) {
+            const match = pair.item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]/);
+            return match && match[1] === selected.fileKey && match[2] === selected.nodeId;
+          }
+          return false;
         });
 
         for (const pair of matches) {
