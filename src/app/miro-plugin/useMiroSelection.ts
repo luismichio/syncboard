@@ -16,6 +16,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
   const [selectedItems, setSelectedItems] = useState<SyncedImage[]>([]);
 
   useEffect(() => {
+    console.log("SyncBoard: useMiroSelection useEffect firing. isInitMode:", isInitMode);
     if (isInitMode === null) return;
     if (typeof window === 'undefined') return;
 
@@ -27,12 +28,12 @@ export function useMiroSelection(isInitMode: boolean | null) {
     const initMiro = async () => {
       const waitForMiro = (): Promise<{ board: MiroBoard }> => {
         return new Promise((resolve) => {
-          if (window.miro) {
+          if (window.miro?.board) {
             resolve(window.miro);
             return;
           }
           interval = setInterval(() => {
-            if (window.miro) {
+            if (window.miro?.board) {
               clearInterval(interval);
               resolve(window.miro);
             }
@@ -40,7 +41,9 @@ export function useMiroSelection(isInitMode: boolean | null) {
         });
       };
 
+      console.log("SyncBoard: Polling for window.miro.board...");
       const miro = await waitForMiro();
+      console.log("SyncBoard: window.miro.board resolved successfully!");
       savedMiro = miro;
       if (!active) return;
 
@@ -120,10 +123,10 @@ export function useMiroSelection(isInitMode: boolean | null) {
 
         savedHandler = handleSelection;
 
-        // Query current selection on load
+        console.log("SyncBoard: Querying initial selection on mount...");
         await handleSelection();
 
-        // Listen for canvas selection updates
+        console.log("SyncBoard: Registering selection:update listener...");
         miro.board.ui.on('selection:update', handleSelection);
       }
     };
@@ -131,10 +134,12 @@ export function useMiroSelection(isInitMode: boolean | null) {
     initMiro();
 
     return () => {
+      console.log("SyncBoard: useMiroSelection cleanup hook run.");
       active = false;
       if (interval) clearInterval(interval);
       if (savedMiro && savedHandler) {
         try {
+          console.log("SyncBoard: Removing selection:update event listener.");
           savedMiro.board.ui.off('selection:update', savedHandler);
         } catch (e) {
           console.warn('Failed to unsubscribe from selection changes:', e);
