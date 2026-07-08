@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { figmaToken, miroToken, boardId, itemId, fileKey, nodeId, nodeName } =
+    const { figmaToken, miroToken, boardId, itemId, fileKey, nodeId, nodeName, width } =
       await request.json();
 
     if (
@@ -64,9 +64,13 @@ export async function POST(request: Request) {
     const file = new File([arrayBuffer], 'screenshot.png', { type: 'image/png' });
     formData.append('resource', file);
 
-    // Attach the updated metadata (keeping the SyncBoard tracking title)
+    // Attach the updated metadata and width geometry to preserve dimensions
     const titleTag = `[SyncBoard|${fileKey}|${nodeId}] ${nodeName}`;
-    formData.append('data', JSON.stringify({ title: titleTag }));
+    const dataPayload: any = { title: titleTag };
+    if (width) {
+      dataPayload.geometry = { width: Math.round(Number(width)) };
+    }
+    formData.append('data', JSON.stringify(dataPayload));
 
     // 4. Send the PATCH request to Miro REST API v2
     const miroApiUrl = `https://api.miro.com/v2/boards/${boardId}/images/${itemId}`;

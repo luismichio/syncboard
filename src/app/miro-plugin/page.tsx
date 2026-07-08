@@ -3,59 +3,15 @@
 import { useEffect, useState } from 'react';
 import Script from 'next/script';
 import { getValidToken, saveToken, TokenData } from '@/lib/tokens';
+import ThemeToggle from '@/components/ThemeToggle';
 
 // Define types for Miro Web SDK v2
-interface MiroViewport {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
 interface SyncedImage {
   id: string;
   title: string;
   fileKey: string;
   nodeId: string;
   nodeName: string;
-}
-
-interface MiroItem {
-  id: string;
-  type: string;
-  title?: string;
-}
-
-interface MiroBoardInfo {
-  id: string;
-}
-
-interface MiroBoard {
-  getSelection(): Promise<MiroItem[]>;
-  on(event: string, callback: () => void): void;
-  viewport: {
-    get(): Promise<MiroViewport>;
-  };
-  createImage(options: {
-    url: string;
-    title?: string;
-    x?: number;
-    y?: number;
-    width?: number;
-  }): Promise<MiroItem>;
-  getInfo(): Promise<MiroBoardInfo>;
-  ui: {
-    on(event: string, callback: () => void): void;
-    openPanel(options: { url: string }): Promise<void>;
-  };
-}
-
-declare global {
-  interface Window {
-    miro?: {
-      board: MiroBoard;
-    };
-  }
 }
 
 export default function MiroPluginPage() {
@@ -95,24 +51,28 @@ export default function MiroPluginPage() {
       fetchTokens();
 
       // Listen for successful OAuth callback popups
-      const handleOAuthMessage = (event: MessageEvent) => {
+      const handleOAuthMessage = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         if (event.data?.type === 'FIGMA_AUTH_SUCCESS') {
           setFigmaToken(event.data.tokens.accessToken);
+          await saveToken('figma', event.data.tokens);
         }
         if (event.data?.type === 'MIRO_AUTH_SUCCESS') {
           setMiroToken(event.data.tokens.accessToken);
+          await saveToken('miro', event.data.tokens);
         }
       };
 
       // Listen to BroadcastChannel for cross-tab updates
       const channel = new BroadcastChannel('oauth_callback');
-      channel.onmessage = (event) => {
+      channel.onmessage = async (event) => {
         if (event.data?.type === 'FIGMA_AUTH_SUCCESS') {
           setFigmaToken(event.data.tokens.accessToken);
+          await saveToken('figma', event.data.tokens);
         }
         if (event.data?.type === 'MIRO_AUTH_SUCCESS') {
           setMiroToken(event.data.tokens.accessToken);
+          await saveToken('miro', event.data.tokens);
         }
       };
 
@@ -368,15 +328,43 @@ export default function MiroPluginPage() {
     if (!miro) return;
 
     setIsSyncing(true);
-    setSyncStatus(`Syncing ${selectedItems.length} screen(s)...`);
+    setSyncStatus('Scanning board for copies...');
 
     try {
       const boardInfo = await miro.board.getInfo();
       const boardId = boardInfo.id;
 
-      for (let i = 0; i < selectedItems.length; i++) {
-        const item = selectedItems[i];
-        setSyncStatus(`Syncing screen ${i + 1}/${selectedItems.length}: ${item.nodeName}`);
+      // 1. Scan the entire board to find all images that share the same figma keys as the selected ones
+      const allItems = await miro.board.get();
+      const itemsToSync: { id: string; fileKey: string; nodeId: string; nodeName: string; width?: number }[] = [];
+
+      for (const selected of selectedItems) {
+        // Find the selected item on the board as well as any duplicates/copies
+        const matches = allItems.filter(item => {
+          if (item.type === 'image' && item.title) {
+            const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]/);
+            return match && match[1] === selected.fileKey && match[2] === selected.nodeId;
+          }
+          return false;
+        });
+
+        for (const match of matches) {
+          itemsToSync.push({
+            id: match.id,
+            fileKey: selected.fileKey,
+            nodeId: selected.nodeId,
+            nodeName: selected.nodeName,
+            width: match.width, // Preserve width of this specific copy
+          });
+        }
+      }
+
+      setSyncStatus(`Syncing ${itemsToSync.length} widget instance(s)...`);
+
+      // 2. Perform the serverless sync updates for all matched instances
+      for (let i = 0; i < itemsToSync.length; i++) {
+        const item = itemsToSync[i];
+        setSyncStatus(`Syncing screen instance ${i + 1}/${itemsToSync.length}: ${item.nodeName}`);
 
         const response = await fetch('/api/miro/update-image', {
           method: 'POST',
@@ -389,6 +377,7 @@ export default function MiroPluginPage() {
             fileKey: item.fileKey,
             nodeId: item.nodeId,
             nodeName: item.nodeName,
+            width: item.width, // Pass the original width of this copy
           }),
         });
 
@@ -398,7 +387,7 @@ export default function MiroPluginPage() {
         }
       }
 
-      setSyncStatus('All selected screens updated in-place!');
+      setSyncStatus('All matched screens updated in-place!');
 
       // Broadcast sync complete status
       try {
@@ -439,51 +428,54 @@ export default function MiroPluginPage() {
 
   // Headless mode is false: render Sidebar Panel
   return (
-    <div className="flex flex-col min-h-screen p-5 bg-[#0A0A0A] text-[#FAF9F5] font-sans selection:bg-[#01C8F1] selection:text-[#0A0A0A]">
+    <div className="flex flex-col min-h-screen p-5 bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page transition-colors duration-200">
       <Script
         src="https://miro.com/app/static/sdk/v2/miro.js"
         onLoad={onMiroScriptLoad}
       />
 
-      <header className="mb-6">
-        <h2 className="text-xl font-bold tracking-tight text-[#01C8F1]">SyncBoard</h2>
-        <p className="text-xs text-[#9A9997]">Stateless Figma-Miro Pipeline</p>
+      <header className="mb-6 flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-accent">SyncBoard</h2>
+          <p className="text-xs text-text-muted">Stateless Figma-Miro Pipeline</p>
+        </div>
+        <ThemeToggle />
       </header>
 
       {/* 1. Connection Status Panels */}
       <section className="mb-6 space-y-3">
-        <div className="p-3 rounded-lg bg-[#0F0F0F] border border-[#1A1A1A] flex justify-between items-center">
+        <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
           <div>
-            <div className="text-xs font-semibold text-[#FAF9F5]">Figma Status</div>
-            <div className="text-[10px] text-[#9A9997]">
+            <div className="text-xs font-semibold text-text-page">Figma Status</div>
+            <div className="text-[10px] text-text-muted">
               {figmaToken ? 'Connected securely' : 'Token expired or disconnected'}
             </div>
           </div>
           {figmaToken ? (
-            <span className="h-2 w-2 rounded-full bg-[#0FDFBA]"></span>
+            <span className="h-2 w-2 rounded-full bg-green-500"></span>
           ) : (
             <button
               onClick={connectFigma}
-              className="text-[11px] font-mono tracking-wider font-semibold border border-[#01C8F1] text-[#01C8F1] rounded px-2.5 py-1 bg-transparent hover:bg-[#01C8F1] hover:text-[#0A0A0A] transition"
+              className="text-[11px] font-mono tracking-wider font-semibold border border-accent text-accent rounded px-2.5 py-1 bg-transparent hover:bg-accent hover:text-bg-page transition"
             >
               CONNECT
             </button>
           )}
         </div>
 
-        <div className="p-3 rounded-lg bg-[#0F0F0F] border border-[#1A1A1A] flex justify-between items-center">
+        <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
           <div>
-            <div className="text-xs font-semibold text-[#FAF9F5]">Miro REST Status</div>
-            <div className="text-[10px] text-[#9A9997]">
+            <div className="text-xs font-semibold text-text-page">Miro REST Status</div>
+            <div className="text-[10px] text-text-muted">
               {miroToken ? 'Connected securely' : 'Token expired or disconnected'}
             </div>
           </div>
           {miroToken ? (
-            <span className="h-2 w-2 rounded-full bg-[#0FDFBA]"></span>
+            <span className="h-2 w-2 rounded-full bg-green-500"></span>
           ) : (
             <button
               onClick={connectMiro}
-              className="text-[11px] font-mono tracking-wider font-semibold border border-[#01C8F1] text-[#01C8F1] rounded px-2.5 py-1 bg-transparent hover:bg-[#01C8F1] hover:text-[#0A0A0A] transition"
+              className="text-[11px] font-mono tracking-wider font-semibold border border-accent text-accent rounded px-2.5 py-1 bg-transparent hover:bg-accent hover:text-bg-page transition"
             >
               CONNECT
             </button>
@@ -495,10 +487,10 @@ export default function MiroPluginPage() {
       <section className="flex-grow">
         <div className="mb-6">
           <div className="flex justify-between items-center mb-3">
-            <h4 className="text-xs uppercase font-mono tracking-widest text-[#9A9997]">
+            <h4 className="text-xs uppercase font-mono tracking-widest text-text-muted">
               Canvas Selection
             </h4>
-            <span className="text-[10px] font-mono bg-[#1A1A1A] text-[#9A9997] px-2 py-0.5 rounded">
+            <span className="text-[10px] font-mono bg-bg-card text-text-muted px-2 py-0.5 rounded border border-border-card">
               {selectedItems.length} Matched
             </span>
           </div>
@@ -508,12 +500,12 @@ export default function MiroPluginPage() {
               {selectedItems.map((item) => (
                 <div
                   key={item.id}
-                  className="p-3 rounded-md bg-[#1A1A1A] border border-[#2E2E2E] flex flex-col gap-1"
+                  className="p-3 rounded-md bg-bg-card border border-border-card flex flex-col gap-1"
                 >
-                  <span className="text-xs font-semibold text-[#FAF9F5]">
+                  <span className="text-xs font-semibold text-text-page">
                     {item.nodeName}
                   </span>
-                  <span className="text-[9px] font-mono text-[#9A9997]">
+                  <span className="text-[9px] font-mono text-text-muted">
                     Node: {item.nodeId}
                   </span>
                 </div>
@@ -521,13 +513,13 @@ export default function MiroPluginPage() {
               <button
                 onClick={syncSelectedScreens}
                 disabled={isSyncing || !figmaToken || !miroToken}
-                className="w-full mt-2 font-mono font-bold text-xs py-2.5 rounded bg-[#01C8F1] text-[#0A0A0A] hover:bg-[#00DFF6] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full mt-2 font-mono font-bold text-xs py-2.5 rounded bg-accent text-bg-page hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 SYNC SELECTED SCREENS
               </button>
             </div>
           ) : (
-            <div className="p-5 rounded-md border border-dashed border-[#2E2E2E] text-center text-xs text-[#9A9997]">
+            <div className="p-5 rounded-md border border-dashed border-border-card text-center text-xs text-text-muted">
               Select one or more synced images on the canvas to update them in-place.
             </div>
           )}
@@ -535,8 +527,8 @@ export default function MiroPluginPage() {
 
         {/* 3. Screen Importer */}
         {figmaToken && (
-          <div className="border-t border-[#1A1A1A] pt-5">
-            <h4 className="text-xs uppercase font-mono tracking-widest text-[#9A9997] mb-3">
+          <div className="border-t border-border-card pt-5">
+            <h4 className="text-xs uppercase font-mono tracking-widest text-text-muted mb-3">
               Import Figma Screen
             </h4>
 
@@ -544,12 +536,12 @@ export default function MiroPluginPage() {
             <button
               onClick={detectLocalFigmaSelection}
               disabled={isDetectingLocal}
-              className="w-full mb-3 flex items-center justify-center gap-2 border border-[#5E5E5E] text-xs font-semibold rounded py-2 hover:bg-[#1A1A1A] transition text-[#FAF9F5]"
+              className="w-full mb-3 flex items-center justify-center gap-2 border border-border-card text-xs font-semibold rounded py-2 hover:bg-bg-card transition text-text-page"
             >
               {isDetectingLocal ? 'Detecting...' : 'Detect Selection in Figma App'}
             </button>
 
-            <div className="text-[10px] text-center text-[#9A9997] mb-3">or</div>
+            <div className="text-[10px] text-center text-text-muted mb-3">or</div>
 
             {/* B. Manual link input */}
             <input
@@ -557,21 +549,21 @@ export default function MiroPluginPage() {
               placeholder="Paste Figma frame link..."
               value={figmaInput}
               onChange={(e) => parseFigmaLink(e.target.value)}
-              className="w-full text-xs p-2.5 bg-[#0F0F0F] border border-[#1A1A1A] rounded text-[#FAF9F5] focus:outline-none focus:border-[#01C8F1] mb-3"
+              className="w-full text-xs p-2.5 bg-bg-card border border-border-card rounded text-text-page focus:outline-none focus:border-accent mb-3"
             />
 
             {figmaNodeInfo && (
-              <div className="p-3 bg-[#1A1A1A] rounded border border-[#2E2E2E] mb-3">
-                <div className="text-xs font-bold text-[#FAF9F5] truncate">
+              <div className="p-3 bg-bg-card rounded border border-border-card mb-3">
+                <div className="text-xs font-bold text-text-page truncate">
                   {figmaNodeInfo.name}
                 </div>
-                <div className="text-[9px] font-mono text-[#9A9997] truncate">
+                <div className="text-[9px] font-mono text-text-muted truncate">
                   File: {figmaNodeInfo.fileKey}
                 </div>
                 <button
                   onClick={importFigmaScreen}
                   disabled={isSyncing}
-                  className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-[#01C8F1] text-[#0A0A0A] hover:bg-[#00DFF6] transition"
+                  className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition"
                 >
                   PLACE ON CANVAS
                 </button>
@@ -583,8 +575,8 @@ export default function MiroPluginPage() {
 
       {/* 4. Logging & Status Board */}
       {syncStatus && (
-        <footer className="mt-auto border-t border-[#1A1A1A] pt-4">
-          <div className="p-2.5 rounded font-mono text-[10px] bg-[#0F0F0F] border border-[#1C1C1C] text-[#DEC75F]">
+        <footer className="mt-auto border-t border-border-card pt-4">
+          <div className="p-2.5 rounded font-mono text-[10px] bg-bg-card border border-border-card text-yellow-500 dark:text-yellow-400">
             {syncStatus}
           </div>
         </footer>

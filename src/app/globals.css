@@ -1,26 +1,73 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-page: #FAF9F5;      /* Warm white background */
+  --text-page: #0A0A0A;    /* Dark charcoal text */
+  --bg-card: #F2EFE9;      /* Slightly darker warm white for card backdrops */
+  --border-card: #E0DBD0;  /* Soft border */
+  --text-muted: #5E5E5E;   /* Muted grey */
+  --accent: #00A2C9;       /* Deep cyan */
+
+  --background: var(--bg-page);
+  --foreground: var(--text-page);
+}
+
+/* System preference dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-page: #0A0A0A;    /* Dark mode background */
+    --text-page: #FAF9F5;  /* Soft white text */
+    --bg-card: #121212;    /* Dark card backdrop */
+    --border-card: #1F1F1F;  /* Dark border */
+    --text-muted: #9A9997;   /* Muted warm grey */
+    --accent: #01C8F1;       /* Light cyan */
+
+    --background: var(--bg-page);
+    --foreground: var(--text-page);
+  }
+}
+
+/* Class override: dark mode */
+.dark {
+  --bg-page: #0A0A0A;
+  --text-page: #FAF9F5;
+  --bg-card: #121212;
+  --border-card: #1F1F1F;
+  --text-muted: #9A9997;
+  --accent: #01C8F1;
+
+  --background: var(--bg-page);
+  --foreground: var(--text-page);
+}
+
+/* Class override: light mode */
+.light {
+  --bg-page: #FAF9F5;
+  --text-page: #0A0A0A;
+  --bg-card: #F2EFE9;
+  --border-card: #E0DBD0;
+  --text-muted: #5E5E5E;
+  --accent: #00A2C9;
+
+  --background: var(--bg-page);
+  --foreground: var(--text-page);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg-page: var(--bg-page);
+  --color-text-page: var(--text-page);
+  --color-bg-card: var(--bg-card);
+  --color-border-card: var(--border-card);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
