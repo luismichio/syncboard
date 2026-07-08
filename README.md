@@ -23,37 +23,67 @@ Unlike official live embeds which require browser logins and degrade board perfo
 ### 1. Register Figma Developer App
 1. Go to the Figma Developer Portal: **[https://www.figma.com/developers/apps](https://www.figma.com/developers/apps)**.
 2. Click **Create a new app** (or **Register a new client**).
-3. Set the name to `SyncBoard` and the Redirect URI to:
-   `https://YOUR_DEPLOYMENT_URL.vercel.app/api/oauth/figma/callback`
-4. Under scopes, select **`file_content:read`**.
-5. Copy your **Client ID** and **Client Secret**.
+3. Set the name to `SyncBoard` and set the Redirect URI to:
+   `https://YOUR_SUBDOMAIN.YOUR_DOMAIN.com/api/oauth/figma/callback`
+4. Under **Scopes**, select **`file_content:read`** (deprecated scopes like `file_read` or `files:read` should be avoided).
+5. Click **Save** to create the app.
+6. Copy the **Client ID** and generate a new client secret to copy the **Secret Value** (do not copy the Secret ID).
 
 ### 2. Register Miro Developer App
 1. Go to your **Miro Profile Settings** -> **Developer Team** -> **Create new app**.
 2. Set the App URL to:
-   `https://YOUR_DEPLOYMENT_URL.vercel.app/miro-plugin?init=true`
+   `https://YOUR_SUBDOMAIN.YOUR_DOMAIN.com/miro-plugin?init=true`
 3. Under **OAuth 2.0 Settings**:
-   * Set Redirect URI to: `https://YOUR_DEPLOYMENT_URL.vercel.app/api/oauth/miro/callback`
-   * Enable checkbox: **"Use this URI for SDK Authorization"**
+   * Set Redirect URI to: `https://YOUR_SUBDOMAIN.YOUR_DOMAIN.com/api/oauth/miro/callback`
+   * Enable the checkbox: **"Use this URI for SDK Authorization"**
 4. Enable the following scopes:
    * `boards:read`
    * `boards:write`
-5. Copy your **Client ID** and **Client Secret**.
+5. Click **Create App** and copy your **Client ID** and **Client Secret**.
 
 ### 3. Deploy to Vercel
-Click the Vercel Deploy button above or configure a manual project pointing to your fork. Add the following **Environment Variables**:
+1. Go to your **[Vercel Dashboard](https://vercel.com/dashboard)**.
+2. Click **Add New** -> **Project**, and import your `syncboard` GitHub repository.
+3. Under **Environment Variables**, configure these 5 key-value pairs:
 
-| Variable | Description |
-| :--- | :--- |
-| `NEXT_PUBLIC_APP_URL` | Your deployment base URL (e.g. `https://your-app.vercel.app`) |
-| `FIGMA_CLIENT_ID` | Your Figma Developer App Client ID |
-| `FIGMA_CLIENT_SECRET` | Your Figma Developer App Client Secret |
-| `MIRO_CLIENT_ID` | Your Miro Developer App Client ID |
-| `MIRO_CLIENT_SECRET` | Your Miro Developer App Client Secret |
+| Variable | Value Example | Note |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_APP_URL` | `https://syncboard.yourdomain.com` | **Do NOT add a trailing slash** at the end. An extra `/` will result in double-slash redirect paths (like `//api/oauth/`), breaking the OAuth validation. |
+| `FIGMA_CLIENT_ID` | `JjzbLKnyn462MQ...` | Your Figma Developer App Client ID |
+| `FIGMA_CLIENT_SECRET` | `9WvdhTkvLesQB...` | Your Figma Developer App **Secret Value** |
+| `MIRO_CLIENT_ID` | `307445736...` | Your Miro Developer App Client ID |
+| `MIRO_CLIENT_SECRET` | `shLp5e9yR2...` | Your Miro Developer App Client Secret |
+
+4. Click **Deploy**. Vercel will compile the build and generate your endpoint.
+
+### 4. Custom Subdomain DNS Configuration (e.g. Squarespace)
+To link your subdomain (like `syncboard.yourdomain.com`) to the Vercel project:
+1. In your Vercel project settings, go to **Domains** -> Add `syncboard.yourdomain.com`.
+2. Vercel will display a custom DNS target (e.g., `xxxxxx.vercel-dns-017.com` or `cname.vercel-dns.com`).
+3. Log in to your domain registrar (e.g. **Squarespace**).
+4. Go to **DNS Settings** for your domain and scroll to the custom records area.
+5. Create a new record:
+   * **Host:** `syncboard` (or your full subdomain string if required by the interface)
+   * **Type:** `CNAME`
+   * **Alias data / Points To / Value:** The DNS target value provided by Vercel.
+6. Save the settings. DNS changes propagate within 5-15 minutes, after which your subdomain will be live under HTTPS.
+
+---
+
+## 🔗 Distributing a "Demo" / "Trial" Version
+Because SyncBoard is database-free and secure, you can distribute a trial version so other designers and stakeholders can install it onto their boards without deploying their own server:
+
+1. In your **Miro Developer Portal**, select your app.
+2. Click **Share app** in the left sidebar menu.
+3. Under **App Install Link**, copy the generated link.
+4. Share this link on your portfolio, website, or team Slack workspace. 
+5. Anyone who clicks the link can authorize and install the plugin on their board. When they log in to Figma/Miro, their credentials will be encrypted and saved in **their own browser storage**, allowing them to use your Vercel proxy with absolute privacy.
 
 ---
 
 ## 💻 Local Development
+
+For testing and coding on your local machine:
 
 1. **Install dependencies:**
    ```bash
@@ -62,23 +92,41 @@ Click the Vercel Deploy button above or configure a manual project pointing to y
 
 2. **Configure local environment variables (`.env.local`):**
    ```env
-   NEXT_PUBLIC_APP_URL=http://localhost:3000
+   NEXT_PUBLIC_APP_URL=https://your-tunnel-subdomain.loca.lt
    FIGMA_CLIENT_ID=your_local_id
    FIGMA_CLIENT_SECRET=your_local_secret
    MIRO_CLIENT_ID=your_local_id
    MIRO_CLIENT_SECRET=your_local_secret
+   FIGMA_PERSONAL_TOKEN=optional_local_token
    ```
 
-3. **Expose localhost using `ngrok` (required for OAuth redirect callbacks):**
+3. **Expose localhost using `cloudflared` (Recommended - Zero Warning Pages):**
    ```bash
-   ngrok http 3000
+   npx @cloudflare/cloudflared tunnel --url http://localhost:3000
    ```
-   *Note: Update the redirect URIs in both Figma and Miro settings to match your temporary ngrok URL (e.g., `https://xxxx.ngrok-free.app`).*
+   *(Or using `npx localtunnel --port 3000 --subdomain your-subdomain`. Note: If using localtunnel, make sure you open the HTTPS url once in your browser tab to click the safety bypass button, otherwise localtunnel will block redirect query parameters during logins).*
 
 4. **Start the development server:**
    ```bash
    yarn dev
    ```
+
+---
+
+## 📖 Usage Walkthrough
+
+### 1. Connecting Accounts
+Open your Miro board, load the SyncBoard sidebar panel, and click **Connect** for both Figma and Miro. Allow the popup permission inside your browser if requested.
+
+### 2. Importing a Frame (Free Figma Plan Compatible)
+* **Standard Link Method:** In Figma, click on any frame or design layer and press **`Ctrl + L`** (or **`Cmd + L`**) to copy the direct URL. Paste this link into the SyncBoard panel in Miro and click **Place on Canvas**.
+* **Active Selection (Local MCP):** If your local Figma Desktop MCP companion is running, click **Detect Selection in Figma App** to pull the frame details automatically.
+
+### 3. Syncing Board Screens
+When you want to fetch updates:
+1. Select one or more Figma frame images on your Miro canvas.
+2. The sidebar panel (or the external dashboard tab) will display the selected items.
+3. Click **Sync Selected Screens** to fetch the updated assets from Figma and overwrite the board images in-place.
 
 ---
 

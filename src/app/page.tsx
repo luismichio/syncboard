@@ -1,14 +1,14 @@
-import Link from 'next/link';
+import Link from "next/link";
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#0A0A0A] text-[#FAF9F5] font-sans selection:bg-[#01C8F1] selection:text-[#0A0A0A] flex flex-col justify-center items-center p-8 relative overflow-hidden">
       {/* Decorative background grid pattern */}
-      <div 
+      <div
         className="absolute inset-0 opacity-5 pointer-events-none"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M0 40h40V0H0v40zM39 39H1V1h38v38z' fill='%23FAF9F5'/%3E%3C/svg%3E")`,
-          backgroundSize: '40px 40px',
+          backgroundSize: "40px 40px",
         }}
       ></div>
 
@@ -29,7 +29,9 @@ export default function Home() {
         </header>
 
         <p className="text-sm md:text-base text-[#9A9997] leading-relaxed max-w-md">
-          A database-free, self-hosted integration that updates Figma frame screenshots inside Miro in-place with zero duplicates. Connect your workspace, select items on your board, and sync.
+          A database-free, self-hosted integration that updates Figma frame
+          screenshots inside Miro in-place with zero duplicates. Connect your
+          workspace, select items on your board, and sync.
         </p>
 
         <div className="pt-4 flex flex-col sm:flex-row gap-4 w-full justify-center">
@@ -40,7 +42,7 @@ export default function Home() {
             OPEN DASHBOARD
           </Link>
           <a
-            href="https://github.com/your-username/syncboard"
+            href="https://github.com/luismichio/syncboard"
             target="_blank"
             rel="noreferrer"
             className="px-6 py-3 rounded-lg font-mono font-bold text-xs border border-[#5E5E5E] text-[#FAF9F5] hover:bg-[#1A1A1A] transition duration-200"

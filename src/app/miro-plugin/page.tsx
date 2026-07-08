@@ -159,13 +159,16 @@ export default function MiroPluginPage() {
       const handleSelection = async () => {
         try {
           const selection = await miro.board.getSelection();
+          console.log("SyncBoard Selection Event. Total items:", selection.length);
           const synced: SyncedImage[] = [];
 
           for (const item of selection) {
+            console.log("Inspecting selected item ID:", item.id, "Type:", item.type, "Title:", item.title);
             // Check if it is an image widget and has our title tag [SyncBoard|fileKey|nodeId] NodeName
             if (item.type === 'image' && item.title) {
               const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]\s*(.*)$/);
               if (match) {
+                console.log("Match found! File:", match[1], "Node:", match[2]);
                 synced.push({
                   id: item.id,
                   title: item.title,
@@ -173,6 +176,8 @@ export default function MiroPluginPage() {
                   nodeId: match[2],
                   nodeName: match[3] || 'Unnamed Screen',
                 });
+              } else {
+                console.log("Title does not match SyncBoard pattern:", item.title);
               }
             }
           }
