@@ -12,6 +12,7 @@ interface MiroItem {
   width?: number;
   setMetadata(key: string, value: any): Promise<void>;
   getMetadata(): Promise<any>;
+  sync(): Promise<void>;
 }
 
 interface MiroBoardInfo {

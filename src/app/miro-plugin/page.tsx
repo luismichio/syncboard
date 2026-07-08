@@ -347,11 +347,19 @@ export default function MiroPluginPage() {
         });
 
         // 4. Attach metadata for robust selection detection
-        await image.setMetadata('syncboard', {
-          fileKey: figmaNodeInfo.fileKey,
-          nodeId: figmaNodeInfo.nodeId,
-          nodeName: figmaNodeInfo.name,
-        });
+        try {
+          console.log("Setting syncboard metadata on new image:", image.id);
+          await image.setMetadata('syncboard', {
+            fileKey: figmaNodeInfo.fileKey,
+            nodeId: figmaNodeInfo.nodeId,
+            nodeName: figmaNodeInfo.name,
+          });
+          // Explicitly sync the state changes to Miro's database
+          await image.sync();
+          console.log("Metadata synchronized successfully!");
+        } catch (metaErr) {
+          console.error("Failed to write metadata during image creation:", metaErr);
+        }
 
         setSyncStatus('Image placed successfully!');
         setIsSyncing(false);
