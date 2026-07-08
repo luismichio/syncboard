@@ -9,16 +9,13 @@ import { useMiroSync } from './useMiroSync';
  * Integrates single-responsibility sub-hooks to provide a unified API.
  */
 export function useMiroPlugin() {
-  const [isInitMode, setIsInitMode] = useState<boolean | null>(null);
+  const [isInitMode] = useState<boolean | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('init') === 'true';
+  });
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncStatus, setSyncStatus] = useState<string>('');
-
-  // Calculate headless/panel mode once on mount
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    setIsInitMode(params.get('init') === 'true');
-  }, []);
 
   // 1. Auth Hook
   const {
@@ -26,6 +23,8 @@ export function useMiroPlugin() {
     miroToken,
     connectFigma,
     connectMiro,
+    disconnectFigma,
+    disconnectMiro,
   } = useAuthTokens(isInitMode);
 
   // 2. Selection Hook
@@ -67,6 +66,8 @@ export function useMiroPlugin() {
     isDetectingLocal,
     connectFigma,
     connectMiro,
+    disconnectFigma,
+    disconnectMiro,
     parseFigmaLink,
     detectLocalFigmaSelection,
     importFigmaScreen,

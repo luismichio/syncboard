@@ -17,6 +17,8 @@ export default function MiroPluginPage() {
     isDetectingLocal,
     connectFigma,
     connectMiro,
+    disconnectFigma,
+    disconnectMiro,
     parseFigmaLink,
     detectLocalFigmaSelection,
     importFigmaScreen,
@@ -199,7 +201,15 @@ export default function MiroPluginPage() {
                     </div>
                   </div>
                   {figmaToken ? (
-                    <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                    <div className="flex items-center gap-3">
+                      <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                      <button
+                        onClick={disconnectFigma}
+                        className="text-[9px] font-mono font-bold tracking-wider text-text-muted hover:text-accent uppercase underline bg-transparent"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
                   ) : (
                     <button
                       onClick={connectFigma}
@@ -218,7 +228,15 @@ export default function MiroPluginPage() {
                     </div>
                   </div>
                   {miroToken ? (
-                    <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                    <div className="flex items-center gap-3">
+                      <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                      <button
+                        onClick={disconnectMiro}
+                        className="text-[9px] font-mono font-bold tracking-wider text-text-muted hover:text-accent uppercase underline bg-transparent"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
                   ) : (
                     <button
                       onClick={connectMiro}

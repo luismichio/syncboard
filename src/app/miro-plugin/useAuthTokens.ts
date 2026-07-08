@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getValidToken, TokenData } from '@/lib/tokens';
+import { getValidToken, clearToken, TokenData } from '@/lib/tokens';
 
 /**
  * Handles loading, updating, and synchronizing auth tokens across tabs.
@@ -65,11 +65,39 @@ export function useAuthTokens(isInitMode: boolean | null) {
     );
   };
 
+  const disconnectFigma = async () => {
+    try {
+      await clearToken('figma');
+      setFigmaToken(null);
+      // Broadcast update to other tabs
+      const syncChannel = new BroadcastChannel('figma_miro_sync');
+      syncChannel.postMessage({ type: 'TOKENS_UPDATED', tokenData: { figmaToken: null } });
+      syncChannel.close();
+    } catch (e) {
+      console.error('Failed to disconnect Figma:', e);
+    }
+  };
+
+  const disconnectMiro = async () => {
+    try {
+      await clearToken('miro');
+      setMiroToken(null);
+      // Broadcast update to other tabs
+      const syncChannel = new BroadcastChannel('figma_miro_sync');
+      syncChannel.postMessage({ type: 'TOKENS_UPDATED', tokenData: { miroToken: null } });
+      syncChannel.close();
+    } catch (e) {
+      console.error('Failed to disconnect Miro:', e);
+    }
+  };
+
   return {
     figmaToken,
     miroToken,
     connectFigma,
     connectMiro,
+    disconnectFigma,
+    disconnectMiro,
     setFigmaToken,
     setMiroToken,
   };
