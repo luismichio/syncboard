@@ -100,69 +100,99 @@ export default function MiroPluginPage() {
     }
   }, [isInitMode, selectedItems, figmaToken, miroToken]);
 
-  // Handle Miro Web SDK Initialization
-  const onMiroScriptLoad = () => {
+  // Handle Miro Web SDK Initialization and Event Listeners
+  useEffect(() => {
+    if (isInitMode === null) return;
     if (typeof window === 'undefined') return;
-    const miro = window.miro;
-    if (!miro) return;
 
-    if (isInitMode === true) {
-      // Headless Initial mode: Register Toolbar Click
-      miro.board.ui.on('icon:click', async () => {
-        await miro.board.ui.openPanel({
-          url: '/miro-plugin',
-        });
-      });
-      console.log('SyncBoard Headless Iframe Initialized.');
-    } else if (isInitMode === false) {
-      // Panel Mode: Bind Selection Listeners
-      const handleSelection = async () => {
-        try {
-          const selection = await miro.board.getSelection();
-          console.log("SyncBoard Selection Event. Total items:", selection.length);
-          const synced: SyncedImage[] = [];
+    let active = true;
+    let interval: NodeJS.Timeout;
 
-          for (const item of selection) {
-            console.log("Inspecting selected item ID:", item.id, "Type:", item.type, "Title:", item.title);
-            // Check if it is an image widget and has our title tag [SyncBoard|fileKey|nodeId] NodeName
-            if (item.type === 'image' && item.title) {
-              const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]\s*(.*)$/);
-              if (match) {
-                console.log("Match found! File:", match[1], "Node:", match[2]);
-                synced.push({
-                  id: item.id,
-                  title: item.title,
-                  fileKey: match[1],
-                  nodeId: match[2],
-                  nodeName: match[3] || 'Unnamed Screen',
-                });
-              } else {
-                console.log("Title does not match SyncBoard pattern:", item.title);
-              }
+    const initMiro = async () => {
+      const waitForMiro = (): Promise<any> => {
+        return new Promise((resolve) => {
+          if (window.miro) {
+            resolve(window.miro);
+            return;
+          }
+          interval = setInterval(() => {
+            if (window.miro) {
+              clearInterval(interval);
+              resolve(window.miro);
             }
-          }
-          setSelectedItems(synced);
-
-          // Broadcast selection updates to the external dashboard tab
-          try {
-            const syncChannel = new BroadcastChannel('figma_miro_sync');
-            syncChannel.postMessage({ type: 'SELECTION_CHANGED', selection: synced });
-            syncChannel.close();
-          } catch (e) {
-            console.error('Failed to broadcast selection:', e);
-          }
-        } catch (err) {
-          console.error('Failed to get selection:', err);
-        }
+          }, 50);
+        });
       };
 
-      // Query current selection on load
-      handleSelection();
+      const miro = await waitForMiro();
+      if (!active) return;
 
-      // Listen for canvas selection updates
-      miro.board.on('selection_updated', handleSelection);
-    }
-  };
+      if (isInitMode === true) {
+        // Headless Initial mode: Register Toolbar Click
+        miro.board.ui.on('icon:click', async () => {
+          await miro.board.ui.openPanel({
+            url: '/miro-plugin',
+          });
+        });
+        console.log('SyncBoard Headless Iframe Initialized.');
+      } else {
+        // Panel Mode: Bind Selection Listeners
+        const handleSelection = async () => {
+          try {
+            const selection = await miro.board.getSelection();
+            console.log("SyncBoard Selection Event. Total items:", selection.length);
+            const synced: SyncedImage[] = [];
+
+            for (const item of selection) {
+              console.log("Inspecting selected item ID:", item.id, "Type:", item.type, "Title:", item.title);
+              if (item.type === 'image' && item.title) {
+                const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]\s*(.*)$/);
+                if (match) {
+                  console.log("Match found! File:", match[1], "Node:", match[2]);
+                  synced.push({
+                    id: item.id,
+                    title: item.title,
+                    fileKey: match[1],
+                    nodeId: match[2],
+                    nodeName: match[3] || 'Unnamed Screen',
+                  });
+                } else {
+                  console.log("Title does not match SyncBoard pattern:", item.title);
+                }
+              }
+            }
+
+            if (!active) return;
+            setSelectedItems(synced);
+
+            // Broadcast selection updates to the external dashboard tab
+            try {
+              const syncChannel = new BroadcastChannel('figma_miro_sync');
+              syncChannel.postMessage({ type: 'SELECTION_CHANGED', selection: synced });
+              syncChannel.close();
+            } catch (e) {
+              console.error('Failed to broadcast selection:', e);
+            }
+          } catch (err) {
+            console.error('Failed to get selection:', err);
+          }
+        };
+
+        // Query current selection on load
+        await handleSelection();
+
+        // Listen for canvas selection updates
+        miro.board.on('selection_updated', handleSelection);
+      }
+    };
+
+    initMiro();
+
+    return () => {
+      active = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [isInitMode, figmaToken, miroToken]);
 
   // Triggers Figma OAuth Popup window
   const connectFigma = () => {
@@ -419,9 +449,9 @@ export default function MiroPluginPage() {
       <>
         <Script
           src="https://miro.com/app/static/sdk/v2/miro.js"
-          onLoad={onMiroScriptLoad}
+          strategy="afterInteractive"
         />
-        <div style={{ background: '#0A0A0A', height: '100vh' }}></div>
+        <div className="bg-bg-page h-screen"></div>
       </>
     );
   }
@@ -431,7 +461,7 @@ export default function MiroPluginPage() {
     <div className="flex flex-col min-h-screen p-5 bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page transition-colors duration-200">
       <Script
         src="https://miro.com/app/static/sdk/v2/miro.js"
-        onLoad={onMiroScriptLoad}
+        strategy="afterInteractive"
       />
 
       <header className="mb-6 flex justify-between items-center">
@@ -576,7 +606,7 @@ export default function MiroPluginPage() {
       {/* 4. Logging & Status Board */}
       {syncStatus && (
         <footer className="mt-auto border-t border-border-card pt-4">
-          <div className="p-2.5 rounded font-mono text-[10px] bg-bg-card border border-border-card text-yellow-500 dark:text-yellow-400">
+          <div className="p-2.5 rounded font-mono text-[10px] bg-bg-card border border-border-card text-amber-800 dark:text-yellow-400">
             {syncStatus}
           </div>
         </footer>

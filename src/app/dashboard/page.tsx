@@ -136,7 +136,7 @@ export default function DashboardPage() {
 
         {/* Sync status logging */}
         {syncStatus && (
-          <div className="mb-6 p-3 rounded bg-bg-card border border-border-card text-xs font-mono text-yellow-500 dark:text-yellow-400">
+          <div className="mb-6 p-3 rounded bg-bg-card border border-border-card text-xs font-mono text-amber-800 dark:text-yellow-400">
             {syncStatus}
           </div>
         )}
