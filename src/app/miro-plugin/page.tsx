@@ -146,13 +146,29 @@ export default function MiroPluginPage() {
             for (const item of selection) {
               console.log("Inspecting selected item ID:", item.id, "Type:", item.type);
               if (item.type === 'image') {
+                // 1. Try title-based parsing first (synchronous, 0ms latency, zero API rate limits)
+                if (item.title) {
+                  const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]\s*(.*)$/);
+                  if (match) {
+                    console.log("SyncBoard title match found! FileKey:", match[1], "NodeID:", match[2]);
+                    synced.push({
+                      id: item.id,
+                      title: item.title,
+                      fileKey: match[1],
+                      nodeId: match[2],
+                      nodeName: match[3] || 'Unnamed Screen',
+                    });
+                    continue; // Skip metadata query!
+                  }
+                }
+
+                // 2. Fallback to metadata query (async, only if title is empty or lacks sync tag)
                 try {
                   const metadata = await item.getMetadata();
-                  console.log("Retrieved metadata for item:", item.id, metadata);
                   const syncData = metadata?.syncboard as { fileKey?: string; nodeId?: string; nodeName?: string } | undefined;
                   
                   if (syncData?.fileKey && syncData?.nodeId) {
-                    console.log("SyncBoard metadata match found! FileKey:", syncData.fileKey, "NodeID:", syncData.nodeId);
+                    console.log("SyncBoard metadata fallback match found! FileKey:", syncData.fileKey, "NodeID:", syncData.nodeId);
                     synced.push({
                       id: item.id,
                       title: `[SyncBoard|${syncData.fileKey}|${syncData.nodeId}] ${syncData.nodeName || 'Unnamed Screen'}`,
@@ -160,23 +176,8 @@ export default function MiroPluginPage() {
                       nodeId: syncData.nodeId,
                       nodeName: syncData.nodeName || 'Unnamed Screen',
                     });
-                  } else if (item.title) {
-                    // Fallback to title parsing for older items or direct copy-pastes
-                    const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]\s*(.*)$/);
-                    if (match) {
-                      console.log("SyncBoard title fallback match found! FileKey:", match[1], "NodeID:", match[2]);
-                      synced.push({
-                        id: item.id,
-                        title: item.title,
-                        fileKey: match[1],
-                        nodeId: match[2],
-                        nodeName: match[3] || 'Unnamed Screen',
-                      });
-                    } else {
-                      console.log("Item lacks SyncBoard metadata and title pattern");
-                    }
                   } else {
-                    console.log("Item lacks SyncBoard metadata and title");
+                    console.log("Item lacks SyncBoard title pattern and metadata");
                   }
                 } catch (metaErr) {
                   console.error("Failed to read metadata for item:", item.id, metaErr);
@@ -242,8 +243,8 @@ export default function MiroPluginPage() {
     );
   };
 
-  // Parse a pasted Figma URL to extract key and nodeId
-  const parseFigmaLink = (url: string) => {
+  // Parse a pasted Figma URL to extract key and nodeId and fetch its real frame name
+  const parseFigmaLink = async (url: string) => {
     setFigmaInput(url);
     if (!url) {
       setFigmaNodeInfo(null);
@@ -257,9 +258,44 @@ export default function MiroPluginPage() {
       const nodeMatch = url.match(/node-id=([a-zA-Z0-9\-:]+)/);
 
       if (fileMatch && nodeMatch) {
+        const fileKey = fileMatch[1];
+        const nodeId = nodeMatch[1].replace('-', ':'); // Figma API uses colons, URLs use hyphens
+
+        // Set temporary loading state
         setFigmaNodeInfo({
-          fileKey: fileMatch[1],
-          nodeId: nodeMatch[1].replace('-', ':'), // Figma API uses colons, URLs use hyphens
+          fileKey,
+          nodeId,
+          name: 'Fetching frame name...',
+        });
+
+        // Try to fetch actual frame name from figma
+        if (figmaToken) {
+          try {
+            const res = await fetch(`/api/figma/node-info?fileKey=${fileKey}&nodeId=${nodeId}`, {
+              headers: {
+                Authorization: `Bearer ${figmaToken}`,
+              },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.name) {
+                setFigmaNodeInfo({
+                  fileKey,
+                  nodeId,
+                  name: data.name,
+                });
+                return;
+              }
+            }
+          } catch (err) {
+            console.error('Failed to fetch figma node name:', err);
+          }
+        }
+
+        // Fallback display name
+        setFigmaNodeInfo({
+          fileKey,
+          nodeId,
           name: 'Pasted Screen',
         });
       } else {
@@ -406,45 +442,27 @@ export default function MiroPluginPage() {
       const boardInfo = await miro.board.getInfo();
       const boardId = boardInfo.id;
 
-      // 1. Scan the entire board to find all images that share the same figma keys as the selected ones
       const allItems = await miro.board.get();
-      const imageItems = allItems.filter(item => item.type === 'image');
-
-      // Fetch metadata in parallel for all images on the board to check for copies
-      const imagesWithMetadata = await Promise.all(
-        imageItems.map(async (item) => {
-          try {
-            const metadata = await item.getMetadata();
-            const syncData = metadata?.syncboard as { fileKey?: string; nodeId?: string; nodeName?: string } | undefined;
-            return { item, syncData };
-          } catch (e) {
-            return { item, syncData: undefined };
-          }
-        })
-      );
-
       const itemsToSync: { id: string; fileKey: string; nodeId: string; nodeName: string; width?: number }[] = [];
 
       for (const selected of selectedItems) {
-        // Find the selected item on the board as well as any duplicates/copies
-        const matches = imagesWithMetadata.filter(pair => {
-          if (pair.syncData?.fileKey === selected.fileKey && pair.syncData?.nodeId === selected.nodeId) {
-            return true;
-          }
-          if (pair.item.title) {
-            const match = pair.item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]/);
+        // Find the selected item on the board as well as any duplicates/copies by title
+        // Checking titles is synchronous, has 0ms latency, and issues zero board API calls.
+        const matches = allItems.filter(item => {
+          if (item.type === 'image' && item.title) {
+            const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]/);
             return match && match[1] === selected.fileKey && match[2] === selected.nodeId;
           }
           return false;
         });
 
-        for (const pair of matches) {
+        for (const match of matches) {
           itemsToSync.push({
-            id: pair.item.id,
+            id: match.id,
             fileKey: selected.fileKey,
             nodeId: selected.nodeId,
             nodeName: selected.nodeName,
-            width: pair.item.width, // Preserve width of this specific copy
+            width: match.width, // Preserve width of this specific copy
           });
         }
       }
