@@ -122,16 +122,20 @@ export async function GET(request: Request) {
     return new NextResponse(htmlResponse, {
       headers: { 'Content-Type': 'text/html' },
     });
-  } catch (err: any) {
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
     return new NextResponse(
       `<html>
         <body style="font-family: sans-serif; padding: 20px; background: #0A0A0A; color: #FAF9F5; text-align: center;">
           <h3>Error during Token Exchange</h3>
-          <p style="color: #FFA27D;">${err.message || err}</p>
+          <p style="color: #FFA27D;">${errorMsg}</p>
           <button onclick="window.close()" style="padding: 8px 16px; cursor: pointer; border-radius: 4px; border: 1px solid #5E5E5E; background: #1A1A1A; color: white;">Close Window</button>
         </body>
       </html>`,
-      { headers: { 'Content-Type': 'text/html' }, status: 500 }
+      {
+        status: 500,
+        headers: { 'Content-Type': 'text/html' },
+      }
     );
   }
 }

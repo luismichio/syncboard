@@ -96,9 +96,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: 'Unsupported platform' }, { status: 400 });
-  } catch (err: any) {
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: err.message || 'Internal Server Error' },
+      { error: errorMsg },
       { status: 500 }
     );
   }

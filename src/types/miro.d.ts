@@ -10,8 +10,8 @@ interface MiroItem {
   type: string;
   title?: string;
   width?: number;
-  setMetadata(key: string, value: any): Promise<void>;
-  getMetadata(): Promise<any>;
+  setMetadata(key: string, value: unknown): Promise<void>;
+  getMetadata(): Promise<unknown>;
   sync(): Promise<void>;
 }
 
@@ -34,7 +34,8 @@ interface MiroBoard {
   }): Promise<MiroItem>;
   getInfo(): Promise<MiroBoardInfo>;
   ui: {
-    on(event: string, callback: () => void): void;
+    on(event: string, callback: (event: unknown) => void): void;
+    off(event: string, callback: (event: unknown) => void): void;
     openPanel(options: { url: string }): Promise<void>;
   };
   storage: {

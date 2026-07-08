@@ -28,6 +28,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
+        <script src="https://miro.com/app/static/sdk/v2/miro.js" defer></script>
         <script
           dangerouslySetInnerHTML={{
             __html: `

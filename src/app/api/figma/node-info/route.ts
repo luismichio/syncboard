@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const name = node?.name || 'Pasted Screen';
 
     return NextResponse.json({ name });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Figma node info query failed:', err);
     return NextResponse.json({ name: 'Pasted Screen' });
   }

@@ -76,9 +76,10 @@ export async function GET(request: Request) {
         'Cache-Control': 'no-store, max-age=0',
       },
     });
-  } catch (err: any) {
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: err.message || 'Internal Server Error' },
+      { error: errorMsg },
       { status: 500 }
     );
   }

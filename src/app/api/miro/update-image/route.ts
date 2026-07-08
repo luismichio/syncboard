@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
     // Attach the updated metadata and width geometry to preserve dimensions
     const titleTag = `[SyncBoard|${fileKey}|${nodeId}] ${nodeName}`;
-    const dataPayload: any = { title: titleTag };
+    const dataPayload: { title: string; geometry?: { width: number } } = { title: titleTag };
     if (width) {
       dataPayload.geometry = { width: Math.round(Number(width)) };
     }
@@ -97,9 +97,10 @@ export async function POST(request: Request) {
       success: true,
       item: miroData,
     });
-  } catch (err: any) {
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: err.message || 'Internal Server Error' },
+      { error: errorMsg },
       { status: 500 }
     );
   }
