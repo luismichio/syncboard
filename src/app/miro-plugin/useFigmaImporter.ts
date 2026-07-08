@@ -131,7 +131,8 @@ export function useFigmaImporter(
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch image render from server proxy');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Server returned HTTP ${response.status}`);
       }
 
       const blob = await response.blob();
