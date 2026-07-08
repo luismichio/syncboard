@@ -29,13 +29,13 @@ export function useMiroSelection(isInitMode: boolean | null) {
       const waitForMiro = (): Promise<{ board: MiroBoard }> => {
         return new Promise((resolve) => {
           if (window.miro?.board) {
-            resolve(window.miro);
+            resolve({ board: window.miro.board });
             return;
           }
           interval = setInterval(() => {
             if (window.miro?.board) {
               clearInterval(interval);
-              resolve(window.miro);
+              resolve({ board: window.miro.board });
             }
           }, 50);
         });
