@@ -4,7 +4,7 @@ SyncBoard is a stateless, open-source integration tool that lets product and des
 
 Unlike official live embeds which require browser logins and degrade board performance, SyncBoard places fast-loading, flat images that stakeholders can annotate, draw on, and reference instantly.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyour-username%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL)
 
 ---
 
@@ -78,6 +78,38 @@ Because SyncBoard is database-free and secure, you can distribute a trial versio
 3. Under **App Install Link**, copy the generated link.
 4. Share this link on your portfolio, website, or team Slack workspace. 
 5. Anyone who clicks the link can authorize and install the plugin on their board. When they log in to Figma/Miro, their credentials will be encrypted and saved in **their own browser storage**, allowing them to use your Vercel proxy with absolute privacy.
+
+---
+
+---
+
+## ⚠️ API Rate Limits & Quotas
+
+SyncBoard connects to both Figma and Miro, each of which applies independent rate limits to safeguard their APIs.
+
+### 1. Figma API Limits (The Primary Bottleneck)
+Figma applies strict limits to the **`GET /v1/images`** endpoint (used to render screens). Limits are based on the user's **Figma plan tier and seat type**:
+
+| Seat Type | Starter (Free Plan) | Professional (Paid Plan) | Organization | Enterprise |
+| :--- | :--- | :--- | :--- | :--- |
+| **Viewer / Collaborator** | **6 requests / month** | **6 requests / month** | **6 requests / month** | **6 requests / month** |
+| **Dev / Full Seat** | **6 requests / month** | **10 requests / min** | **15 requests / min** | **20 requests / min** |
+
+* **The Starter Plan Limitation:** If your Figma file is on a **Starter (Free) plan**, you are limited to **6 syncs per month** regardless of your seat type. Once reached, Figma blocks the token with an extended `Retry-After` cooldown (~4.5 days) representing a rolling monthly window.
+* **Production Deployment:** SyncBoard is designed for teams on a **Professional plan or higher** where members have paid **Full or Dev seats** (granting 10–20 requests per minute).
+* **SyncBoard Optimizations:** To minimize quota consumption, SyncBoard groups selected frames by `fileKey` and requests them in **a single batched render call** per file. If duplicates of a frame exist on the Miro board, SyncBoard renders the image once and distributes it locally, consuming **0 additional Figma calls** for copies.
+
+### 2. Miro API Limits
+Miro employs a credit-based system to rate limit requests. Rate limits are tracked **per user, per application**:
+
+* **Miro Image Upload / PATCH Endpoint:** Placed in the **Level 4** tier (most resource-heavy).
+* **Limit:** Up to **50 requests per minute** (equivalent to 2,000 credits).
+* **SyncBoard Throttling:** To stay comfortably below Miro's threshold, SyncBoard includes a built-in **500ms throttle delay** between consecutive Miro update requests.
+
+For full technical specifications, see the official documentation:
+* [Figma REST API Rate Limits Reference](https://developers.figma.com/docs/rest-api/rate-limits/)
+* [Figma MCP Server Rate Limits & Access](https://developers.figma.com/docs/figma-mcp-server/rate-limits-access/)
+* [Miro REST API Rate Limits Reference](https://developers.miro.com/docs/rate-limits)
 
 ---
 

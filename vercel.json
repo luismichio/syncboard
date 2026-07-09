@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "functions": {
+    "src/app/api/figma/render-batch/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/miro/update-image/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

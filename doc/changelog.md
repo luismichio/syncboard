@@ -4,6 +4,17 @@ All notable changes to the SyncBoard project are documented in this file.
 
 ---
 
+## [0.1.2] - 2026-07-09
+
+### Added
+* **Vercel Serverless Configurations:** Created `vercel.json` to extend the serverless function execution timeout `maxDuration` to 60 seconds (applicable for Pro/Enterprise) to support heavy asset downloads.
+
+### Changed
+* **Vercel Deploy Destination:** Updated the target destination repository URL in the "Deploy with Vercel" markdown button to point to the active `luismichio/syncboard` repository.
+* **Rate Limits Documentation:** Expanded the `README.md` to detail both Figma and Miro rate limits, highlighting plan limitations (Starter vs. Pro) and the built-in Miro request throttle delay.
+
+---
+
 ## [0.1.1] - 2026-07-09
 
 ### Added
