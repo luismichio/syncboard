@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getValidToken, clearToken } from '@/lib/tokens';
+import { getValidToken, clearToken, saveToken, TokenData } from '@/lib/tokens';
 
 /**
  * Handles loading, updating, and synchronizing auth tokens across tabs.
@@ -67,25 +67,29 @@ export function useAuthTokens(isInitMode: boolean | null) {
         }
       };
 
-      oauthChannel.onmessage = (event: MessageEvent) => {
+      oauthChannel.onmessage = async (event: MessageEvent) => {
         const { type, tokens } = event.data;
         if (type === 'FIGMA_AUTH_SUCCESS' && tokens?.accessToken) {
           setFigmaToken(tokens.accessToken);
+          await saveToken('figma', tokens as TokenData);
         }
         if (type === 'MIRO_AUTH_SUCCESS' && tokens?.accessToken) {
           setMiroToken(tokens.accessToken);
+          await saveToken('miro', tokens as TokenData);
         }
       };
 
       // Listen to postMessage from the popup window directly (bypasses iframe BroadcastChannel partitioning)
-      const handlePopupMessage = (event: MessageEvent) => {
+      const handlePopupMessage = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         const { type, tokens } = event.data || {};
         if (type === 'FIGMA_AUTH_SUCCESS' && tokens?.accessToken) {
           setFigmaToken(tokens.accessToken);
+          await saveToken('figma', tokens as TokenData);
         }
         if (type === 'MIRO_AUTH_SUCCESS' && tokens?.accessToken) {
           setMiroToken(tokens.accessToken);
+          await saveToken('miro', tokens as TokenData);
         }
       };
 

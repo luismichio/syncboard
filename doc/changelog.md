@@ -4,6 +4,13 @@ All notable changes to the SyncBoard project are documented in this file.
 
 ---
 
+## [0.1.7] - 2026-07-09
+
+### Fixed
+* **Iframe Token Write Missing:** Fixed the core token persistence bug by updating the `postMessage` and `BroadcastChannel` event handlers inside `useAuthTokens.ts` to explicitly call `saveToken()` when receiving successful authentication results from the OAuth popups. This ensures credentials are saved to Miro's board storage right away instead of only existing in temporary component memory.
+
+---
+
 ## [0.1.6] - 2026-07-09
 
 ### Added
