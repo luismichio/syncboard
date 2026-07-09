@@ -70,7 +70,6 @@ export async function clearToken(platform: 'figma' | 'miro'): Promise<void> {
 
   if (window.miro?.board?.storage) {
     try {
-      // Clear Miro board storage by setting it to empty string
       await window.miro.board.storage.set(STORAGE_KEYS[platform], '');
       return;
     } catch (err) {

@@ -50,27 +50,29 @@ export default function MiroPluginPage() {
         </div>
         <div className="flex items-center gap-3">
           {/* Figma Status Indicator */}
-          <span
+          <div
             title={figmaToken ? "Figma Connected" : "Figma Disconnected"}
-            className={`transition duration-200 ${figmaToken ? 'text-accent' : 'text-text-muted/20'}`}
-          >
-            <svg width="12" height="18" viewBox="0 0 38 57" fill="currentColor">
-              <path d="M19 28.5c0-5.25-4.25-9.5-9.5-9.5S0 23.25 0 28.5 4.25 38 9.5 38H19v-9.5z"/>
-              <path d="M19 9.5C19 4.25 14.75 0 9.5 0S0 4.25 0 9.5 4.25 19 9.5 19H19V9.5z"/>
-              <path d="M38 9.5C38 4.25 33.75 0 28.5 0S19 4.25 19 9.5v9.5h9.5c5.25 0 9.5-4.25 9.5-9.5z"/>
-              <path d="M38 28.5c0-5.25-4.25-9.5-9.5-9.5S19 23.25 19 28.5v9.5h9.5c5.25 0 9.5-4.25 9.5-9.5z"/>
-              <path d="M19 47.5c0 5.25-4.25 9.5-9.5 9.5S0 52.75 0 47.5s4.25-9.5 9.5-9.5h9.5v9.5z"/>
-            </svg>
-          </span>
+            className={`w-3.5 h-5 transition duration-200 ${figmaToken ? 'bg-accent' : 'bg-text-muted/30'}`}
+            style={{
+              maskImage: 'url(/Figma.svg)',
+              WebkitMaskImage: 'url(/Figma.svg)',
+              maskSize: 'contain',
+              maskRepeat: 'no-repeat',
+              maskPosition: 'center',
+            }}
+          />
           {/* Miro Status Indicator */}
-          <span
+          <div
             title={miroToken ? "Miro Connected" : "Miro Disconnected"}
-            className={`transition duration-200 ${miroToken ? 'text-accent' : 'text-text-muted/20'}`}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 20V8l8 8 8-8v12" />
-            </svg>
-          </span>
+            className={`w-4 h-4 transition duration-200 ${miroToken ? 'bg-accent' : 'bg-text-muted/30'}`}
+            style={{
+              maskImage: 'url(/Miro.svg)',
+              WebkitMaskImage: 'url(/Miro.svg)',
+              maskSize: 'contain',
+              maskRepeat: 'no-repeat',
+              maskPosition: 'center',
+            }}
+          />
         </div>
       </header>
 

@@ -4,6 +4,16 @@ All notable changes to the SyncBoard project are documented in this file.
 
 ---
 
+## [0.1.5] - 2026-07-09
+
+### Added
+* **Dynamic Public SVG Masks:** Migrated connection status indicators to use `/Figma.svg` and `/Miro.svg` assets from the public directory. Applied CSS `mask-image` in `page.tsx` to colorize them into monochrome theme states (muted gray when disconnected, neon green/purple accent when connected).
+
+### Fixed
+* **Miro Storage Typings Parity:** Reverted `lib/tokens.ts` to use direct `storage.get` and `storage.set` API parameters, resolving TypeScript compilation errors while keeping the initialization poll delay intact to guarantee token persistence on reload.
+
+---
+
 ## [0.1.4] - 2026-07-09
 
 ### Added
