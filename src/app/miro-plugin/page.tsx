@@ -23,6 +23,8 @@ export default function MiroPluginPage() {
     detectLocalFigmaSelection,
     importFigmaScreen,
     syncSelectedScreens,
+    syncAllCopies,
+    setSyncAllCopies,
   } = useMiroPlugin();
 
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
@@ -105,12 +107,24 @@ export default function MiroPluginPage() {
                       </span>
                     </div>
                   ))}
+                  {/* Sync All Copies toggle */}
+                  <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={syncAllCopies}
+                      onChange={e => setSyncAllCopies(e.target.checked)}
+                      className="accent-accent w-3 h-3"
+                    />
+                    <span className="text-[10px] text-text-muted font-mono">
+                      Also update all board copies
+                    </span>
+                  </label>
                   <button
                     onClick={syncSelectedScreens}
                     disabled={isSyncing || !figmaToken || !miroToken}
-                    className="w-full mt-4 font-mono font-bold text-xs py-2.5 rounded bg-accent text-bg-page hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full mt-3 font-mono font-bold text-xs py-2.5 rounded bg-accent text-bg-page hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    SYNC SELECTED SCREENS
+                    {syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED'}
                   </button>
                 </div>
               ) : (

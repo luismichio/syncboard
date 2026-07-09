@@ -45,6 +45,8 @@ export function useMiroPlugin() {
   // 4. Board Sync Hook
   const {
     syncSelectedScreens,
+    syncAllCopies,
+    setSyncAllCopies,
   } = useMiroSync(
     figmaToken,
     miroToken,
@@ -72,5 +74,7 @@ export function useMiroPlugin() {
     detectLocalFigmaSelection,
     importFigmaScreen,
     syncSelectedScreens,
+    syncAllCopies,
+    setSyncAllCopies,
   };
 }
