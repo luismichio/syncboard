@@ -4,6 +4,14 @@ All notable changes to the SyncBoard project are documented in this file.
 
 ---
 
+## [0.1.6] - 2026-07-09
+
+### Added
+* **SyncBoard Custom Logo:** Integrated `public/syncboard_logo.svg` as the application's favicon and main sidebar logo, styled with dynamic CSS mask-image logic.
+* **Offline Font Optimization:** Replaced external Google Font loads with standard system font fallback stacks, preventing Next.js Turbopack compilation crashes in offline or restricted-network environments.
+
+---
+
 ## [0.1.5] - 2026-07-09
 
 ### Added

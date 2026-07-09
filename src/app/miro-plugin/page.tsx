@@ -44,9 +44,22 @@ export default function MiroPluginPage() {
       
       {/* App Header */}
       <header className="mb-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-accent">SyncBoard</h2>
-          <p className="text-xs text-text-muted">Stateless Figma-Miro Pipeline</p>
+        <div className="flex items-center gap-2">
+          {/* SyncBoard Logo */}
+          <div
+            className="w-6 h-6 bg-accent"
+            style={{
+              maskImage: 'url(/syncboard_logo.svg)',
+              WebkitMaskImage: 'url(/syncboard_logo.svg)',
+              maskSize: 'contain',
+              maskRepeat: 'no-repeat',
+              maskPosition: 'center',
+            }}
+          />
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-accent leading-none">SyncBoard</h2>
+            <p className="text-[10px] text-text-muted mt-0.5">Stateless Figma-Miro Pipeline</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           {/* Figma Status Indicator */}
