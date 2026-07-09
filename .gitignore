@@ -45,3 +45,6 @@ next-env.d.ts
 # Agents
 AGENTS.md
 CLAUDE.md
+
+# Planning docs
+/doc/backlog.md

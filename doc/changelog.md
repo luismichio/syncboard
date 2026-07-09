@@ -1,0 +1,31 @@
+# Changelog
+
+All notable changes to the SyncBoard project are documented in this file.
+
+---
+
+## [0.1.1] - 2026-07-09
+
+### Added
+* **Render Batching API:** Added `/api/figma/render-batch` serverless route accepting multiple node IDs to render and download assets in a single Figma API request, minimizing quota usage.
+* **Miro Sync Copy Option:** Added a toggle checkbox "Also update all board copies" to the Sync tab.
+* **Enriched 429 Error Fields:** Extracted Figma-specific rate limiting headers (`X-Figma-Plan-Tier`, `X-Figma-Rate-Limit-Type`, `Retry-After`) and bubble them up to the UI status message.
+
+### Changed
+* **Default Sync Scope:** Refactored `useMiroSync` to update only the selected board items by default (rather than scanning the entire board for copies).
+* **Deduplicated Rendering:** Sync now fetches Figma renders exactly once per unique node ID and distributes the data url to all Miro matching widgets, reducing redundant API hits to 0 for duplicated widgets.
+* **Error Handling:** Client-side error messages now present structured details showing Plan Tiers, Seat Types, and dynamic cooldown counts.
+
+---
+
+## [0.1.0] - 2026-07-08
+
+### Added
+* **Tabbed Plugin Layout:** Rebuilt the sidebar UI in `src/app/miro-plugin/page.tsx` into an organized 3-tab layout (Sync Selection, Import Screen, Settings) to suit narrow plugin sidebar views.
+* **Disconnect Actions:** Added UI buttons to disconnect Miro and Figma connections and flush tokens from localStorage/board storage.
+* **Iframe Message Listener:** Implemented a `window.addEventListener('message')` listener inside `useAuthTokens.ts` to bypass standard BroadcastChannel partitioning issues during OAuth popup redirection.
+
+### Fixed
+* **Miro SDK v2 Promise Proxy Crash:** Resolved standard `SdkError: Cannot call method '.then()'` runtime errors by wrapping proxy board resolutions into static objects.
+* **Lazy State Hydration:** Refactored the main coordinator state hooks in `useMiroPlugin.ts` to use functional lazy initializers, resolving React cascading rendering warnings.
+* **TypeScript Strict Types:** Cleaned up code structure, replacing all standard `any` type overrides with strict type definitions.
