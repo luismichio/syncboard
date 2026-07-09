@@ -43,9 +43,35 @@ export default function MiroPluginPage() {
     <div className="flex flex-col min-h-screen p-5 bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page transition-colors duration-200">
       
       {/* App Header */}
-      <header className="mb-4">
-        <h2 className="text-xl font-bold tracking-tight text-accent">SyncBoard</h2>
-        <p className="text-xs text-text-muted">Stateless Figma-Miro Pipeline</p>
+      <header className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-accent">SyncBoard</h2>
+          <p className="text-xs text-text-muted">Stateless Figma-Miro Pipeline</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Figma Status Indicator */}
+          <span
+            title={figmaToken ? "Figma Connected" : "Figma Disconnected"}
+            className={`transition duration-200 ${figmaToken ? 'text-accent' : 'text-text-muted/20'}`}
+          >
+            <svg width="12" height="18" viewBox="0 0 38 57" fill="currentColor">
+              <path d="M19 28.5c0-5.25-4.25-9.5-9.5-9.5S0 23.25 0 28.5 4.25 38 9.5 38H19v-9.5z"/>
+              <path d="M19 9.5C19 4.25 14.75 0 9.5 0S0 4.25 0 9.5 4.25 19 9.5 19H19V9.5z"/>
+              <path d="M38 9.5C38 4.25 33.75 0 28.5 0S19 4.25 19 9.5v9.5h9.5c5.25 0 9.5-4.25 9.5-9.5z"/>
+              <path d="M38 28.5c0-5.25-4.25-9.5-9.5-9.5S19 23.25 19 28.5v9.5h9.5c5.25 0 9.5-4.25 9.5-9.5z"/>
+              <path d="M19 47.5c0 5.25-4.25 9.5-9.5 9.5S0 52.75 0 47.5s4.25-9.5 9.5-9.5h9.5v9.5z"/>
+            </svg>
+          </span>
+          {/* Miro Status Indicator */}
+          <span
+            title={miroToken ? "Miro Connected" : "Miro Disconnected"}
+            className={`transition duration-200 ${miroToken ? 'text-accent' : 'text-text-muted/20'}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 20V8l8 8 8-8v12" />
+            </svg>
+          </span>
+        </div>
       </header>
 
       {/* Tabs Navigation Bar */}

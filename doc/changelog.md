@@ -4,6 +4,25 @@ All notable changes to the SyncBoard project are documented in this file.
 
 ---
 
+## [0.1.4] - 2026-07-09
+
+### Added
+* **Connection Status Indicators:** Added Figma and Miro status icons to the top-right corner of the App Header. The SVGs remain light gray (`text-text-muted/20`) when disconnected and light up in active green/purple (`text-accent`) when authorized.
+
+### Fixed
+* **Token Persistence on Refresh:** Fixed a race condition where tokens failed to load on page reload. `useAuthTokens` now polls and waits for `window.miro.board` initialization before querying board storage, preventing default browser third-party `localStorage` blocks inside the Miro iframe environment.
+
+---
+
+## [0.1.3] - 2026-07-09
+
+### Fixed
+* **Theme Hydration Cascading Renders:** Wrapped theme loading state setter inside `requestAnimationFrame` to defer updates to the next microtask, preventing Next.js hydration warning loops.
+* **Access Before Declaration:** Moved local declaration blocks in `ThemeToggle.tsx` above usage patterns.
+* **Unused Variable Warnings:** Removed unused imports (`useEffect`, `TokenData`), unused error parameters in try-catch statements, and unused Request signatures in Next.js OAuth API route handlers.
+
+---
+
 ## [0.1.2] - 2026-07-09
 
 ### Added

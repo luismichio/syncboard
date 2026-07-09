@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuthTokens } from './useAuthTokens';
 import { useMiroSelection } from './useMiroSelection';
 import { useFigmaImporter } from './useFigmaImporter';

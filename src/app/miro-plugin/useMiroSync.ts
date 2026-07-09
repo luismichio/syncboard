@@ -175,7 +175,7 @@ export function useMiroSync(
         const syncChannel = new BroadcastChannel('figma_miro_sync');
         syncChannel.postMessage({ type: 'SYNC_COMPLETE' });
         syncChannel.close();
-      } catch (e) {}
+      } catch {}
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setSyncStatus(`Sync failed: ${errMsg}`);
@@ -183,7 +183,7 @@ export function useMiroSync(
         const syncChannel = new BroadcastChannel('figma_miro_sync');
         syncChannel.postMessage({ type: 'SYNC_ERROR', error: errMsg });
         syncChannel.close();
-      } catch (e) {}
+      } catch {}
     } finally {
       setIsSyncing(false);
     }

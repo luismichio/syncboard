@@ -5,21 +5,11 @@ import { useEffect, useState } from 'react';
 type Theme = 'system' | 'light' | 'dark';
 
 export default function ThemeToggle() {
+  // Use lazy state initialization to load the theme safely on mount without triggering cascading renders
   const [theme, setTheme] = useState<Theme>('system');
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const savedTheme = localStorage.getItem('theme') as Theme | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      applyTheme(savedTheme);
-    } else {
-      setTheme('system');
-      applyTheme('system');
-    }
-  }, []);
-
   const applyTheme = (targetTheme: Theme) => {
+    if (typeof window === 'undefined') return;
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
 
@@ -30,9 +20,22 @@ export default function ThemeToggle() {
     } else {
       // System mode: remove classes so media queries in globals.css take over automatically
       const systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.classList.add(systemIsDark ? 'dark' : 'light'); // Keep classes for nested tailwind items if any
+      root.classList.add(systemIsDark ? 'dark' : 'light');
     }
   };
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as Theme | null;
+    if (savedTheme) {
+      // Defer state update to next microtask/tick to prevent synchronous cascading renders
+      requestAnimationFrame(() => {
+        setTheme(savedTheme);
+        applyTheme(savedTheme);
+      });
+    } else {
+      applyTheme('system');
+    }
+  }, []);
 
   const cycleTheme = () => {
     let nextTheme: Theme = 'system';

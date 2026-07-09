@@ -156,6 +156,7 @@ export default function DashboardPage() {
                     {/* Rendered Figma Preview */}
                     <div className="aspect-[16/9] w-full bg-bg-page relative overflow-hidden flex items-center justify-center border-b border-border-card">
                       {figmaToken ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img 
                           src={`/api/figma/render?fileKey=${item.fileKey}&nodeId=${item.nodeId}&token=${figmaToken}`}
                           alt={item.nodeName}

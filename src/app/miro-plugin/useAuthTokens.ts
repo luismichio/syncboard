@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { getValidToken, clearToken, TokenData } from '@/lib/tokens';
+import { getValidToken, clearToken } from '@/lib/tokens';
 
 /**
  * Handles loading, updating, and synchronizing auth tokens across tabs.
+ * Waits for Miro SDK initialisation to ensure board storage is available on mount.
  */
 export function useAuthTokens(isInitMode: boolean | null) {
   const [figmaToken, setFigmaToken] = useState<string | null>(null);
@@ -11,7 +12,29 @@ export function useAuthTokens(isInitMode: boolean | null) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    let active = true;
+    let interval: NodeJS.Timeout;
+
     const loadTokens = async () => {
+      // Wait for Miro board storage bridge to initialize before fetching tokens
+      const waitForMiro = (): Promise<boolean> => {
+        return new Promise((resolve) => {
+          if (window.miro?.board) {
+            resolve(true);
+            return;
+          }
+          interval = setInterval(() => {
+            if (window.miro?.board) {
+              clearInterval(interval);
+              resolve(true);
+            }
+          }, 50);
+        });
+      };
+
+      await waitForMiro();
+      if (!active) return;
+
       try {
         const fToken = await getValidToken('figma');
         const mToken = await getValidToken('miro');
@@ -21,7 +44,13 @@ export function useAuthTokens(isInitMode: boolean | null) {
         console.error('Failed to load credentials:', err);
       }
     };
+
     loadTokens();
+
+    return () => {
+      active = false;
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
