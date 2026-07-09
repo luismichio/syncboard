@@ -105,10 +105,20 @@ export function useMiroSync(
         });
 
         if (!batchRes.ok) {
-          const errData = await batchRes.json().catch(() => ({}));
-          const errMsg = errData.error || 'Figma batch render failed';
-          if (batchRes.status === 429) throw new Error(`Rate limited by Figma. ${errMsg}`);
-          throw new Error(errMsg);
+          const errData = await batchRes.json().catch(() => ({})) as {
+            error?: string;
+            retryAfter?: number | null;
+            planTier?: string | null;
+            limitType?: string | null;
+          };
+          if (batchRes.status === 429) {
+            const parts: string[] = ['Rate limited by Figma.'];
+            if (errData.planTier) parts.push(`Plan: ${errData.planTier}.`);
+            if (errData.limitType) parts.push(`Seat tier: ${errData.limitType}.`);
+            if (errData.retryAfter) parts.push(`Retry in ${errData.retryAfter}s.`);
+            throw new Error(parts.join(' '));
+          }
+          throw new Error(errData.error || 'Figma batch render failed');
         }
 
         const { images } = await batchRes.json() as { images: Record<string, string | null> };

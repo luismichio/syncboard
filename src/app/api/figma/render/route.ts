@@ -43,10 +43,16 @@ export async function GET(request: Request) {
 
     if (!figmaResponse.ok) {
       const retryAfter = figmaResponse.headers.get('Retry-After');
-      const retryMsg = retryAfter ? ` Please wait ${retryAfter}s before retrying.` : '';
-      const baseError = figmaData.err || figmaData.message || 'Figma image rendering failed';
+      const planTier = figmaResponse.headers.get('X-Figma-Plan-Tier');
+      const limitType = figmaResponse.headers.get('X-Figma-Rate-Limit-Type');
+      const baseError = figmaData.err || figmaData.message || 'Rate limit exceeded';
       return NextResponse.json(
-        { error: `${baseError}.${retryMsg}` },
+        {
+          error: baseError,
+          retryAfter: retryAfter ? Number(retryAfter) : null,
+          planTier,
+          limitType,
+        },
         { status: figmaResponse.status }
       );
     }
