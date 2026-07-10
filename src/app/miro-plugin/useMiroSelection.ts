@@ -62,14 +62,14 @@ export function useMiroSelection(isInitMode: boolean | null) {
               if (item.type === 'image') {
                 // 1. Try title-based parsing first (synchronous, 0ms latency, zero API rate limits)
                 if (item.title) {
-                  const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]\s*(.*)$/);
+                  const match = item.title.match(/^(.*?)\s*\[SyncBoard\|([^|]+)\|([^\]]+)\]$/);
                   if (match) {
                     synced.push({
                       id: item.id,
                       title: item.title,
-                      fileKey: match[1],
-                      nodeId: match[2],
-                      nodeName: match[3] || 'Unnamed Screen',
+                      fileKey: match[2],
+                      nodeId: match[3],
+                      nodeName: match[1].trim() || 'Unnamed Screen',
                     });
                     continue; // Skip metadata query!
                   }
@@ -82,7 +82,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
                   if (syncData?.fileKey && syncData?.nodeId) {
                     synced.push({
                       id: item.id,
-                      title: `[SyncBoard|${syncData.fileKey}|${syncData.nodeId}] ${syncData.nodeName || 'Unnamed Screen'}`,
+                      title: `${syncData.nodeName || 'Unnamed Screen'} [SyncBoard|${syncData.fileKey}|${syncData.nodeId}]`,
                       fileKey: syncData.fileKey,
                       nodeId: syncData.nodeId,
                       nodeName: syncData.nodeName || 'Unnamed Screen',

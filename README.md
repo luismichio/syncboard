@@ -164,7 +164,7 @@ When you want to fetch updates:
 
 ## 🛠️ How it Works under the Hood
 
-* **Decentralized Mapping:** When an image is created, we write a tag into its `title` parameter: `[SyncBoard|fileKey|nodeId] Node Name`.
+* **Decentralized Mapping:** When an image is created, we write a tag into its `title` parameter: `Node Name [SyncBoard|fileKey|nodeId]`.
 * **Stateless Synchronization:** During a sync, the Miro sidebar retrieves all images on the canvas and filters for the `[SyncBoard|` signature. The serverless proxy retrieves the fresh frame render from Figma's REST API and uploads the binary payload as `multipart/form-data` directly to Miro's `PATCH` endpoint, overwriting the image content.
 * **Auto-Authorization:** If a token expires, the client-side helper detects it and prompts the serverless `/api/oauth/refresh` endpoint to perform a secure backend exchange using client secrets.
 

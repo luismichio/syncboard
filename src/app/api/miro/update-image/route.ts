@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     const file = new File([arrayBuffer], 'screenshot.png', { type: 'image/png' });
     formData.append('resource', file);
 
-    const titleTag = `[SyncBoard|${fileKey}|${nodeId}] ${nodeName}`;
+    const titleTag = `${nodeName} [SyncBoard|${fileKey}|${nodeId}]`;
     const dataPayload: { title: string; geometry?: { width: number } } = { title: titleTag };
     if (width) {
       dataPayload.geometry = { width: Math.round(Number(width)) };

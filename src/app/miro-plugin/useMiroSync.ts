@@ -45,7 +45,7 @@ export function useMiroSync(
         for (const selected of selectedItems) {
           const matches = allItems.filter(item => {
             if (item.type === 'image' && item.title) {
-              const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]/);
+              const match = item.title.match(/\[SyncBoard\|([^|]+)\|([^\]]+)\]/);
               return match && match[1] === selected.fileKey && match[2] === selected.nodeId;
             }
             return false;

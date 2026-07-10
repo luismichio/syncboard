@@ -140,7 +140,7 @@ export function useFigmaImporter(
 
       reader.onloadend = async () => {
         const dataUrl = reader.result as string;
-        const titleTag = `[SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}] ${figmaNodeInfo.name}`;
+        const titleTag = `${figmaNodeInfo.name} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
         const image = await miro.board.createImage({
           url: dataUrl,
           title: titleTag,

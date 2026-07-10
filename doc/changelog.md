@@ -10,6 +10,7 @@ All notable changes to the SyncBoard project are documented in this file.
 * **Vitest Unit Test Suite:** Configured Vitest and jsdom environments for frontend testing. Added test coverage for Figma URL parsing and OAuth token validation helpers.
 * **Husky Pre-Push Hook:** Added automated pre-push hook integration ensuring lint, test, and production builds pass before any git push.
 * **Themed Auth Popups:** Integrated a dynamic, client-side script in all OAuth auth and callback popup windows to detect the active theme configuration (`light`, `dark`, or `system` pref) from localStorage and dynamically style background, text, buttons, and loading states to match.
+* **Name-First Title Format:** Changed the image title structure to show the clean human-readable design name first, followed by the sync metadata (`Name [SyncBoard|fileKey|nodeId]`). Adapted selection hook parsing, fallback generation, and copy-matching logic accordingly.
 
 ### Fixed
 * **OAuth CSRF Security:** Implemented cryptographic random `state` validation via secure, HTTP-only cookie validation for Figma and Miro callback routes.
