@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SyncBoard Companion Plugin</title>
+  <style>
+    :root {
+      --bg-page: #0c0a0f;
+      --bg-card: #141218;
+      --border-card: #23202a;
+      --text-page: #e3e1e6;
+      --text-muted: #918f99;
+      --accent: #5efb6e; /* Neon Green focus */
+      --accent-purple: #c384fc; /* Secondary branding purple */
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      background-color: var(--bg-page);
+      color: var(--text-page);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 13px;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border-bottom: 1px solid var(--border-card);
+      padding-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background-color: var(--bg-page);
+      border: 1px solid var(--border-card);
+      border-radius: 4px;
+      color: var(--text-page);
+      padding: 6px 8px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    button {
+      background-color: var(--accent);
+      color: var(--bg-page);
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-weight: bold;
+      font-size: 11px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .badge {
+      font-size: 9px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+    }
+
+    .badge-disconnected {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .badge-connected {
+      background-color: rgba(94, 251, 110, 0.1);
+      color: var(--accent);
+      border-color: rgba(94, 251, 110, 0.2);
+    }
+
+    .badge-connecting {
+      background-color: rgba(195, 132, 252, 0.1);
+      color: var(--accent-purple);
+      border-color: rgba(195, 132, 252, 0.2);
+    }
+
+    .log-box {
+      font-family: monospace;
+      font-size: 10px;
+      background-color: var(--bg-page);
+      border: 1px solid var(--border-card);
+      border-radius: 4px;
+      padding: 8px;
+      height: 80px;
+      overflow-y: auto;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h2>SyncBoard Companion</h2>
+      <p class="subtitle">Penpot Connection Bridge</p>
+    </header>
+
+    <div class="card">
+      <label for="pairing-id">Miro Pairing ID</label>
+      <div class="input-row">
+        <input type="text" id="pairing-id" placeholder="Paste ID from Miro Settings..." />
+        <button id="connect-btn">Connect</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="status-row">
+        <span>Bridge Status:</span>
+        <span id="status-badge" class="badge badge-disconnected">Disconnected</span>
+      </div>
+      <div class="status-row" style="margin-top: 4px;">
+        <span>Active File:</span>
+        <span id="file-name" style="color: var(--text-muted)">None loaded</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Activity Log</label>
+      <div id="log" class="log-box">Initialized. Ready to pair.</div>
+    </div>
+  </div>
+
+  <script>
+    let ws = null;
+    let reconnectTimeout = null;
+
+    const pairingInput = document.getElementById('pairing-id');
+    const connectBtn = document.getElementById('connect-btn');
+    const statusBadge = document.getElementById('status-badge');
+    const fileNameText = document.getElementById('file-name');
+    const logBox = document.getElementById('log');
+
+    // Restore saved pairing ID
+    const savedId = localStorage.getItem('syncboard_pairing_id');
+    if (savedId) {
+      pairingInput.value = savedId;
+    }
+
+    function log(message) {
+      const time = new Date().toLocaleTimeString();
+      logBox.innerHTML += `<div>[${time}] ${message}</div>`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function updateStatus(state, labelText) {
+      statusBadge.textContent = labelText || state;
+      statusBadge.className = 'badge';
+      if (state === 'connected') {
+        statusBadge.classList.add('badge-connected');
+      } else if (state === 'connecting') {
+        statusBadge.classList.add('badge-connecting');
+      } else {
+        statusBadge.classList.add('badge-disconnected');
+      }
+    }
+
+    function connectBridge() {
+      const pairingId = pairingInput.value.trim();
+      if (!pairingId) {
+        log("Error: Pairing ID cannot be empty.");
+        return;
+      }
+
+      localStorage.setItem('syncboard_pairing_id', pairingId);
+      
+      if (ws) {
+        ws.close();
+      }
+
+      updateStatus('connecting', 'Connecting...');
+      log(`Initiating connection to Tauri bridge...`);
+
+      // Connect to Tauri local secure loopback WS server
+      // Using standard fallback: local.syncboard.com (resolves to 127.0.0.1) on port 4402
+      const wsUrl = `wss://local.syncboard.com:4402?pairingId=${pairingId}`;
+      
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (err) {
+        log(`WS Exception: ${err.message}`);
+        updateStatus('disconnected', 'Failed');
+        return;
+      }
+
+      ws.onopen = () => {
+        updateStatus('connected', 'Connected');
+        log("Connection established successfully with Tauri!");
+        
+        // Listen to active Penpot file info
+        if (typeof penpot !== 'undefined' && penpot.currentFile) {
+          fileNameText.textContent = penpot.currentFile.name || 'Unnamed file';
+          log(`Syncing active file: ${penpot.currentFile.name}`);
+        } else {
+          fileNameText.textContent = 'Stand-alone mode';
+        }
+      };
+
+      ws.onclose = () => {
+        updateStatus('disconnected', 'Disconnected');
+        log("Connection lost. Retrying in 5 seconds...");
+        reconnectTimeout = setTimeout(connectBridge, 5000);
+      };
+
+      ws.onerror = (err) => {
+        log("WebSocket Connection Error.");
+        updateStatus('disconnected', 'Error');
+      };
+
+      ws.onmessage = async (event) => {
+        try {
+          const request = JSON.parse(event.data);
+          log(`Received command: "${request.action}"`);
+
+          if (request.action === 'select') {
+            if (typeof penpot === 'undefined') {
+              ws.send(JSON.stringify({
+                requestId: request.id,
+                error: 'Penpot context is missing.'
+              }));
+              return;
+            }
+
+            const selection = penpot.selection[0];
+            const file = penpot.currentFile;
+            
+            log(`Querying active Penpot selection...`);
+            ws.send(JSON.stringify({
+              requestId: request.id,
+              data: selection ? {
+                id: selection.id,
+                name: selection.name,
+                fileId: file ? file.id : 'unknown'
+              } : null
+            }));
+          }
+
+          if (request.action === 'export') {
+            if (typeof penpot === 'undefined') {
+              ws.send(JSON.stringify({
+                requestId: request.id,
+                error: 'Penpot context is missing.'
+              }));
+              return;
+            }
+
+            log(`Exporting shape: "${request.shapeId}" (${request.format || 'svg'})...`);
+            
+            try {
+              // Trigger native Penpot plugin export engine
+              const buffer = await penpot.export(request.shapeId, {
+                format: request.format || 'svg',
+                scale: request.scale || 2
+              });
+
+              if (request.format === 'svg') {
+                // SVG returns raw text content
+                const svgText = new TextDecoder().decode(buffer);
+                ws.send(JSON.stringify({
+                  requestId: request.id,
+                  data: { svg: svgText }
+                }));
+              } else {
+                // PNG returns binary arraybuffer, encode as base64
+                const bytes = new Uint8Array(buffer);
+                let binary = '';
+                for (let i = 0; i < bytes.byteLength; i++) {
+                  binary += String.fromCharCode(bytes[i]);
+                }
+                const base64 = btoa(binary);
+                ws.send(JSON.stringify({
+                  requestId: request.id,
+                  data: { base64 }
+                }));
+              }
+              log("Export completed successfully.");
+            } catch (exportErr) {
+              log(`Export failed: ${exportErr.message}`);
+              ws.send(JSON.stringify({
+                requestId: request.id,
+                error: exportErr.message
+              }));
+            }
+          }
+        } catch (msgErr) {
+          log(`Message processing error: ${msgErr.message}`);
+        }
+      };
+    }
+
+    connectBtn.addEventListener('click', () => {
+      clearTimeout(reconnectTimeout);
+      connectBridge();
+    });
+
+    // Auto-connect if pairing ID exists
+    if (savedId) {
+      connectBridge();
+    }
+  </script>
+</body>
+</html>

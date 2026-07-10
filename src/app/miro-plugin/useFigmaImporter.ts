@@ -65,6 +65,31 @@ export function useFigmaImporter(
 
   const detectLocalFigmaSelection = async () => {
     setIsDetectingLocal(true);
+    
+    const useTauri = typeof window !== 'undefined' && localStorage.getItem('syncboard_use_tauri') === 'true';
+    if (useTauri) {
+      try {
+        const { callFigmaSelectionTauri } = await import('./penpotMcpClient');
+        const selection = await callFigmaSelectionTauri();
+        if (selection) {
+          setFigmaNodeInfo({
+            fileKey: selection.fileKey,
+            nodeId: selection.id,
+            name: selection.name || 'Figma Screen',
+          });
+          setSyncStatusParent('Local Figma selection detected via Tauri!');
+        } else {
+          throw new Error('Tauri returned empty Figma selection details. Make sure your design file is open.');
+        }
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        setSyncStatusParent(`Tauri Figma detection failed: ${errMsg}`);
+      } finally {
+        setIsDetectingLocal(false);
+      }
+      return;
+    }
+
     try {
       const response = await fetch('http://127.0.0.1:3845/mcp', {
         method: 'POST',

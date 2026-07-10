@@ -54,3 +54,10 @@ Track active implementation checklist for codebase quality, security, testing, a
 - [x] Update Miro update API route to output the correct `PenpotSync` title tag when updating Penpot widgets.
 - [x] Patch the local Penpot MCP server (`PenpotMcpServer.ts`) to add CORS middleware, allowing local browser calls to `localhost:4401`.
 - [x] Verify compilation and test suite status (`yarn test` and `yarn build`).
+
+### Phase 7: Tauri Local HTTPS Bridge & Penpot Companion Plugin
+- [ ] Create detailed Tauri secure HTTPS loopback bridge and Penpot companion plugin specification artifact (`tauri_bridge_spec.md`).
+- [ ] Implement Penpot Companion Plugin script skeleton (`penpot-companion-plugin.html`) that handles WebSocket messaging and native exports.
+- [ ] Adapt client-side `penpotMcpClient.ts` to fallback to `https://local.syncboard.com:4401` when the Tauri bridge is active.
+- [ ] Add "Tauri Desktop Bridge" toggle and pairing status information to the Miro plugin Settings tab.
+- [ ] Document local SSL code-signing/trusted certificate installation steps inside `doc/tauri-setup.md`.

@@ -46,6 +46,39 @@ export default function MiroPluginPage() {
     return 2;
   });
 
+  const [useTauri, setUseTauri] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('syncboard_use_tauri') === 'true';
+    }
+    return false;
+  });
+
+  const [pairingId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      let id = localStorage.getItem('syncboard_pairing_id');
+      if (!id) {
+        id = 'sb_' + Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
+        localStorage.setItem('syncboard_pairing_id', id);
+      }
+      return id;
+    }
+    return '';
+  });
+
+  const [copiedPairing, setCopiedPairing] = useState<boolean>(false);
+
+  const handleTauriToggle = (val: boolean) => {
+    setUseTauri(val);
+    localStorage.setItem('syncboard_use_tauri', val ? 'true' : 'false');
+  };
+
+  const copyPairingId = () => {
+    navigator.clipboard.writeText(pairingId).then(() => {
+      setCopiedPairing(true);
+      setTimeout(() => setCopiedPairing(false), 2000);
+    });
+  };
+
   const handleDefaultPngScaleChange = (val: number) => {
     setDefaultPngScale(val);
     localStorage.setItem('default_png_scale', String(val));
@@ -528,18 +561,63 @@ export default function MiroPluginPage() {
                   )}
                 </div>
 
-                {/* Penpot Local MCP Indicator Card */}
+                {/* Tauri Desktop Bridge Card */}
                 <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
                   <div>
-                    <div className="text-xs font-semibold text-text-page">Penpot Local MCP</div>
+                    <div className="text-xs font-semibold text-text-page">Tauri Desktop Bridge</div>
                     <div className="text-[10px] text-text-muted">
-                      Listening on localhost:4401
+                      {useTauri ? 'Local HTTPS loopback active' : 'Disabled (using direct MCP)'}
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 text-[8px] font-mono font-bold bg-green-950/40 border border-green-800/40 text-green-400 rounded">
-                    ACTIVE
-                  </span>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={useTauri}
+                      onChange={(e) => handleTauriToggle(e.target.checked)}
+                      className="accent-accent w-3.5 h-3.5"
+                    />
+                    <span className="text-[10px] text-text-muted font-mono uppercase tracking-wider">
+                      {useTauri ? 'ON' : 'OFF'}
+                    </span>
+                  </label>
                 </div>
+
+                {useTauri ? (
+                  /* Sync Pairing ID Card */
+                  <div className="p-3 rounded-lg bg-bg-card border border-border-card flex flex-col gap-2 animate-fade-in">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-text-page">Miro Pairing ID</span>
+                      <button
+                        onClick={copyPairingId}
+                        className="text-[9px] font-mono font-bold tracking-wider text-accent border border-accent/40 rounded px-1.5 py-0.5 bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer"
+                      >
+                        {copiedPairing ? 'COPIED!' : 'COPY ID'}
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      readOnly
+                      value={pairingId}
+                      className="w-full text-[10px] font-mono bg-bg-page border border-border-card rounded p-1.5 text-text-muted select-all focus:outline-none"
+                    />
+                    <p className="text-[9px] text-text-muted leading-tight mt-0.5">
+                      Paste this pairing ID inside the Penpot Companion Plugin to connect the bridge.
+                    </p>
+                  </div>
+                ) : (
+                  /* Penpot Local MCP Indicator Card */
+                  <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
+                    <div>
+                      <div className="text-xs font-semibold text-text-page">Penpot Local MCP</div>
+                      <div className="text-[10px] text-text-muted">
+                        Listening on localhost:4401
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 text-[8px] font-mono font-bold bg-green-950/40 border border-green-800/40 text-green-400 rounded">
+                      ACTIVE
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             <div>
