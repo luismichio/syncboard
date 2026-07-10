@@ -10,6 +10,7 @@ export default function MiroPluginPage() {
     figmaToken,
     miroToken,
     selectedItems,
+    setSelectedItems,
     isSyncing,
     syncStatus,
     figmaInput,
@@ -28,6 +29,61 @@ export default function MiroPluginPage() {
   } = useMiroPlugin();
 
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
+  const [defaultPngScale, setDefaultPngScale] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('default_png_scale');
+      return saved ? Number(saved) : 2;
+    }
+    return 2;
+  });
+
+  const handleDefaultPngScaleChange = (val: number) => {
+    setDefaultPngScale(val);
+    localStorage.setItem('default_png_scale', String(val));
+  };
+
+  // Dynamically update format or scale directly to Miro metadata and React state
+  const handleItemSettingChange = async (itemId: string, key: 'format' | 'scale', value: unknown) => {
+    if (typeof window === 'undefined') return;
+    const miro = window.miro;
+    if (!miro) return;
+
+    try {
+      const selection = await miro.board.getSelection();
+      const widget = selection.find(w => w.id === itemId);
+      
+      if (widget && widget.type === 'image') {
+        const metadata = (await widget.getMetadata()) as Record<string, unknown> | undefined;
+        const syncData = metadata?.syncboard as Record<string, unknown> | undefined;
+        
+        if (syncData) {
+          const updated = {
+            ...syncData,
+            [key]: value
+          };
+          
+          await widget.setMetadata('syncboard', updated);
+          await widget.sync();
+
+          // Instantly update the local selection state to refresh the UI
+          setSelectedItems((prev) =>
+            prev.map((item) => {
+              if (item.id === itemId) {
+                if (key === 'format') {
+                  return { ...item, format: value as 'png' | 'svg' };
+                } else if (key === 'scale') {
+                  return { ...item, scale: value as number };
+                }
+              }
+              return item;
+            })
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update widget setting:", err);
+    }
+  };
 
   if (isInitMode === null) {
     return null; // Server hydration fallback
@@ -41,7 +97,6 @@ export default function MiroPluginPage() {
   // Headless mode is false: render Sidebar Panel
   return (
     <div className="flex flex-col min-h-screen p-5 bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page transition-colors duration-200">
-      
       {/* App Header */}
       <header className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -125,7 +180,6 @@ export default function MiroPluginPage() {
 
       {/* Tab Panels */}
       <section className="flex-grow flex flex-col">
-        
         {/* Tab 1: Sync Selection */}
         {activeTab === 'sync' && (
           <div className="flex-grow flex flex-col justify-between">
@@ -134,20 +188,54 @@ export default function MiroPluginPage() {
                 Selected Canvas Screens
               </h4>
               {selectedItems.length > 0 ? (
-                <div className="space-y-2">
-                  {selectedItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-3 rounded-md bg-bg-card border border-border-card flex flex-col gap-1"
-                    >
-                      <span className="text-xs font-semibold text-text-page">
-                        {item.nodeName}
-                      </span>
-                      <span className="text-[9px] font-mono text-text-muted">
-                        Node: {item.nodeId}
-                      </span>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                    {selectedItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3 rounded-md bg-bg-card border border-border-card flex flex-col gap-2"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold text-text-page truncate">
+                            {item.nodeName}
+                          </span>
+                          <span className="text-[9px] font-mono text-text-muted truncate">
+                            Node: {item.nodeId}
+                          </span>
+                        </div>
+
+                        {/* Format and Scale Selectors */}
+                        <div className="flex gap-2 mt-1 pt-2 border-t border-border-card/30">
+                          <div className="flex-1 flex flex-col gap-0.5">
+                            <span className="text-[8px] font-mono text-text-muted uppercase tracking-wider">Format</span>
+                            <select
+                              value={item.format || 'png'}
+                              onChange={(e) => handleItemSettingChange(item.id, 'format', e.target.value as 'png' | 'svg')}
+                              className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
+                            >
+                              <option value="png">PNG</option>
+                              <option value="svg">SVG</option>
+                            </select>
+                          </div>
+                          {(item.format || 'png') === 'png' && (
+                            <div className="flex-1 flex flex-col gap-0.5">
+                              <span className="text-[8px] font-mono text-text-muted uppercase tracking-wider">Scale</span>
+                              <select
+                                value={item.scale || 2}
+                                onChange={(e) => handleItemSettingChange(item.id, 'scale', Number(e.target.value))}
+                                className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
+                              >
+                                <option value="1">1x</option>
+                                <option value="2">2x</option>
+                                <option value="3">3x</option>
+                                <option value="4">4x</option>
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                   {/* Sync All Copies toggle */}
                   <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
                     <input
@@ -163,7 +251,7 @@ export default function MiroPluginPage() {
                   <button
                     onClick={syncSelectedScreens}
                     disabled={isSyncing || !figmaToken || !miroToken}
-                    className="w-full mt-3 font-mono font-bold text-xs py-2.5 rounded bg-accent text-bg-page hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full mt-2 font-mono font-bold text-xs py-2.5 rounded bg-accent text-bg-page hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED'}
                   </button>
@@ -189,21 +277,18 @@ export default function MiroPluginPage() {
                   <button
                     onClick={detectLocalFigmaSelection}
                     disabled={isDetectingLocal}
-                    className="w-full flex items-center justify-center gap-2 border border-border-card text-xs font-semibold rounded py-2 hover:bg-bg-card transition text-text-page"
+                    className="w-full flex items-center justify-center gap-2 border border-border-card text-xs font-semibold rounded py-2 hover:bg-bg-card transition text-text-page cursor-pointer"
                   >
-                    {isDetectingLocal ? 'Detecting Selection...' : 'Detect Selection in Figma App'}
+                    {isDetectingLocal ? 'Detecting...' : 'Detect Selection in Figma App'}
                   </button>
                 </div>
-
                 <div className="text-[10px] text-center text-text-muted">— or paste link manually —</div>
-
                 <div>
                   <h4 className="text-[10px] uppercase font-mono tracking-widest text-text-muted mb-2">
                     Paste Frame Link
                   </h4>
                   <input
                     type="text"
-                    placeholder="https://figma.com/file/..."
                     value={figmaInput}
                     onChange={(e) => {
                       parseFigmaLink(e.target.value).catch((err) => {
@@ -213,7 +298,6 @@ export default function MiroPluginPage() {
                     className="w-full text-xs p-2.5 bg-bg-card border border-border-card rounded text-text-page focus:outline-none focus:border-accent"
                   />
                 </div>
-
                 {figmaNodeInfo && (
                   <div className="p-3 bg-bg-card rounded border border-border-card mt-3">
                     <div className="text-xs font-bold text-text-page truncate">
@@ -225,7 +309,7 @@ export default function MiroPluginPage() {
                     <button
                       onClick={importFigmaScreen}
                       disabled={isSyncing}
-                      className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition"
+                      className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer"
                     >
                       PLACE ON CANVAS
                     </button>
@@ -240,7 +324,7 @@ export default function MiroPluginPage() {
           </div>
         )}
 
-        {/* Tab 3: Settings & Integrations */}
+        {/* Tab 3: Settings & Preferences */}
         {activeTab === 'settings' && (
           <div className="flex-grow flex flex-col gap-6">
             <div>
@@ -260,7 +344,7 @@ export default function MiroPluginPage() {
                       <span className="h-2 w-2 rounded-full bg-green-500"></span>
                       <button
                         onClick={disconnectFigma}
-                        className="text-[9px] font-mono font-bold tracking-wider text-text-muted hover:text-accent uppercase underline bg-transparent"
+                        className="text-[9px] font-mono font-bold tracking-wider text-text-muted hover:text-accent uppercase underline bg-transparent cursor-pointer"
                       >
                         Disconnect
                       </button>
@@ -268,13 +352,12 @@ export default function MiroPluginPage() {
                   ) : (
                     <button
                       onClick={connectFigma}
-                      className="text-[10px] font-mono tracking-wider font-semibold border border-accent text-accent rounded px-2.5 py-1 bg-transparent hover:bg-accent hover:text-bg-page transition"
+                      className="text-[10px] font-mono tracking-wider font-semibold border border-accent text-accent rounded px-2.5 py-1 bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer"
                     >
                       CONNECT
                     </button>
                   )}
                 </div>
-
                 <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
                   <div>
                     <div className="text-xs font-semibold text-text-page">Miro REST Status</div>
@@ -287,7 +370,7 @@ export default function MiroPluginPage() {
                       <span className="h-2 w-2 rounded-full bg-green-500"></span>
                       <button
                         onClick={disconnectMiro}
-                        className="text-[9px] font-mono font-bold tracking-wider text-text-muted hover:text-accent uppercase underline bg-transparent"
+                        className="text-[9px] font-mono font-bold tracking-wider text-text-muted hover:text-accent uppercase underline bg-transparent cursor-pointer"
                       >
                         Disconnect
                       </button>
@@ -295,7 +378,7 @@ export default function MiroPluginPage() {
                   ) : (
                     <button
                       onClick={connectMiro}
-                      className="text-[10px] font-mono tracking-wider font-semibold border border-accent text-accent rounded px-2.5 py-1 bg-transparent hover:bg-accent hover:text-bg-page transition"
+                      className="text-[10px] font-mono tracking-wider font-semibold border border-accent text-accent rounded px-2.5 py-1 bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer"
                     >
                       CONNECT
                     </button>
@@ -303,14 +386,28 @@ export default function MiroPluginPage() {
                 </div>
               </div>
             </div>
-
             <div>
               <h4 className="text-[10px] uppercase font-mono tracking-widest text-text-muted mb-2">
-                Appearance
+                Preferences
               </h4>
-              <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
-                <span className="text-xs font-semibold text-text-page">Theme Select</span>
-                <ThemeToggle />
+              <div className="space-y-2">
+                <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
+                  <span className="text-xs font-semibold text-text-page">Default PNG Scale</span>
+                  <select
+                    value={defaultPngScale}
+                    onChange={(e) => handleDefaultPngScaleChange(Number(e.target.value))}
+                    className="bg-bg-page border border-border-card text-xs rounded px-2 py-1 focus:outline-none focus:border-accent text-text-page cursor-pointer"
+                  >
+                    <option value="1">1x</option>
+                    <option value="2">2x</option>
+                    <option value="3">3x</option>
+                    <option value="4">4x</option>
+                  </select>
+                </div>
+                <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
+                  <span className="text-xs font-semibold text-text-page">Theme Select</span>
+                  <ThemeToggle />
+                </div>
               </div>
             </div>
           </div>

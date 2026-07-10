@@ -4,7 +4,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const fileKey = searchParams.get('fileKey');
   const nodeId = searchParams.get('nodeId');
-
+  const format = searchParams.get('format') || 'png';
+  const scaleParam = searchParams.get('scale');
+  
   // Read token from Authorization header, or query parameters as fallback
   let figmaToken = request.headers.get('Authorization')?.replace('Bearer ', '');
   if (!figmaToken) {
@@ -31,8 +33,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 1. Request image render URL from Figma (scale 2x for high quality)
-    const figmaApiUrl = `https://api.figma.com/v1/images/${fileKey}?ids=${nodeId}&scale=2&format=png`;
+    // 1. Request image render URL from Figma
+    // Figma ignores the scale parameter if format is svg
+    const scaleQuery = format === 'svg' ? '' : `&scale=${scaleParam ? Number(scaleParam) : 2}`;
+    const figmaApiUrl = `https://api.figma.com/v1/images/${fileKey}?ids=${nodeId}${scaleQuery}&format=${format}`;
+    
     const figmaResponse = await fetch(figmaApiUrl, {
       headers: {
         Authorization: `Bearer ${figmaToken}`,
@@ -46,6 +51,7 @@ export async function GET(request: Request) {
       const planTier = figmaResponse.headers.get('X-Figma-Plan-Tier');
       const limitType = figmaResponse.headers.get('X-Figma-Rate-Limit-Type');
       const baseError = figmaData.err || figmaData.message || 'Rate limit exceeded';
+      
       return NextResponse.json(
         {
           error: baseError,
@@ -58,7 +64,6 @@ export async function GET(request: Request) {
     }
 
     const imageUrl = figmaData.images[nodeId];
-
     if (!imageUrl) {
       return NextResponse.json(
         { error: 'Figma returned no image URL for the specified node ID.' },
@@ -68,7 +73,6 @@ export async function GET(request: Request) {
 
     // 2. Fetch the binary image file from S3
     const imageResponse = await fetch(imageUrl);
-
     if (!imageResponse.ok) {
       return NextResponse.json(
         { error: 'Failed to download the rendered image file from Figma storage' },
@@ -77,11 +81,12 @@ export async function GET(request: Request) {
     }
 
     const arrayBuffer = await imageResponse.arrayBuffer();
+    const contentType = format === 'svg' ? 'image/svg+xml' : 'image/png';
 
-    // 3. Stream the raw binary PNG back to the client
+    // 3. Stream the raw binary image back to the client
     return new NextResponse(Buffer.from(arrayBuffer), {
       headers: {
-        'Content-Type': 'image/png',
+        'Content-Type': contentType,
         'Cache-Control': 'no-store, max-age=0',
       },
     });

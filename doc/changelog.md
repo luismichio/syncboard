@@ -4,6 +4,14 @@ All notable changes to the SyncBoard project are documented in this file.
 
 ---
 
+## [0.1.9] - 2026-07-10
+
+### Added
+* **SVG Vector Support:** Integrated vector format rendering, enabling users to sync screens as SVGs on the Miro board for infinite zoom crispness.
+* **Per-Image Formatting & Scaling:** Added interactive Format (PNG/SVG) and Scale (1x, 2x, 3x, 4x) controls in the Sync sidebar panel for each selected image widget, dynamically stored inside Miro's metadata.
+* **Preferences Panel:** Added a global "Default PNG Scale" configuration dropdown inside the settings tab to set the default scale for newly imported images.
+* **Mixed Batch Grouping:** Upgraded the rendering engine to group requests by fileKey + format + scale, keeping mixed sync selections batched and optimized.
+
 ## [0.1.8] - 2026-07-10
 
 ### Added

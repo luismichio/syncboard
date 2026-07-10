@@ -6,11 +6,14 @@ export interface SyncedImage {
   fileKey: string;
   nodeId: string;
   nodeName: string;
+  format?: 'png' | 'svg';
+  scale?: number;
 }
 
 /**
  * Manages the global window.miro SDK registration, selection:update listeners,
  * and releases listeners cleanly on unmount to prevent duplicate triggers.
+ * Reads image-specific format/scale preferences from Miro widget metadata.
  */
 export function useMiroSelection(isInitMode: boolean | null) {
   const [selectedItems, setSelectedItems] = useState<SyncedImage[]>([]);
@@ -60,25 +63,48 @@ export function useMiroSelection(isInitMode: boolean | null) {
 
             for (const item of selection) {
               if (item.type === 'image') {
-                // 1. Try title-based parsing first (synchronous, 0ms latency, zero API rate limits)
+                // 1. Try title-based parsing first
                 if (item.title) {
                   const match = item.title.match(/^(.*?)\s*\[SyncBoard\|([^|]+)\|([^\]]+)\]$/);
                   if (match) {
+                    // Enrich with specific format/scale settings from Miro widget metadata
+                    let format: 'png' | 'svg' = 'png';
+                    let scale = 2;
+                    try {
+                      const metadata = (await item.getMetadata()) as Record<string, unknown> | undefined;
+                      const syncData = metadata?.syncboard as { format?: 'png' | 'svg'; scale?: number } | undefined;
+                      if (syncData) {
+                        format = syncData.format || 'png';
+                        scale = syncData.scale || 2;
+                      }
+                    } catch (metaErr) {
+                      console.error("Failed to read metadata for item:", item.id, metaErr);
+                    }
+
                     synced.push({
                       id: item.id,
                       title: item.title,
                       fileKey: match[2],
                       nodeId: match[3],
                       nodeName: match[1].trim() || 'Unnamed Screen',
+                      format,
+                      scale,
                     });
-                    continue; // Skip metadata query!
+                    continue;
                   }
                 }
 
-                // 2. Fallback to metadata query (async, only if title is empty or lacks sync tag)
+                // 2. Fallback to metadata query (if title is empty or modified)
                 try {
                   const metadata = (await item.getMetadata()) as Record<string, unknown> | undefined;
-                  const syncData = metadata?.syncboard as { fileKey?: string; nodeId?: string; nodeName?: string } | undefined;
+                  const syncData = metadata?.syncboard as { 
+                    fileKey?: string; 
+                    nodeId?: string; 
+                    nodeName?: string;
+                    format?: 'png' | 'svg';
+                    scale?: number;
+                  } | undefined;
+                  
                   if (syncData?.fileKey && syncData?.nodeId) {
                     synced.push({
                       id: item.id,
@@ -86,6 +112,8 @@ export function useMiroSelection(isInitMode: boolean | null) {
                       fileKey: syncData.fileKey,
                       nodeId: syncData.nodeId,
                       nodeName: syncData.nodeName || 'Unnamed Screen',
+                      format: syncData.format || 'png',
+                      scale: syncData.scale || 2,
                     });
                   }
                 } catch (metaErr) {

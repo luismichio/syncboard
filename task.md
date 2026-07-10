@@ -34,3 +34,13 @@ Track active implementation checklist for codebase quality, security, testing, a
 ### Phase 4: Verification & Changelog
 - [x] Perform a clean build run check (`yarn build`).
 - [x] Log changes in `doc/changelog.md`.
+
+### Phase 5: Per-Image Customization (Format & Scale Selection)
+- [x] Add **Default PNG Scale** dropdown to Settings Panel.
+- [x] Add interactive dropdowns for **Format (PNG/SVG)** and **PNG Scale (1x-4x)** to the Sync Panel when an image is selected.
+- [x] Save format/scale properties to Miro widget metadata dynamically on dropdown change.
+- [x] Adjust `useMiroSelection` hook to read format/scale properties from metadata.
+- [x] Update `useMiroSync` engine to group render calls by `fileKey` + `format` + `scale` to support mixed syncing.
+- [x] Update backend `/api/figma/render-batch` and `/api/figma/render` to accept and process format/scale dynamically.
+- [x] Update backend `/api/miro/update-image` to support SVG file types.
+- [x] Run test suite and check compilation status (`yarn test` and `yarn build`).

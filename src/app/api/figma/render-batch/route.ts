@@ -5,13 +5,14 @@ import { NextResponse } from 'next/server';
  *
  * Accepts multiple nodeIds from the same file and fetches their renders
  * in a SINGLE Figma API call, dramatically reducing quota consumption.
+ * Supports dynamic format and scale selection per batch group.
  *
- * Body: { figmaToken, fileKey, nodeIds: string[] }
+ * Body: { figmaToken, fileKey, nodeIds: string[], format?: string, scale?: number }
  * Returns: { images: { [nodeId]: dataUrl } }
  */
 export async function POST(request: Request) {
   try {
-    const { figmaToken, fileKey, nodeIds } = await request.json();
+    const { figmaToken, fileKey, nodeIds, format = 'png', scale = 2 } = await request.json();
 
     if (!figmaToken || !fileKey || !Array.isArray(nodeIds) || nodeIds.length === 0) {
       return NextResponse.json(
@@ -22,7 +23,8 @@ export async function POST(request: Request) {
 
     // 1. Single batched Figma API call with all node IDs comma-separated
     const idsParam = nodeIds.join(',');
-    const figmaApiUrl = `https://api.figma.com/v1/images/${fileKey}?ids=${idsParam}&scale=2&format=png`;
+    const scaleQuery = format === 'svg' ? '' : `&scale=${scale ? Number(scale) : 2}`;
+    const figmaApiUrl = `https://api.figma.com/v1/images/${fileKey}?ids=${idsParam}${scaleQuery}&format=${format}`;
 
     const figmaResponse = await fetch(figmaApiUrl, {
       headers: { Authorization: `Bearer ${figmaToken}` },
@@ -35,6 +37,7 @@ export async function POST(request: Request) {
       const planTier = figmaResponse.headers.get('X-Figma-Plan-Tier');
       const limitType = figmaResponse.headers.get('X-Figma-Rate-Limit-Type');
       const baseError = figmaData.err || figmaData.message || 'Rate limit exceeded';
+      
       return NextResponse.json(
         {
           error: baseError,
@@ -47,6 +50,7 @@ export async function POST(request: Request) {
     }
 
     const imageUrls: Record<string, string> = figmaData.images || {};
+    const mimePrefix = format === 'svg' ? 'data:image/svg+xml;base64,' : 'data:image/png;base64,';
 
     // 2. Download each S3 image and convert to base64 data URL in parallel
     const entries = await Promise.all(
@@ -60,7 +64,7 @@ export async function POST(request: Request) {
           if (!imgRes.ok) return [nodeId, null] as [string, null];
           const arrayBuffer = await imgRes.arrayBuffer();
           const base64 = Buffer.from(arrayBuffer).toString('base64');
-          return [nodeId, `data:image/png;base64,${base64}`] as [string, string];
+          return [nodeId, `${mimePrefix}${base64}`] as [string, string];
         } catch {
           return [nodeId, null] as [string, null];
         }
@@ -68,7 +72,6 @@ export async function POST(request: Request) {
     );
 
     const images: Record<string, string | null> = Object.fromEntries(entries);
-
     return NextResponse.json({ images });
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);

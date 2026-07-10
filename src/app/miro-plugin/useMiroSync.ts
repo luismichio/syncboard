@@ -7,10 +7,9 @@ import { SyncedImage } from './useMiroSelection';
  * - syncAllCopies: scan the entire board and update every copy sharing the same fileKey+nodeId
  *
  * Figma API batching strategy:
- * - Items are grouped by fileKey
- * - A SINGLE Figma API call is made per file with ALL node IDs comma-separated
- * - e.g. 5 frames from the same file = 1 Figma call (not 5)
- * - Downloaded images are cached and reused for all board copies of the same node
+ * - Items are grouped by fileKey, format, and scale to allow mixed sync selections
+ * - A SINGLE Figma API call is made per group with ALL node IDs comma-separated
+ * - Cached images are reused for matching board widgets during updates
  */
 export function useMiroSync(
   figmaToken: string | null,
@@ -30,17 +29,23 @@ export function useMiroSync(
     if (!miro) return;
 
     setIsSyncing(true);
-    setSyncStatus('Preparing sync...');
-
     try {
       const boardInfo = await miro.board.getInfo();
       const boardId = boardInfo.id;
 
-      type SyncTarget = { id: string; fileKey: string; nodeId: string; nodeName: string; width?: number };
+      type SyncTarget = { 
+        id: string; 
+        fileKey: string; 
+        nodeId: string; 
+        nodeName: string; 
+        width?: number;
+        format?: 'png' | 'svg';
+        scale?: number;
+      };
+
       let itemsToSync: SyncTarget[] = [];
 
       if (syncAllCopies) {
-        setSyncStatus('Scanning board for all copies...');
         const allItems = await miro.board.get();
         for (const selected of selectedItems) {
           const matches = allItems.filter(item => {
@@ -50,13 +55,30 @@ export function useMiroSync(
             }
             return false;
           });
+
           for (const match of matches) {
+            // Retrieve copies format/scale properties from their board metadata
+            let format: 'png' | 'svg' = selected.format || 'png';
+            let scale = selected.scale || 2;
+            try {
+              const metadata = (await match.getMetadata()) as Record<string, unknown> | undefined;
+              const syncData = metadata?.syncboard as { format?: 'png' | 'svg'; scale?: number } | undefined;
+              if (syncData) {
+                format = syncData.format || 'png';
+                scale = syncData.scale || 2;
+              }
+            } catch (err) {
+              console.error("Failed to read copy metadata:", match.id, err);
+            }
+
             itemsToSync.push({
               id: match.id,
               fileKey: selected.fileKey,
               nodeId: selected.nodeId,
               nodeName: selected.nodeName,
               width: match.width,
+              format,
+              scale,
             });
           }
         }
@@ -66,6 +88,8 @@ export function useMiroSync(
           fileKey: s.fileKey,
           nodeId: s.nodeId,
           nodeName: s.nodeName,
+          format: s.format,
+          scale: s.scale,
         }));
       }
 
@@ -75,33 +99,37 @@ export function useMiroSync(
         return;
       }
 
-      // --- STEP 1: Batch Figma renders — group unique nodes by fileKey ---
-      // This ensures ONE Figma API call per file regardless of frames or copies selected.
-      const fileGroups = new Map<string, Set<string>>();
+      // --- STEP 1: Batch Figma renders — group unique nodes by fileKey, format, and scale ---
+      // This ensures optimal Figma API batching while handling mixed rendering specifications.
+      // groupKey: "fileKey|format|scale" -> Set of nodeIds
+      const groups = new Map<string, Set<string>>();
       for (const item of itemsToSync) {
-        if (!fileGroups.has(item.fileKey)) {
-          fileGroups.set(item.fileKey, new Set());
+        const format = item.format || 'png';
+        const scale = item.scale || 2;
+        const groupKey = `${item.fileKey}|${format}|${scale}`;
+        if (!groups.has(groupKey)) {
+          groups.set(groupKey, new Set());
         }
-        fileGroups.get(item.fileKey)!.add(item.nodeId);
+        groups.get(groupKey)!.add(item.nodeId);
       }
 
-      const totalFiles = fileGroups.size;
-      const totalNodes = [...fileGroups.values()].reduce((sum, s) => sum + s.size, 0);
-      setSyncStatus(`Fetching ${totalNodes} frame(s) from ${totalFiles} file(s) in ${totalFiles} API call(s)...`);
-
+      const totalGroups = groups.size;
       // renderCache: "fileKey|nodeId" -> base64 data URL
       const renderCache = new Map<string, string>();
+      let groupIndex = 0;
 
-      let fileIndex = 0;
-      for (const [fileKey, nodeIdSet] of fileGroups) {
-        fileIndex++;
+      for (const [groupKey, nodeIdSet] of groups) {
+        groupIndex++;
+        const [fileKey, format, scaleStr] = groupKey.split('|');
+        const scale = Number(scaleStr);
         const nodeIds = [...nodeIdSet];
-        setSyncStatus(`Fetching file ${fileIndex}/${totalFiles}: ${nodeIds.length} frame(s)...`);
+
+        setSyncStatus(`Fetching group ${groupIndex}/${totalGroups}: ${nodeIds.length} frame(s) (${format.toUpperCase()} ${format === 'png' ? scale + 'x' : ''})...`);
 
         const batchRes = await fetch('/api/figma/render-batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ figmaToken, fileKey, nodeIds }),
+          body: JSON.stringify({ figmaToken, fileKey, nodeIds, format, scale }),
         });
 
         if (!batchRes.ok) {
@@ -111,6 +139,7 @@ export function useMiroSync(
             planTier?: string | null;
             limitType?: string | null;
           };
+
           if (batchRes.status === 429) {
             const parts: string[] = ['Rate limited by Figma.'];
             if (errData.planTier) parts.push(`Plan: ${errData.planTier}.`);
@@ -122,7 +151,6 @@ export function useMiroSync(
         }
 
         const { images } = await batchRes.json() as { images: Record<string, string | null> };
-
         for (const nodeId of nodeIds) {
           const dataUrl = images[nodeId];
           if (dataUrl) {
@@ -132,8 +160,6 @@ export function useMiroSync(
       }
 
       // --- STEP 2: Update each board widget using the cached data URLs ---
-      setSyncStatus(`Updating ${itemsToSync.length} widget(s) on board...`);
-
       for (let i = 0; i < itemsToSync.length; i++) {
         const item = itemsToSync[i];
         const dataUrl = renderCache.get(`${item.fileKey}|${item.nodeId}`);
@@ -144,7 +170,6 @@ export function useMiroSync(
 
         // 500ms throttle between Miro PATCH calls to avoid Miro REST 429
         if (i > 0) await new Promise(resolve => setTimeout(resolve, 500));
-
         setSyncStatus(`Updating widget ${i + 1}/${itemsToSync.length}: ${item.nodeName}`);
 
         const response = await fetch('/api/miro/update-image', {
@@ -159,6 +184,8 @@ export function useMiroSync(
             nodeName: item.nodeName,
             width: item.width,
             dataUrl,
+            format: item.format || 'png',
+            scale: item.scale || 2,
           }),
         });
 
@@ -169,7 +196,7 @@ export function useMiroSync(
       }
 
       const label = syncAllCopies ? 'all copies' : 'selected widget(s)';
-      setSyncStatus(`✓ Updated ${itemsToSync.length} ${label} with ${totalFiles} Figma API call(s)!`);
+      setSyncStatus(`✓ Updated ${itemsToSync.length} ${label} successfully!`);
 
       try {
         const syncChannel = new BroadcastChannel('figma_miro_sync');

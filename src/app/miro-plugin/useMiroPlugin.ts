@@ -7,6 +7,7 @@ import { useMiroSync } from './useMiroSync';
 /**
  * Main coordinator hook for the Miro sidebar panel app.
  * Integrates single-responsibility sub-hooks to provide a unified API.
+ * Exposes setSelectedItems to allow direct local updates when widget settings change.
  */
 export function useMiroPlugin() {
   const [isInitMode] = useState<boolean | null>(() => {
@@ -14,6 +15,7 @@ export function useMiroPlugin() {
     const params = new URLSearchParams(window.location.search);
     return params.get('init') === 'true';
   });
+
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncStatus, setSyncStatus] = useState<string>('');
 
@@ -30,6 +32,7 @@ export function useMiroPlugin() {
   // 2. Selection Hook
   const {
     selectedItems,
+    setSelectedItems,
   } = useMiroSelection(isInitMode);
 
   // 3. Figma Importer Hook
@@ -61,6 +64,7 @@ export function useMiroPlugin() {
     figmaToken,
     miroToken,
     selectedItems,
+    setSelectedItems,
     isSyncing,
     syncStatus,
     figmaInput,

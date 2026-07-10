@@ -2,8 +2,19 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { figmaToken, miroToken, boardId, itemId, fileKey, nodeId, nodeName, width, dataUrl } =
-      await request.json();
+    const { 
+      figmaToken, 
+      miroToken, 
+      boardId, 
+      itemId, 
+      fileKey, 
+      nodeId, 
+      nodeName, 
+      width, 
+      dataUrl,
+      format = 'png',
+      scale = 2
+    } = await request.json();
 
     if (!miroToken || !boardId || !itemId || !fileKey || !nodeId || !nodeName) {
       return NextResponse.json(
@@ -25,7 +36,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Missing Figma token' }, { status: 401 });
       }
 
-      const figmaApiUrl = `https://api.figma.com/v1/images/${fileKey}?ids=${nodeId}&scale=2&format=png`;
+      const scaleQuery = format === 'svg' ? '' : `&scale=${scale ? Number(scale) : 2}`;
+      const figmaApiUrl = `https://api.figma.com/v1/images/${fileKey}?ids=${nodeId}${scaleQuery}&format=${format}`;
+      
       const figmaResponse = await fetch(figmaApiUrl, {
         headers: { Authorization: `Bearer ${figmaToken}` },
       });
@@ -37,6 +50,7 @@ export async function POST(request: Request) {
         const planTier = figmaResponse.headers.get('X-Figma-Plan-Tier');
         const limitType = figmaResponse.headers.get('X-Figma-Rate-Limit-Type');
         const baseError = figmaData.err || figmaData.message || 'Rate limit exceeded';
+        
         return NextResponse.json(
           {
             error: baseError,
@@ -69,11 +83,17 @@ export async function POST(request: Request) {
 
     // Build multipart form data for Miro PATCH
     const formData = new FormData();
-    const file = new File([arrayBuffer], 'screenshot.png', { type: 'image/png' });
+    
+    // Choose correct content type and file name for the payload
+    const mimeType = format === 'svg' ? 'image/svg+xml' : 'image/png';
+    const fileName = format === 'svg' ? 'screenshot.svg' : 'screenshot.png';
+    
+    const file = new File([arrayBuffer], fileName, { type: mimeType });
     formData.append('resource', file);
 
     const titleTag = `${nodeName} [SyncBoard|${fileKey}|${nodeId}]`;
     const dataPayload: { title: string; geometry?: { width: number } } = { title: titleTag };
+    
     if (width) {
       dataPayload.geometry = { width: Math.round(Number(width)) };
     }
