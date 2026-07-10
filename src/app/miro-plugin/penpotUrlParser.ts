@@ -19,9 +19,8 @@ export function parsePenpotUrl(url: string): PenpotUrlInfo | null {
     
     // Matches "?node=UUID" or "&node=UUID" anywhere in the URL (both standard search params or inside hashes)
     const nodeMatch = url.match(/[?&]node=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/);
-    if (!nodeMatch) return null;
-    
-    const objectId = nodeMatch[1];
+    // If node is missing, default to 'selection' to fetch the active selection
+    const objectId = nodeMatch ? nodeMatch[1] : 'selection';
     
     return { fileId, objectId };
   } catch {
