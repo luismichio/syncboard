@@ -4,6 +4,16 @@ All notable changes to the SyncBoard project are documented in this file.
 
 ---
 
+## [0.1.10] - 2026-07-10
+
+### Added
+* **Penpot Sync Integration:** Added support for syncing Penpot frames to the Miro canvas side-by-side with Figma.
+* **Penpot URL Parser:** Added a custom parser to extract `fileId` and `objectId` from Penpot design links.
+* **Penpot Local MCP Client:** Created a pure-JS SSE-based connection client to query selections and request vector SVG/PNG exports from the local Penpot MCP server.
+* **Miro Update API Platform Handling:** Updated `/api/miro/update-image` to support and output platform-specific title tags (`PenpotSync` vs. `SyncBoard`).
+* **Consolidated Selection UI:** Grouped duplicate canvas screens in the sidebar under a single frame card, rendering a copy counter badge (e.g. `x3`) in the top-right and batch-applying format/scale changes to all selected copies.
+* **CORS Support for Penpot MCP:** Patched the local Penpot MCP server code (`PenpotMcpServer.ts`) to support cross-origin requests, enabling browser-based plugin communication.
+
 ## [0.1.9] - 2026-07-10
 
 ### Added

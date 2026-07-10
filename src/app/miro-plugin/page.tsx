@@ -23,12 +23,21 @@ export default function MiroPluginPage() {
     parseFigmaLink,
     detectLocalFigmaSelection,
     importFigmaScreen,
+    // Penpot Importer
+    penpotInput,
+    penpotNodeInfo,
+    isDetectingPenpotLocal,
+    parsePenpotLink,
+    detectLocalPenpotSelection,
+    importPenpotScreen,
+    // Sync
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
   } = useMiroPlugin();
 
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
+  const [importPlatform, setImportPlatform] = useState<'figma' | 'penpot'>('figma');
   const [defaultPngScale, setDefaultPngScale] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('default_png_scale');
@@ -42,46 +51,81 @@ export default function MiroPluginPage() {
     localStorage.setItem('default_png_scale', String(val));
   };
 
-  // Dynamically update format or scale directly to Miro metadata and React state
-  const handleItemSettingChange = async (itemId: string, key: 'format' | 'scale', value: unknown) => {
+  interface GroupedSyncedImage {
+    key: string;
+    fileKey: string;
+    nodeId: string;
+    nodeName: string;
+    format: 'png' | 'svg';
+    scale: number;
+    widgets: { id: string }[];
+    platform: 'figma' | 'penpot';
+  }
+
+  const getGroupedItems = (): GroupedSyncedImage[] => {
+    const groups: Record<string, GroupedSyncedImage> = {};
+    for (const item of selectedItems) {
+      const key = `${item.fileKey}|${item.nodeId}`;
+      if (!groups[key]) {
+        const plat = item.platform || 'figma';
+        groups[key] = {
+          key,
+          fileKey: item.fileKey,
+          nodeId: item.nodeId,
+          nodeName: item.nodeName,
+          format: item.format || (plat === 'penpot' ? 'svg' : 'png'),
+          scale: item.scale || 2,
+          widgets: [],
+          platform: plat,
+        };
+      }
+      groups[key].widgets.push({ id: item.id });
+    }
+    return Object.values(groups);
+  };
+
+  // Dynamically update format or scale directly to Miro metadata and React state for all group widgets
+  const handleGroupSettingChange = async (itemIds: string[], key: 'format' | 'scale', value: unknown) => {
     if (typeof window === 'undefined') return;
     const miro = window.miro;
     if (!miro) return;
 
     try {
       const selection = await miro.board.getSelection();
-      const widget = selection.find(w => w.id === itemId);
       
-      if (widget && widget.type === 'image') {
-        const metadata = (await widget.getMetadata()) as Record<string, unknown> | undefined;
-        const syncData = metadata?.syncboard as Record<string, unknown> | undefined;
-        
-        if (syncData) {
-          const updated = {
-            ...syncData,
-            [key]: value
-          };
+      for (const itemId of itemIds) {
+        const widget = selection.find(w => w.id === itemId);
+        if (widget && widget.type === 'image') {
+          const metadata = (await widget.getMetadata()) as Record<string, unknown> | undefined;
+          const syncData = metadata?.syncboard as Record<string, unknown> | undefined;
           
-          await widget.setMetadata('syncboard', updated);
-          await widget.sync();
-
-          // Instantly update the local selection state to refresh the UI
-          setSelectedItems((prev) =>
-            prev.map((item) => {
-              if (item.id === itemId) {
-                if (key === 'format') {
-                  return { ...item, format: value as 'png' | 'svg' };
-                } else if (key === 'scale') {
-                  return { ...item, scale: value as number };
-                }
-              }
-              return item;
-            })
-          );
+          if (syncData) {
+            const updated = {
+              ...syncData,
+              [key]: value
+            };
+            
+            await widget.setMetadata('syncboard', updated);
+            await widget.sync();
+          }
         }
       }
+
+      // Instantly update the local selection state to refresh the UI
+      setSelectedItems((prev) =>
+        prev.map((item) => {
+          if (itemIds.includes(item.id)) {
+            if (key === 'format') {
+              return { ...item, format: value as 'png' | 'svg' };
+            } else if (key === 'scale') {
+              return { ...item, scale: value as number };
+            }
+          }
+          return item;
+        })
+      );
     } catch (err) {
-      console.error("Failed to update widget setting:", err);
+      console.error("Failed to update widgets settings:", err);
     }
   };
 
@@ -113,7 +157,7 @@ export default function MiroPluginPage() {
           />
           <div>
             <h2 className="text-xl font-bold tracking-tight text-accent leading-none">SyncBoard</h2>
-            <p className="text-[10px] text-text-muted mt-0.5">Stateless Figma-Miro Pipeline</p>
+            <p className="text-[10px] text-text-muted mt-0.5">Stateless Design-Miro Pipeline</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -190,17 +234,35 @@ export default function MiroPluginPage() {
               {selectedItems.length > 0 ? (
                 <div className="space-y-3">
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                    {selectedItems.map((item) => (
+                    {getGroupedItems().map((group) => (
                       <div
-                        key={item.id}
-                        className="p-3 rounded-md bg-bg-card border border-border-card flex flex-col gap-2"
+                        key={group.key}
+                        className="p-3 rounded-md bg-bg-card border border-border-card flex flex-col gap-2 relative animate-fade-in"
                       >
-                        <div className="flex flex-col">
+                        {/* Platform & Copy Counter Badges */}
+                        <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                          {group.platform === 'penpot' ? (
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-purple-400 bg-purple-950/40 border border-purple-800/40 px-1 py-0.5 rounded">
+                              Penpot
+                            </span>
+                          ) : (
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-green-400 bg-green-950/40 border border-green-800/40 px-1 py-0.5 rounded">
+                              Figma
+                            </span>
+                          )}
+                          {group.widgets.length > 1 && (
+                            <span className="px-1.5 py-0.5 text-[8px] font-bold font-mono bg-accent/20 border border-accent/40 text-accent rounded-full">
+                              x{group.widgets.length}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col pr-16">
                           <span className="text-xs font-semibold text-text-page truncate">
-                            {item.nodeName}
+                            {group.nodeName}
                           </span>
                           <span className="text-[9px] font-mono text-text-muted truncate">
-                            Node: {item.nodeId}
+                            ID: {group.nodeId}
                           </span>
                         </div>
 
@@ -209,20 +271,20 @@ export default function MiroPluginPage() {
                           <div className="flex-1 flex flex-col gap-0.5">
                             <span className="text-[8px] font-mono text-text-muted uppercase tracking-wider">Format</span>
                             <select
-                              value={item.format || 'png'}
-                              onChange={(e) => handleItemSettingChange(item.id, 'format', e.target.value as 'png' | 'svg')}
+                              value={group.format}
+                              onChange={(e) => handleGroupSettingChange(group.widgets.map(w => w.id), 'format', e.target.value as 'png' | 'svg')}
                               className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
                             >
                               <option value="png">PNG</option>
                               <option value="svg">SVG</option>
                             </select>
                           </div>
-                          {(item.format || 'png') === 'png' && (
+                          {group.format === 'png' && (
                             <div className="flex-1 flex flex-col gap-0.5">
                               <span className="text-[8px] font-mono text-text-muted uppercase tracking-wider">Scale</span>
                               <select
-                                value={item.scale || 2}
-                                onChange={(e) => handleItemSettingChange(item.id, 'scale', Number(e.target.value))}
+                                value={group.scale}
+                                onChange={(e) => handleGroupSettingChange(group.widgets.map(w => w.id), 'scale', Number(e.target.value))}
                                 className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
                               >
                                 <option value="1">1x</option>
@@ -250,64 +312,146 @@ export default function MiroPluginPage() {
                   </label>
                   <button
                     onClick={syncSelectedScreens}
-                    disabled={isSyncing || !figmaToken || !miroToken}
-                    className="w-full mt-2 font-mono font-bold text-xs py-2.5 rounded bg-accent text-bg-page hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled={isSyncing || !miroToken}
+                    className="w-full mt-2 font-mono font-bold text-xs py-2.5 rounded bg-accent text-bg-page hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED'}
                   </button>
                 </div>
               ) : (
                 <div className="p-8 rounded-md border border-dashed border-border-card text-center text-xs text-text-muted py-12">
-                  Select one or more Figma screenshots on the board canvas to update them in-place.
+                  Select one or more Figma or Penpot screenshots on the board canvas to update them in-place.
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Tab 2: Figma Screen Importer */}
+        {/* Tab 2: Screen Importer */}
         {activeTab === 'import' && (
-          <div className="flex-grow flex flex-col">
-            {figmaToken ? (
+          <div className="flex-grow flex flex-col gap-4">
+            {/* Platform selection segment */}
+            <div className="flex rounded bg-bg-card p-0.5 border border-border-card">
+              <button
+                onClick={() => setImportPlatform('figma')}
+                className={`flex-1 text-center font-mono py-1 text-[10px] font-bold rounded transition ${
+                  importPlatform === 'figma'
+                    ? 'bg-accent text-bg-page'
+                    : 'text-text-muted hover:text-text-page'
+                }`}
+              >
+                FIGMA
+              </button>
+              <button
+                onClick={() => setImportPlatform('penpot')}
+                className={`flex-1 text-center font-mono py-1 text-[10px] font-bold rounded transition ${
+                  importPlatform === 'penpot'
+                    ? 'bg-accent text-bg-page'
+                    : 'text-text-muted hover:text-text-page'
+                }`}
+              >
+                PENPOT
+              </button>
+            </div>
+
+            {/* Importer Platform: Figma */}
+            {importPlatform === 'figma' && (
+              <div className="flex-grow flex flex-col justify-between">
+                {figmaToken ? (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-[10px] uppercase font-mono tracking-widest text-text-muted mb-2">
+                        Query Active Selection
+                      </h4>
+                      <button
+                        onClick={detectLocalFigmaSelection}
+                        disabled={isDetectingLocal}
+                        className="w-full flex items-center justify-center gap-2 border border-border-card text-xs font-semibold rounded py-2 hover:bg-bg-card transition text-text-page cursor-pointer"
+                      >
+                        {isDetectingLocal ? 'Detecting...' : 'Detect Selection in Figma App'}
+                      </button>
+                    </div>
+                    <div className="text-[10px] text-center text-text-muted">— or paste link manually —</div>
+                    <div>
+                      <h4 className="text-[10px] uppercase font-mono tracking-widest text-text-muted mb-2">
+                        Paste Figma Frame Link
+                      </h4>
+                      <input
+                        type="text"
+                        value={figmaInput}
+                        onChange={(e) => {
+                          parseFigmaLink(e.target.value).catch((err) => {
+                            console.error('Link parsing error:', err);
+                          });
+                        }}
+                        className="w-full text-xs p-2.5 bg-bg-card border border-border-card rounded text-text-page focus:outline-none focus:border-accent"
+                        placeholder="https://figma.com/file/..."
+                      />
+                    </div>
+                    {figmaNodeInfo && (
+                      <div className="p-3 bg-bg-card rounded border border-border-card mt-3">
+                        <div className="text-xs font-bold text-text-page truncate">
+                          {figmaNodeInfo.name}
+                        </div>
+                        <div className="text-[9px] font-mono text-text-muted truncate">
+                          File: {figmaNodeInfo.fileKey}
+                        </div>
+                        <button
+                          onClick={importFigmaScreen}
+                          disabled={isSyncing}
+                          className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer"
+                        >
+                          PLACE ON CANVAS
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-md border border-dashed border-border-card text-center text-xs text-text-muted py-12 my-auto">
+                    Please connect your Figma account in the Settings tab to import Figma frames.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Importer Platform: Penpot */}
+            {importPlatform === 'penpot' && (
               <div className="space-y-4">
                 <div>
                   <h4 className="text-[10px] uppercase font-mono tracking-widest text-text-muted mb-2">
                     Query Active Selection
                   </h4>
                   <button
-                    onClick={detectLocalFigmaSelection}
-                    disabled={isDetectingLocal}
+                    onClick={detectLocalPenpotSelection}
+                    disabled={isDetectingPenpotLocal}
                     className="w-full flex items-center justify-center gap-2 border border-border-card text-xs font-semibold rounded py-2 hover:bg-bg-card transition text-text-page cursor-pointer"
                   >
-                    {isDetectingLocal ? 'Detecting...' : 'Detect Selection in Figma App'}
+                    {isDetectingPenpotLocal ? 'Detecting...' : 'Detect Selection in Penpot App'}
                   </button>
                 </div>
                 <div className="text-[10px] text-center text-text-muted">— or paste link manually —</div>
                 <div>
                   <h4 className="text-[10px] uppercase font-mono tracking-widest text-text-muted mb-2">
-                    Paste Frame Link
+                    Paste Penpot Frame Link
                   </h4>
                   <input
                     type="text"
-                    value={figmaInput}
-                    onChange={(e) => {
-                      parseFigmaLink(e.target.value).catch((err) => {
-                        console.error('Link parsing error:', err);
-                      });
-                    }}
+                    value={penpotInput}
+                    onChange={(e) => parsePenpotLink(e.target.value)}
                     className="w-full text-xs p-2.5 bg-bg-card border border-border-card rounded text-text-page focus:outline-none focus:border-accent"
+                    placeholder="https://design.penpot.app/#/workspace/..."
                   />
                 </div>
-                {figmaNodeInfo && (
+                {penpotNodeInfo && (
                   <div className="p-3 bg-bg-card rounded border border-border-card mt-3">
                     <div className="text-xs font-bold text-text-page truncate">
-                      {figmaNodeInfo.name}
+                      {penpotNodeInfo.name}
                     </div>
                     <div className="text-[9px] font-mono text-text-muted truncate">
-                      File: {figmaNodeInfo.fileKey}
+                      File ID: {penpotNodeInfo.fileId}
                     </div>
                     <button
-                      onClick={importFigmaScreen}
+                      onClick={importPenpotScreen}
                       disabled={isSyncing}
                       className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer"
                     >
@@ -315,10 +459,6 @@ export default function MiroPluginPage() {
                     </button>
                   </div>
                 )}
-              </div>
-            ) : (
-              <div className="p-8 rounded-md border border-dashed border-border-card text-center text-xs text-text-muted py-12 my-auto">
-                Please connect your Figma account in the Settings tab to import new frames.
               </div>
             )}
           </div>
@@ -332,6 +472,7 @@ export default function MiroPluginPage() {
                 Integrations
               </h4>
               <div className="space-y-2">
+                {/* Figma Indicator Card */}
                 <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
                   <div>
                     <div className="text-xs font-semibold text-text-page">Figma Status</div>
@@ -358,6 +499,8 @@ export default function MiroPluginPage() {
                     </button>
                   )}
                 </div>
+
+                {/* Miro Indicator Card */}
                 <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
                   <div>
                     <div className="text-xs font-semibold text-text-page">Miro REST Status</div>
@@ -383,6 +526,19 @@ export default function MiroPluginPage() {
                       CONNECT
                     </button>
                   )}
+                </div>
+
+                {/* Penpot Local MCP Indicator Card */}
+                <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
+                  <div>
+                    <div className="text-xs font-semibold text-text-page">Penpot Local MCP</div>
+                    <div className="text-[10px] text-text-muted">
+                      Listening on localhost:4401
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 text-[8px] font-mono font-bold bg-green-950/40 border border-green-800/40 text-green-400 rounded">
+                    ACTIVE
+                  </span>
                 </div>
               </div>
             </div>

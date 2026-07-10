@@ -13,7 +13,8 @@ export async function POST(request: Request) {
       width, 
       dataUrl,
       format = 'png',
-      scale = 2
+      scale = 2,
+      platform = 'figma'
     } = await request.json();
 
     if (!miroToken || !boardId || !itemId || !fileKey || !nodeId || !nodeName) {
@@ -91,7 +92,8 @@ export async function POST(request: Request) {
     const file = new File([arrayBuffer], fileName, { type: mimeType });
     formData.append('resource', file);
 
-    const titleTag = `${nodeName} [SyncBoard|${fileKey}|${nodeId}]`;
+    const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
+    const titleTag = `${nodeName} [${tag}|${fileKey}|${nodeId}]`;
     const dataPayload: { title: string; geometry?: { width: number } } = { title: titleTag };
     
     if (width) {

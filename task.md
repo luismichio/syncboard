@@ -44,3 +44,13 @@ Track active implementation checklist for codebase quality, security, testing, a
 - [x] Update backend `/api/figma/render-batch` and `/api/figma/render` to accept and process format/scale dynamically.
 - [x] Update backend `/api/miro/update-image` to support SVG file types.
 - [x] Run test suite and check compilation status (`yarn test` and `yarn build`).
+
+### Phase 6: Penpot Sync Integration
+- [x] Create Penpot design link URL parser (`src/app/miro-plugin/penpotUrlParser.ts`) and add comprehensive unit test suite.
+- [x] Implement a pure-JS SSE transport MCP client (`src/app/miro-plugin/penpotMcpClient.ts`) to connect to the local Penpot MCP server.
+- [x] Create the `usePenpotImporter.ts` hook to validate links, fetch active selections, and place SVG screens on the Miro canvas.
+- [x] Group duplicate selected canvas items in the Sync panel and show a copies badge (`x3`) on the top-right. Update setting updates to write to all copies.
+- [x] Update selection listener and sync hooks to identify and partition figma and penpot frames.
+- [x] Update Miro update API route to output the correct `PenpotSync` title tag when updating Penpot widgets.
+- [x] Patch the local Penpot MCP server (`PenpotMcpServer.ts`) to add CORS middleware, allowing local browser calls to `localhost:4401`.
+- [x] Verify compilation and test suite status (`yarn test` and `yarn build`).

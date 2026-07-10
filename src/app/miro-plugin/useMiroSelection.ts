@@ -8,12 +8,13 @@ export interface SyncedImage {
   nodeName: string;
   format?: 'png' | 'svg';
   scale?: number;
+  platform?: 'figma' | 'penpot';
 }
 
 /**
  * Manages the global window.miro SDK registration, selection:update listeners,
  * and releases listeners cleanly on unmount to prevent duplicate triggers.
- * Reads image-specific format/scale preferences from Miro widget metadata.
+ * Reads image-specific format/scale preferences and platform from Miro widget metadata.
  */
 export function useMiroSelection(isInitMode: boolean | null) {
   const [selectedItems, setSelectedItems] = useState<SyncedImage[]>([]);
@@ -65,9 +66,10 @@ export function useMiroSelection(isInitMode: boolean | null) {
               if (item.type === 'image') {
                 // 1. Try title-based parsing first
                 if (item.title) {
-                  const match = item.title.match(/^(.*?)\s*\[SyncBoard\|([^|]+)\|([^\]]+)\]$/);
-                  if (match) {
-                    // Enrich with specific format/scale settings from Miro widget metadata
+                  const figmaMatch = item.title.match(/^(.*?)\s*\[SyncBoard\|([^|]+)\|([^\]]+)\]$/);
+                  const penpotMatch = item.title.match(/^(.*?)\s*\[PenpotSync\|([^|]+)\|([^\]]+)\]$/);
+
+                  if (figmaMatch) {
                     let format: 'png' | 'svg' = 'png';
                     let scale = 2;
                     try {
@@ -84,11 +86,37 @@ export function useMiroSelection(isInitMode: boolean | null) {
                     synced.push({
                       id: item.id,
                       title: item.title,
-                      fileKey: match[2],
-                      nodeId: match[3],
-                      nodeName: match[1].trim() || 'Unnamed Screen',
+                      fileKey: figmaMatch[2],
+                      nodeId: figmaMatch[3],
+                      nodeName: figmaMatch[1].trim() || 'Unnamed Screen',
                       format,
                       scale,
+                      platform: 'figma',
+                    });
+                    continue;
+                  } else if (penpotMatch) {
+                    let format: 'png' | 'svg' = 'svg';
+                    let scale = 2;
+                    try {
+                      const metadata = (await item.getMetadata()) as Record<string, unknown> | undefined;
+                      const syncData = metadata?.syncboard as { format?: 'png' | 'svg'; scale?: number } | undefined;
+                      if (syncData) {
+                        format = syncData.format || 'svg';
+                        scale = syncData.scale || 2;
+                      }
+                    } catch (metaErr) {
+                      console.error("Failed to read metadata for item:", item.id, metaErr);
+                    }
+
+                    synced.push({
+                      id: item.id,
+                      title: item.title,
+                      fileKey: penpotMatch[2],
+                      nodeId: penpotMatch[3],
+                      nodeName: penpotMatch[1].trim() || 'Unnamed Screen',
+                      format,
+                      scale,
+                      platform: 'penpot',
                     });
                     continue;
                   }
@@ -103,17 +131,22 @@ export function useMiroSelection(isInitMode: boolean | null) {
                     nodeName?: string;
                     format?: 'png' | 'svg';
                     scale?: number;
+                    platform?: 'figma' | 'penpot';
                   } | undefined;
                   
                   if (syncData?.fileKey && syncData?.nodeId) {
+                    const platform = syncData.platform || 'figma';
+                    const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
+
                     synced.push({
                       id: item.id,
-                      title: `${syncData.nodeName || 'Unnamed Screen'} [SyncBoard|${syncData.fileKey}|${syncData.nodeId}]`,
+                      title: `${syncData.nodeName || 'Unnamed Screen'} [${tag}|${syncData.fileKey}|${syncData.nodeId}]`,
                       fileKey: syncData.fileKey,
                       nodeId: syncData.nodeId,
                       nodeName: syncData.nodeName || 'Unnamed Screen',
-                      format: syncData.format || 'png',
+                      format: syncData.format || (platform === 'penpot' ? 'svg' : 'png'),
                       scale: syncData.scale || 2,
+                      platform,
                     });
                   }
                 } catch (metaErr) {

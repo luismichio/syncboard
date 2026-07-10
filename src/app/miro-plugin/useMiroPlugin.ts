@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useAuthTokens } from './useAuthTokens';
 import { useMiroSelection } from './useMiroSelection';
 import { useFigmaImporter } from './useFigmaImporter';
+import { usePenpotImporter } from './usePenpotImporter';
 import { useMiroSync } from './useMiroSync';
 
 /**
  * Main coordinator hook for the Miro sidebar panel app.
- * Integrates single-responsibility sub-hooks to provide a unified API.
- * Exposes setSelectedItems to allow direct local updates when widget settings change.
+ * Integrates single-responsibility sub-hooks (Figma & Penpot) to provide a unified API.
  */
 export function useMiroPlugin() {
   const [isInitMode] = useState<boolean | null>(() => {
@@ -45,7 +45,17 @@ export function useMiroPlugin() {
     importFigmaScreen,
   } = useFigmaImporter(figmaToken, setIsSyncing, setSyncStatus);
 
-  // 4. Board Sync Hook
+  // 4. Penpot Importer Hook
+  const {
+    penpotInput,
+    penpotNodeInfo,
+    isDetectingLocal: isDetectingPenpotLocal,
+    parsePenpotLink,
+    detectLocalPenpotSelection,
+    importPenpotScreen,
+  } = usePenpotImporter(setIsSyncing, setSyncStatus);
+
+  // 5. Board Sync Hook
   const {
     syncSelectedScreens,
     syncAllCopies,
@@ -77,6 +87,14 @@ export function useMiroPlugin() {
     parseFigmaLink,
     detectLocalFigmaSelection,
     importFigmaScreen,
+    // Penpot importer
+    penpotInput,
+    penpotNodeInfo,
+    isDetectingPenpotLocal,
+    parsePenpotLink,
+    detectLocalPenpotSelection,
+    importPenpotScreen,
+    // Sync
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
