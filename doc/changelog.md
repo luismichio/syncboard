@@ -9,9 +9,12 @@ All notable changes to the SyncBoard project are documented in this file.
 ### Added
 * **Tauri HTTPS Bridge & Penpot Companion Plugin Schema:** Created the system specifications and architecture design for the loopback bridge.
 * **Penpot Companion Plugin:** Created `penpot-companion-plugin.html` script which connects the Penpot editor tab directly to the Tauri proxy over WebSockets.
-* **Tauri client support:** Configured `penpotMcpClient.ts` to support dual transportation modes, falling back to Tauri secure loopback `local.syncboard.com` when the bridge toggle is active.
+* **Tauri client support:** Configured `penpotMcpClient.ts` to connect to Tauri secure loopback `local.syncboard.com` when the bridge toggle is active.
 * **Figma Tauri support:** Enabled local Figma selection detection through the Tauri proxy inside `useFigmaImporter.ts`.
 * **Sidebar settings toggle:** Added a toggle switch in the settings tab for "Tauri Desktop Bridge" along with a pairing ID generator and clipboard copy utility.
+
+### Removed
+* **Penpot MCP Server Client:** Deleted all redundant Penpot MCP server connection code from `penpotMcpClient.ts`, transitioning exclusively to the Tauri secure loopback bridge.
 
 ## [0.1.10] - 2026-07-10
 

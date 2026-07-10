@@ -173,4 +173,12 @@
       incurred by, or claims asserted against, such Contributor by reason
       of your accepting any such warranty or additional liability.
 
-   END OF TERMS AND CONDITIONS
+END OF TERMS AND CONDITIONS
+
+---
+
+### ADDITIONAL TRADEMARK & BRANDING GUIDELINES
+
+While this software is licensed under the Apache License 2.0, the name "SyncBoard", the SyncBoard logo, and related brand assets are trademarks of the copyright holders.
+
+If you deploy, self-host, or distribute a modified version of this software for public use, SaaS, or commercial services, you MUST rebrand the application. You must choose a name, logo, and design style that are distinct from "SyncBoard" to prevent user confusion and security/phishing risks. Description of the project's open-source origin (e.g. "Powered by SyncBoard") is permitted.
