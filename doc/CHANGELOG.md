@@ -1,8 +1,20 @@
 # Changelog
 
-All notable changes to the SyncBoard project are documented in this file.
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+
+## [0.1.12] - 2026-07-11
+
+### Added
+* **Tauri Desktop App Workspace:** Initialized standard Tauri v2 application inside `/tauri-bridge` using Yarn and Vanilla TypeScript template.
+* **Axum Local Secure Server:** Implemented Axum HTTPS local web server on port `4401` using rustls-tls to route selection detection and exports.
+* **WebSocket Pairing Router:** Setup a thread-safe connection mapping WebSocket upgrade path in Axum to pair and relay commands to/from active Penpot browser tabs.
+* **Figma desktop relay:** Structured automatic local HTTP selection query forwarding to Figma desktop's MCP instance on port `3845`.
+* **Automated CI/CD Release Pipeline:** Created `.github/workflows/release-tauri.yml` which automatically compiles `.msi`, `.exe`, `.dmg`, `.app`, and `.deb` installers using GitHub actions upon tagging releases.
+* **Bridge Documentation:** Added `doc/tauri-setup.md` detailing prerequisites, Let's Encrypt certificates installation, and GitHub Action releases.
 
 ## [0.1.11] - 2026-07-11
 
@@ -20,8 +32,9 @@ All notable changes to the SyncBoard project are documented in this file.
 
 ### Added
 * **Penpot Sync Integration:** Added support for syncing Penpot frames to the Miro canvas side-by-side with Figma.
-* **Penpot URL Parser:** Added a custom parser to extract `fileId` and `objectId` from Penpot design links, defaulting the target to `'selection'` if no node is specified.
-* **Penpot Local MCP Client:** Created a pure-JS SSE-based connection client to query selections and request vector SVG/PNG exports from the local Penpot MCP server.
+* **Penpot Link Parser:** Implemented design workspace URL parser matching workspace formats (`design.penpot.app/#/workspace/...`) with 100% test coverage.
+* **Penpot MCP Client Integration:** Created `penpotMcpClient.ts` communicating with the local Penpot MCP server over HTTP JSON-RPC POST requests to prevent SSE timeout locks.
+* **Penpot Client Importer:** Built `usePenpotImporter.ts` validating frame URLs, detecting selection frames, and placing SVGs on the canvas.
 * **Miro Update API Platform Handling:** Updated `/api/miro/update-image` to support and output platform-specific title tags (`PenpotSync` vs. `SyncBoard`).
 * **Consolidated Selection UI:** Grouped duplicate canvas screens in the sidebar under a single frame card, rendering a copy counter badge (e.g. `x3`) in the top-right and batch-applying format/scale changes to all selected copies.
 * **CORS Support for Penpot MCP:** Patched the local Penpot MCP server code (`PenpotMcpServer.ts`) to support cross-origin requests, enabling browser-based plugin communication.
