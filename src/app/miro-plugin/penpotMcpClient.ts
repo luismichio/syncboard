@@ -14,8 +14,8 @@ export async function callPenpotMcpTool(toolName: string, toolArgs: Record<strin
     throw new Error('Window context is required.');
   }
 
-  // Use 127.0.0.1 directly to bypass DNS lookups and simplify secure context origin checks
-  const mcpHost = 'http://127.0.0.1:4401';
+  // Use localhost directly to bypass secure context and mixed content restrictions in iframe sandboxes
+  const mcpHost = 'http://localhost:4401';
   const mcpUrl = `${mcpHost}/mcp`;
 
   // --- STEP 1: Send the initialize handshake request ---

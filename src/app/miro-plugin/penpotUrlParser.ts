@@ -5,22 +5,25 @@ export interface PenpotUrlInfo {
 
 /**
  * Parses Penpot editor URLs and extracts the fileId and objectId.
- * Standard format:
- * https://design.penpot.app/#/workspace/WS_ID/project/PROJ_ID/file/FILE_ID?node=OBJECT_ID
+ * Supports multiple URL structures:
+ * - Format A: https://design.penpot.app/#/workspace/WS_ID/project/PROJ_ID/file/FILE_ID?node=OBJECT_ID
+ * - Format B: https://design.penpot.app/#/workspace?team-id=TEAM_ID&file-id=FILE_ID&board-id=OBJECT_ID
  */
 export function parsePenpotUrl(url: string): PenpotUrlInfo | null {
   if (!url) return null;
   
   try {
+    // 1. Extract fileId: search for "/file/UUID" or "?file-id=UUID"
     const fileIdMatch = url.match(/\/file\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/);
-    if (!fileIdMatch) return null;
+    const fileIdParamMatch = url.match(/[?&]file-id=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/);
+    const fileId = fileIdMatch ? fileIdMatch[1] : (fileIdParamMatch ? fileIdParamMatch[1] : null);
     
-    const fileId = fileIdMatch[1];
+    if (!fileId) return null;
     
-    // Matches "?node=UUID" or "&node=UUID" anywhere in the URL (both standard search params or inside hashes)
+    // 2. Extract objectId: search for "?node=UUID", "?board-id=UUID" or default to 'selection'
     const nodeMatch = url.match(/[?&]node=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/);
-    // If node is missing, default to 'selection' to fetch the active selection
-    const objectId = nodeMatch ? nodeMatch[1] : 'selection';
+    const boardMatch = url.match(/[?&]board-id=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/);
+    const objectId = nodeMatch ? nodeMatch[1] : (boardMatch ? boardMatch[1] : 'selection');
     
     return { fileId, objectId };
   } catch {
