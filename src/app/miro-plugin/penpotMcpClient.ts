@@ -74,12 +74,12 @@ export function callPenpotMcpTool(toolName: string, toolArgs: Record<string, unk
             resolve(payload.result as PenpotMcpResponse);
           }
         }
-      } catch (err) {
+      } catch {
         // Ignore JSON parse errors for non-JSON lines or heartbeat lines
       }
     };
 
-    eventSource.onerror = (err) => {
+    eventSource.onerror = () => {
       cleanup();
       clearTimeout(timeout);
       reject(new Error('Penpot MCP connection failed. Make sure your local Penpot MCP server is running on port 4401 and CORS is enabled.'));
