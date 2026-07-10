@@ -16,7 +16,6 @@ export function useMiroSelection(isInitMode: boolean | null) {
   const [selectedItems, setSelectedItems] = useState<SyncedImage[]>([]);
 
   useEffect(() => {
-    console.log("SyncBoard: useMiroSelection useEffect firing. isInitMode:", isInitMode);
     if (isInitMode === null) return;
     if (typeof window === 'undefined') return;
 
@@ -41,9 +40,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
         });
       };
 
-      console.log("SyncBoard: Polling for window.miro.board...");
       const miro = await waitForMiro();
-      console.log("SyncBoard: window.miro.board resolved successfully!");
       savedMiro = miro;
       if (!active) return;
 
@@ -54,23 +51,19 @@ export function useMiroSelection(isInitMode: boolean | null) {
             url: '/miro-plugin',
           });
         });
-        console.log('SyncBoard Headless Iframe Initialized.');
       } else {
         // Panel Mode: Bind Selection Listeners
         const handleSelection = async () => {
           try {
             const selection = await miro.board.getSelection();
-            console.log("SyncBoard Selection Event. Total items:", selection.length);
             const synced: SyncedImage[] = [];
 
             for (const item of selection) {
-              console.log("Inspecting selected item ID:", item.id, "Type:", item.type);
               if (item.type === 'image') {
                 // 1. Try title-based parsing first (synchronous, 0ms latency, zero API rate limits)
                 if (item.title) {
                   const match = item.title.match(/^\[SyncBoard\|([^|]+)\|([^\]]+)\]\s*(.*)$/);
                   if (match) {
-                    console.log("SyncBoard title match found! FileKey:", match[1], "NodeID:", match[2]);
                     synced.push({
                       id: item.id,
                       title: item.title,
@@ -86,9 +79,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
                 try {
                   const metadata = (await item.getMetadata()) as Record<string, unknown> | undefined;
                   const syncData = metadata?.syncboard as { fileKey?: string; nodeId?: string; nodeName?: string } | undefined;
-                  
                   if (syncData?.fileKey && syncData?.nodeId) {
-                    console.log("SyncBoard metadata fallback match found! FileKey:", syncData.fileKey, "NodeID:", syncData.nodeId);
                     synced.push({
                       id: item.id,
                       title: `[SyncBoard|${syncData.fileKey}|${syncData.nodeId}] ${syncData.nodeName || 'Unnamed Screen'}`,
@@ -96,8 +87,6 @@ export function useMiroSelection(isInitMode: boolean | null) {
                       nodeId: syncData.nodeId,
                       nodeName: syncData.nodeName || 'Unnamed Screen',
                     });
-                  } else {
-                    console.log("Item lacks SyncBoard title pattern and metadata");
                   }
                 } catch (metaErr) {
                   console.error("Failed to read metadata for item:", item.id, metaErr);
@@ -122,11 +111,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
         };
 
         savedHandler = handleSelection;
-
-        console.log("SyncBoard: Querying initial selection on mount...");
         await handleSelection();
-
-        console.log("SyncBoard: Registering selection:update listener...");
         miro.board.ui.on('selection:update', handleSelection);
       }
     };
@@ -134,12 +119,10 @@ export function useMiroSelection(isInitMode: boolean | null) {
     initMiro();
 
     return () => {
-      console.log("SyncBoard: useMiroSelection cleanup hook run.");
       active = false;
       if (interval) clearInterval(interval);
       if (savedMiro && savedHandler) {
         try {
-          console.log("SyncBoard: Removing selection:update event listener.");
           savedMiro.board.ui.off('selection:update', savedHandler);
         } catch (e) {
           console.warn('Failed to unsubscribe from selection changes:', e);

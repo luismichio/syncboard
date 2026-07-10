@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 export async function GET() {
   const figmaClientId = process.env.FIGMA_CLIENT_ID;
@@ -7,24 +8,66 @@ export async function GET() {
 
   if (!figmaClientId) {
     return new NextResponse(
-      `<html>
-        <head><title>Setup Required</title></head>
-        <body style="font-family: sans-serif; padding: 40px; background: #0A0A0A; color: #FAF9F5;">
-          <h2>FIGMA_CLIENT_ID is missing</h2>
-          <p>Please make sure you set the <strong>FIGMA_CLIENT_ID</strong> environment variable in your deployment.</p>
-        </body>
-      </html>`,
+      `<!DOCTYPE html>
+<html>
+<head>
+  <title>Setup Required</title>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      let isDark = true;
+      if (savedTheme === 'light') isDark = false;
+      else if (savedTheme === 'dark') isDark = true;
+      else isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const root = document.documentElement;
+      if (isDark) {
+        root.style.setProperty('--bg-page', '#0A0A0A');
+        root.style.setProperty('--text-page', '#FAF9F5');
+        root.style.setProperty('--text-muted', '#9A9997');
+      } else {
+        root.style.setProperty('--bg-page', '#FAF9F5');
+        root.style.setProperty('--text-page', '#0A0A0A');
+        root.style.setProperty('--text-muted', '#5E5E5E');
+      }
+    })();
+  </script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: var(--bg-page);
+      color: var(--text-page);
+      padding: 40px;
+      margin: 0;
+    }
+    h2 { margin-top: 0; }
+    p { color: var(--text-muted); line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h2>FIGMA_CLIENT_ID is missing</h2>
+  <p>Please make sure you set the <strong>FIGMA_CLIENT_ID</strong> environment variable in your deployment.</p>
+</body>
+</html>`,
       { headers: { 'Content-Type': 'text/html' }, status: 500 }
     );
   }
 
-  // Generate a random state parameter to prevent CSRF attacks
-  const state = Math.random().toString(36).substring(7);
+  // Generate a cryptographically secure random state parameter to prevent CSRF attacks
+  const state = crypto.randomBytes(16).toString('hex');
 
   // We request 'file_content:read' scope to fetch the file structure and render screenshots
   const authUrl = `https://www.figma.com/oauth?client_id=${figmaClientId}&redirect_uri=${encodeURIComponent(
     redirectUri
   )}&scope=file_content:read&state=${state}&response_type=code`;
 
-  return NextResponse.redirect(authUrl);
+  const response = NextResponse.redirect(authUrl);
+  response.cookies.set('figma_oauth_state', state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 300, // 5 minutes
+    path: '/',
+  });
+
+  return response;
 }

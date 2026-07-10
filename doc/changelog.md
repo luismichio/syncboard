@@ -4,6 +4,20 @@ All notable changes to the SyncBoard project are documented in this file.
 
 ---
 
+## [0.1.8] - 2026-07-10
+
+### Added
+* **Vitest Unit Test Suite:** Configured Vitest and jsdom environments for frontend testing. Added test coverage for Figma URL parsing and OAuth token validation helpers.
+* **Husky Pre-Push Hook:** Added automated pre-push hook integration ensuring lint, test, and production builds pass before any git push.
+* **Themed Auth Popups:** Integrated a dynamic, client-side script in all OAuth auth and callback popup windows to detect the active theme configuration (`light`, `dark`, or `system` pref) from localStorage and dynamically style background, text, buttons, and loading states to match.
+
+### Fixed
+* **OAuth CSRF Security:** Implemented cryptographic random `state` validation via secure, HTTP-only cookie validation for Figma and Miro callback routes.
+* **Safe Token Serialization:** Transitioned from unsafe string template literals to robust `JSON.stringify` serialization on authorization success callback frames to prevent script crash and potential injection.
+* **Verbose Console Logs Cleanups:** Removed development debugging logs from `useMiroSelection.ts` to follow production standards.
+
+---
+
 ## [0.1.7] - 2026-07-09
 
 ### Fixed

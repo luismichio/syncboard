@@ -25,6 +25,7 @@
 *.pem
 .pipe_cache
 .sift_cache
+.pipe_telemetry.json
 
 # debug
 npm-debug.log*
