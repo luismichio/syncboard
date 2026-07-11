@@ -33,10 +33,12 @@ Figma provides a robust, public web API that renders design frames to images in 
 * **Flow:** The Miro plugin makes a request to the SyncBoard Next.js API. The server requests the frame render directly from Figma's cloud servers (`api.figma.com/v1/images`), downloads the image, and uploads it to the Miro widget.
 * **Benefits:** Zero user configuration, no local servers, and no tunnels required.
 
-### B. Penpot Sync (Local Loopback Bridge)
-Penpot does not have a public cloud rendering API. To avoid requiring complex cloud containers running Puppeteer or local SSH tunnels, SyncBoard bridges the gap locally.
-* **Flow:** The Miro plugin queries a local secure loopback server run by the **Tauri desktop app** on the designer's machine (`https://local-syncboard.luiskobayashi.com:4401`). The Tauri app sends an export request over WebSockets to the active **Penpot browser tab** where the designer is working. The Penpot tab renders the frame using Penpot's native plugin engine, converts it to base64, and returns it to Miro via Tauri.
-* **Benefits:** 100% free of cloud database setup or tunnels. It works natively inside sandboxed environments like Miro Desktop App and Safari.
+### B. Penpot Sync (Local Loopback Bridge & Browser Render)
+Unlike Figma, Penpot does **not** provide a public REST API that can render design frames into PNG/SVG in the cloud. Consequently, syncing Penpot designs requires a local bridge and a browser plugin context:
+* **The Cloud Limitation:** To render Penpot designs in the cloud, a server must boot a headless browser instance (using Puppeteer or Playwright), load the Penpot editor client, authenticate the user, load the heavy WebAssembly editor assets, and take screenshots. This would require hosting expensive, resource-heavy cloud rendering nodes.
+* **The Local Solution:** SyncBoard solves this by using the designer's **active Penpot browser tab** as the renderer. The designer runs the SyncBoard Penpot Companion plugin in their workspace. The Miro plugin sends an export request via the local Tauri SyncBridge to the Penpot tab. The tab uses Penpot's native plugin APIs (`penpot.export`) to render the selected frame on the local GPU/CPU, converting it to base64 or SVG, and returning it to Miro.
+* **Flow:** The Miro plugin queries the local secure loopback server run by the **Tauri desktop app** on the designer's machine (`https://local-syncboard.luiskobayashi.com:4401`). The Tauri app forwards this request over WebSockets to the active **Penpot browser tab**. The tab renders the frame locally and returns the payload to Miro via the bridge.
+* **Benefits:** 100% free of cloud database setup, authentication cookie management, or tunnel hosting costs. It works instantly using the user's local hardware.
 
 ---
 
