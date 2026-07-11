@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.4.0] - 2026-07-11
+
+### Added
+* **Documentation Site:** Replaced `/dashboard` with a full documentation site at `/docs`. Renders `doc/*.md` as styled pages with TOC sidebar, syntax highlighting, heading anchor links, and a metadata bar (last updated, word count).
+* **Agent-Friendly Docs API:** Added `GET /api/docs/list` (JSON index) and `GET /api/docs/raw?file=<filename>` (raw markdown) for AI agent consumption. `backlog.md` is hidden from public.
+* **Token Fingerprinting:** Token storage keys now include a `deploymentFingerprint()` hash of `window.location.origin` to prevent collisions across SyncBoard deployments.
+* **19 API Route Tests:** Test suites for `/api/figma/render`, `/api/figma/render-batch`, `/api/figma/node-info`, and `/api/miro/update-image` (38 total, all passing).
+
+### Changed
+* **Issue 4 — Token Refresh Resilience:** `getValidToken()` no longer clears the token on a single refresh failure. The old token stays in storage and retries on the next page load, preventing unnecessary re-authentication from transient failures.
+* **Enhanced Bridge Logging:** All SyncBridge events now show `[Service]` prefixes (`[Bridge]`, `[Figma]`, `[Penpot]`) with pairing IDs, shape names, file keys, and session counts.
+
+### Fixed
+* **Penpot WebSocket PNA:** Added explicit `OPTIONS` handler for the `/ws` route in the bridge. Chrome's Private Network Access preflight is now properly answered with `Access-Control-Allow-Private-Network: true`, fixing `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`.
+
 ## [0.3.0] - 2026-07-11
 
 ### Added
