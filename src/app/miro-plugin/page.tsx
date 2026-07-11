@@ -100,6 +100,11 @@ export default function MiroPluginPage() {
         if (res.status === 200) {
           setUseTauri(true);
           localStorage.setItem('syncboard_use_tauri', 'true');
+          // Notify bridge of connection (fire-and-forget)
+          fetch('https://local-syncboard.luiskobayashi.com:4401/miro/connect', {
+            method: 'POST',
+            targetAddressSpace: 'loopback',
+          } as unknown as RequestInit).catch(() => {});
         } else {
           throw new Error('unreachable');
         }

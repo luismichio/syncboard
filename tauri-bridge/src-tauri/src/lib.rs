@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex, oneshot};
+use axum::middleware;
 use tower_http::cors::CorsLayer;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use tauri::menu::{Menu, MenuItem};
@@ -141,6 +142,21 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
+/// Axum middleware that adds `Access-Control-Allow-Private-Network: true`
+/// to every response. Chrome requires this header when public HTTPS sites
+/// connect to local/private network servers (Private Network Access check).
+async fn add_pna_header(
+    request: axum::http::Request<axum::body::Body>,
+    next: middleware::Next,
+) -> impl IntoResponse {
+    let mut response = next.run(request).await;
+    response.headers_mut().insert(
+        HeaderName::from_static("access-control-allow-private-network"),
+        HeaderValue::from_static("true"),
+    );
+    response
+}
+
 async fn start_https_server(state: AppState) {
     let cors = CorsLayer::new()
         .allow_private_network(true)
@@ -150,11 +166,15 @@ async fn start_https_server(state: AppState) {
 
     let app = Router::new()
         .route("/health", get(handle_health))
-        // WebSocket route handles both GET (upgrade) and OPTIONS (PNA preflight)
-        .route("/ws", get(ws_handler).options(ws_preflight))
+        .route("/ws", get(ws_handler))
+        .route("/miro/connect", post(handle_miro_connect))
         .route("/detect-figma", post(handle_detect_figma))
         .route("/detect-penpot", post(handle_detect_penpot))
         .route("/export-penpot", post(handle_export_penpot))
+        // Add PNA header to EVERY response — Chrome requires this for
+        // private-network access from public websites. This middleware runs
+        // after CORS, so it also covers the CORS preflight (OPTIONS) response.
+        .layer(middleware::from_fn(add_pna_header))
         .layer(cors)
         .with_state(state.clone());
 
@@ -181,22 +201,6 @@ async fn start_https_server(state: AppState) {
         eprintln!("Axum server shut down with error: {}", e);
         state.emit_status("error", 0, Some(format!("[Bridge] Server shut down: {}", e))).await;
     }
-}
-
-// ── Private Network Access (PNA) preflight for WebSocket ──────────
-// Chrome sends an OPTIONS preflight before the WebSocket upgrade when
-// the target is on a local/private network. This handler responds
-// correctly so Chrome allows the wss:// connection through.
-async fn ws_preflight(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
-    state.log("Bridge", "PNA preflight received for WebSocket — allowing private network access.".to_string()).await;
-    let headers = [
-        (HeaderName::from_static("access-control-allow-origin"), HeaderValue::from_static("*")),
-        (HeaderName::from_static("access-control-allow-methods"), HeaderValue::from_static("GET")),
-        (HeaderName::from_static("access-control-allow-private-network"), HeaderValue::from_static("true")),
-    ];
-    (StatusCode::NO_CONTENT, headers)
 }
 
 // ── WebSocket handler ────────────────────────────────────────────
@@ -558,9 +562,15 @@ fn rand_id() -> String {
     format!("{:x}", r)
 }
 
-async fn handle_health(State(state): State<AppState>) -> impl IntoResponse {
-    state.log("Miro", format!("Health check — Bridge is online and reachable")).await;
+// Silent health check — called by Miro plugin every 30s. No logging to avoid flooding.
+async fn handle_health() -> impl IntoResponse {
     (StatusCode::OK, Json(serde_json::json!({ "status": "ok" })))
+}
+
+/// Called once by the Miro plugin when the user first connects to the bridge.
+async fn handle_miro_connect(State(state): State<AppState>) -> impl IntoResponse {
+    state.log("Miro", "Connected — SyncBoard plugin is now linked to SyncBridge").await;
+    (StatusCode::OK, Json(serde_json::json!({ "status": "connected" })))
 }
 
 #[tauri::command]
