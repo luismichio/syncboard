@@ -98,3 +98,34 @@ Unlike Figma, Penpot does not enforce API rate limits or monthly quotas for expo
 ### C. Miro API Quotas
 Miro limits heavyset widget operations (like uploading and PATCHing images) to **50 requests per minute** per user token.
 * **SyncBoard Optimization:** Includes a **500ms delay** between consecutive widget updates to prevent hitting Miro's limit.
+
+---
+
+## 🧠 6. Chromium Loopback & Sandboxing Security (Learnings & Constraints)
+
+During development and security auditing, we uncovered several strict browser-level constraints regarding secure loopback requests from inside Miro's iframe environments. These are documented below to guide future architectural decisions:
+
+### A. Chromium Local Network Access (LNA) Iframe Restriction
+Modern Chromium browsers completely block public websites inside cross-origin `iframe` containers from making requests to the local network or loopback (`127.0.0.1`/`localhost`), regardless of CORS or SSL certificate validity.
+* **The Constraint:** Unless the parent page (`miro.com`) explicitly sets `allow="loopback-network"` on the iframe element, the browser blocks all loopback fetch and WebSocket connections.
+* **The Solution:** The Miro Desktop App (built on Electron) is not subject to this strict sandboxing rule, allowing the Miro plugin to query the local `https://local-syncboard.luiskobayashi.com:4401` companion server directly.
+
+### B. Strict CORS Private Network Access (PNA) Preflights
+When LNA is bypassed (e.g., inside Electron/Miro Desktop), Chromium requires a secure context (HTTPS) and enforces a strict preflight check (`OPTIONS` request) for local connections.
+* **The Constraint:** The server **must not** return a wildcard `*` for `Access-Control-Allow-Origin` during PNA preflights; it must echo back the exact requesting origin (e.g. `https://syncboard.luiskobayashi.com`).
+* **The Solution:** The Axum backend uses `tower_http`'s `AllowOrigin::mirror_request()` to dynamically reflect the request origin header and explicitly returns `Access-Control-Allow-Private-Network: true`.
+
+### C. Chromium `targetAddressSpace` Fetch Parameter
+To prevent silent network scanning, Chromium requires active labeling of fetches targeting loopback devices.
+* **The Solution:** All frontend loopback queries to port 4401 are configured with the non-standard `targetAddressSpace: 'loopback'` fetch option (cast as `RequestInit` to satisfy TypeScript linting rules).
+
+### D. Electron Isolated SSL Trust Store
+While standard browsers trust custom root certificates (like the `mkcert` CA) immediately after system registry installation (`mkcert -install`), Electron clients do not always dynamically sync or reload newly registered system CAs.
+* **The Constraint:** If the certificates are modified or newly generated, the parent application (Miro Desktop) must be fully restarted to refresh the Electron SSL trust engine.
+
+### E. Redirection Isolation (Desktop OAuth Polling)
+Opening Miro or Figma authentication pages in Miro Desktop opens the system browser. Once auth completes in the system browser, the OAuth callback cannot redirect back to the Miro Desktop context due to process isolation (the desktop app cannot access Chrome cookies/localstorage).
+* **The Solution:** We implemented a **stateless OAuth state polling mechanism**:
+  1. The Miro plugin generates a unique random `state` and registers it before opening the browser.
+  2. The system browser callbacks POST the tokens to `/api/oauth/store` mapped by the `state`.
+  3. The Miro plugin polls `/api/oauth/store` for the tokens and completes the login inside the desktop app.

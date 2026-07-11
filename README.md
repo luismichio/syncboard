@@ -16,6 +16,17 @@ Unlike official live embeds which require browser logins and degrade board perfo
 * **Zero-Setup Figma Sync:** Connects to Figma's public API to render and update screens in the cloud with no local servers or databases required.
 * **SyncBridge Companion (For Figma & Penpot):** Connects Miro Desktop (Electron) to local Figma servers and Penpot browser tabs securely using a local secure HTTPS loopback server, bypassing browser mixed-content restrictions with no tunnels.
 
+### 📐 Integration & Compatibility Matrix
+
+Depending on your design tool and Miro client, here is when the local **SyncBridge** companion app is required:
+
+| Feature | Design Tool Context | Miro Client | SyncBridge Required? |
+| :--- | :--- | :--- | :--- |
+| **Figma URL Import / Sync** | Browser or Desktop | Browser or Desktop | **No** (Cloud-Native Sync) |
+| **Figma Auto-Detect Selection** | Figma Desktop | Miro Desktop | **Yes** (Queries local port 3845) |
+| **Penpot URL Import & Selection** | Penpot Browser | Miro Desktop | **Yes** (Relays render & selection to Penpot tab) |
+| **Figma / Miro Login (OAuth)** | Any browser | Browser or Desktop | **No** (Uses stateless polling) |
+
 ---
 
 ## 🚀 Setup & Deployment
