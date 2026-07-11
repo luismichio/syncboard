@@ -60,6 +60,31 @@ For details on how the system handles secure local loopbacks, DNS routing, metad
 
 ---
 
+## 🎨 Penpot Plugin Setup
+
+To use SyncBoard with **Penpot**, you need to install the SyncBoard Companion Plugin in your Penpot workspace:
+
+### Production Installation
+1. In Penpot, open any design file.
+2. In the right-hand panel, click the **Plugins** tab (puzzle icon).
+3. Locate the plugin insertion section at the bottom of the tab.
+4. Paste the secure manifest URL inside the URL input field:
+   ```
+   https://syncboard.luiskobayashi.com/penpot-manifest.json
+   ```
+5. Click **Install**. The plugin will appear in your workspace list.
+6. Click the plugin to open it, connect to SyncBridge using your Pairing ID, and start syncing!
+
+### Local Development Installation
+When running the development server locally:
+1. Follow the steps above to add a new plugin.
+2. For the Manifest URL, use your local address:
+   ```
+   http://localhost:3000/penpot-manifest.json
+   ```
+
+---
+
 ## 💻 Local Development
 
 For testing and coding on your local machine:
