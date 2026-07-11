@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "bump": "node scripts/bump-version.mjs",
     "prepare": "husky"
   },
   "dependencies": {

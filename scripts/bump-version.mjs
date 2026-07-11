@@ -1,9 +1,13 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const targetVersion = process.argv[2];
 if (!targetVersion) {
-  console.error('Error: Please specify the version to bump to (e.g. node scripts/bump-version.js 0.3.0)');
+  console.error('Error: Please specify the version to bump to (e.g. node scripts/bump-version.mjs 0.3.0)');
   process.exit(1);
 }
 
