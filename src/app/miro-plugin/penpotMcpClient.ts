@@ -29,7 +29,7 @@ export async function callPenpotMcpTool(toolName: string, toolArgs: Record<strin
   }
 
   const pairingId = getOrCreatePairingId();
-  const tauriHost = 'https://local.syncboard.com:4401';
+  const tauriHost = 'https://local-syncboard.luiskobayashi.com:4401';
   
   if (toolName === 'execute_code') {
     // Relays selection query to Tauri local secure server
@@ -102,7 +102,7 @@ export async function callFigmaSelectionTauri(): Promise<{ id: string; name: str
   if (!useTauri) return null;
 
   try {
-    const res = await fetch('https://local.syncboard.com:4401/detect-figma', {
+    const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/detect-figma', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });

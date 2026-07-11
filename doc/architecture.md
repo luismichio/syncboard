@@ -18,7 +18,7 @@ SyncBoard utilizes two distinct sync strategies based on the capabilities of the
                          ▼                          ▼
   ┌───────────────────────────────┐        ┌───────────────────────────────────┐
   │     SyncBoard Cloud API       │        │        Tauri Local Bridge         │
-  │     (Next.js on Vercel)       │        │   (https://local.syncboard.com)   │
+  │     (Next.js on Vercel)       │        │   (https://local-syncboard.luiskobayashi.com)   │
   └──────────────┬────────────────┘        └────────────────┬──────────────────┘
                  │                                          │
                  ▼ Cloud REST Fetch                         ▼ Local WSS
@@ -35,7 +35,7 @@ Figma provides a robust, public web API that renders design frames to images in 
 
 ### B. Penpot Sync (Local Loopback Bridge)
 Penpot does not have a public cloud rendering API. To avoid requiring complex cloud containers running Puppeteer or local SSH tunnels, SyncBoard bridges the gap locally.
-* **Flow:** The Miro plugin queries a local secure loopback server run by the **Tauri desktop app** on the designer's machine (`https://local.syncboard.com:4401`). The Tauri app sends an export request over WebSockets to the active **Penpot browser tab** where the designer is working. The Penpot tab renders the frame using Penpot's native plugin engine, converts it to base64, and returns it to Miro via Tauri.
+* **Flow:** The Miro plugin queries a local secure loopback server run by the **Tauri desktop app** on the designer's machine (`https://local-syncboard.luiskobayashi.com:4401`). The Tauri app sends an export request over WebSockets to the active **Penpot browser tab** where the designer is working. The Penpot tab renders the frame using Penpot's native plugin engine, converts it to base64, and returns it to Miro via Tauri.
 * **Benefits:** 100% free of cloud database setup or tunnels. It works natively inside sandboxed environments like Miro Desktop App and Safari.
 
 ---
@@ -44,8 +44,8 @@ Penpot does not have a public cloud rendering API. To avoid requiring complex cl
 
 To support selection queries in Miro Desktop and Safari without mixed-content browser blockages (HTTPS loading HTTP localhost), Tauri runs a secure local loopback bridge:
 
-1. **DNS Mapping:** The domain `local.syncboard.com` resolves via public DNS records to `127.0.0.1`.
-2. **SSL Certs:** Tauri bundles a publicly-trusted Let's Encrypt certificate for `local.syncboard.com`. The browser trusts the connection out of the box.
+1. **DNS Mapping:** The domain `local-syncboard.luiskobayashi.com` resolves via public DNS records to `127.0.0.1`.
+2. **SSL Certs:** Tauri bundles a publicly-trusted Let's Encrypt certificate for `local-syncboard.luiskobayashi.com`. The browser trusts the connection out of the box.
 3. **Figma Selection:** Tauri makes a direct local HTTP request to the local Figma Desktop port (`http://127.0.0.1:3845/mcp`) on the Rust side, bypassing browser sandboxes.
 4. **Penpot Selection:** Tauri queries the Penpot Companion Plugin via the local WebSocket connection, which calls the native Penpot plugin API: `penpot.selection[0]`.
 

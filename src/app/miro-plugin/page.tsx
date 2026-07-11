@@ -73,10 +73,42 @@ export default function MiroPluginPage() {
   };
 
   const copyPairingId = () => {
-    navigator.clipboard.writeText(pairingId).then(() => {
-      setCopiedPairing(true);
-      setTimeout(() => setCopiedPairing(false), 2000);
-    });
+    const text = pairingId;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          setCopiedPairing(true);
+          setTimeout(() => setCopiedPairing(false), 2000);
+        })
+        .catch((err) => {
+          console.warn('Clipboard API failed, trying fallback copy:', err);
+          fallbackCopyText(text);
+        });
+    } else {
+      fallbackCopyText(text);
+    }
+  };
+
+  const fallbackCopyText = (text: string) => {
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      if (successful) {
+        setCopiedPairing(true);
+        setTimeout(() => setCopiedPairing(false), 2000);
+      }
+    } catch (err) {
+      console.error('Fallback copy failed:', err);
+    }
   };
 
   const handleDefaultPngScaleChange = (val: number) => {

@@ -32,7 +32,7 @@ To run the Tauri application locally on your computer:
 Browsers restrict insecure connections from HTTPS environments like Miro. To run the loopback bridge without security prompts:
 
 1. **Obtain Domain Certs:**
-   * Register a subdomain that resolves to `127.0.0.1` (e.g. `local.syncboard.com`).
+   * Register a subdomain that resolves to `127.0.0.1` (e.g. `local-syncboard.luiskobayashi.com`).
    * Generate wildcard or single-domain Let's Encrypt certificates for the subdomain (using Certbot/DNS challenge).
 2. **Copy Certificates:**
    * Copy the generated `fullchain.pem` and `privkey.pem`.

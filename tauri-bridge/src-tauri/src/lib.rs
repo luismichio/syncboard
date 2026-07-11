@@ -137,7 +137,7 @@ async fn start_https_server(state: AppState) {
         }
     };
 
-    // Bind to 127.0.0.1:4401 (resolves to local.syncboard.com)
+    // Bind to 127.0.0.1:4401 (resolves to local-syncboard.luiskobayashi.com)
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 4401));
     println!("Tauri Secure Bridge listening on https://127.0.0.1:4401");
 

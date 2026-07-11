@@ -259,7 +259,7 @@
       }
 
       // Connect to Tauri local secure loopback WS server (port 4401)
-      const wsUrl = `wss://local.syncboard.com:4401/ws?pairingId=${pairingId}`;
+      const wsUrl = `wss://local-syncboard.luiskobayashi.com:4401/ws?pairingId=${pairingId}`;
       
       try {
         ws = new WebSocket(wsUrl);
