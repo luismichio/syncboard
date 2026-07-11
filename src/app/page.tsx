@@ -42,10 +42,10 @@ export default function Home() {
 
         <div className="pt-4 flex flex-col sm:flex-row gap-4 w-full justify-center">
           <Link
-            href="/dashboard"
+            href="/docs"
             className="px-6 py-3 rounded-lg font-mono font-bold text-xs bg-accent text-bg-page hover:opacity-90 hover:shadow-[0_0_16px_rgba(var(--color-accent),0.25)] transition duration-200"
           >
-            OPEN DASHBOARD
+            DOCUMENTATION
           </Link>
           <a
             href="https://github.com/luismichio/syncboard"

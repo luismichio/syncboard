@@ -21,11 +21,8 @@ use tauri::Emitter;
 
 #[derive(Clone)]
 struct AppState {
-    // Maps pairingId -> WS message channel to push commands to Penpot plugin
     connections: Arc<Mutex<HashMap<String, mpsc::UnboundedSender<AxumMessage>>>>,
-    // Maps requestId -> oneshot response channels awaiting Penpot plugin replies
     pending: Arc<Mutex<HashMap<String, oneshot::Sender<serde_json::Value>>>>,
-    // Late-initialized Tauri AppHandle to emit events
     app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
 }
 
@@ -38,6 +35,11 @@ impl AppState {
                 "message": message,
             }));
         }
+    }
+
+    /// Emit a log entry prefixed with the service name for clarity in the activity log.
+    async fn log(&self, service: &str, message: String) {
+        self.emit_status("active", self.connections.lock().await.len(), Some(format!("[{}] {}", service, message))).await;
     }
 }
 
@@ -67,14 +69,12 @@ struct ApiResponse<T> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Shared memory state
     let state = AppState {
         connections: Arc::new(Mutex::new(HashMap::new())),
         pending: Arc::new(Mutex::new(HashMap::new())),
         app_handle: Arc::new(Mutex::new(None)),
     };
 
-    // Spawn our background Axum HTTPS & WS secure bridge server
     let state_clone = state.clone();
     tauri::async_runtime::spawn(async move {
         start_https_server(state_clone).await;
@@ -85,33 +85,27 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![get_bridge_status])
         .setup(move |app| {
-            // Set the app handle inside AppState
             let handle = app.handle().clone();
             let app_handle_clone = state.app_handle.clone();
             tauri::async_runtime::spawn(async move {
                 *app_handle_clone.lock().await = Some(handle.clone());
-                // Emit active startup status now that app_handle is set
-                let _ = handle.emit("bridge_status", serde_json::json!({
-                    "status": "active",
+                handle.emit("bridge_status", serde_json::json!({
+                    "status": "starting",
                     "sessions": 0,
-                    "message": "Secure loopback bridge server started successfully.",
-                }));
+                    "message": "[Bridge] Starting HTTPS server on localhost:4401…",
+                })).ok();
             });
 
-            // Create tray menu items
             let quit_i = MenuItem::with_id(app, "quit", "Quit SyncBridge", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
-            // Create tray icon using app's default window icon
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|app, event| {
                     match event.id.as_ref() {
-                        "quit" => {
-                            app.exit(0);
-                        }
+                        "quit" => app.exit(0),
                         "show" => {
                             if let Some(window) = app.get_webview_window("main") {
                                 let _ = window.show();
@@ -147,8 +141,6 @@ pub fn run() {
 }
 
 async fn start_https_server(state: AppState) {
-    // Configure CORS with native Private Network Access (PNA) preflight support.
-    // This responds correctly to browser OPTIONS checks for cross-origin local network requests.
     let cors = CorsLayer::new()
         .allow_private_network(true)
         .allow_origin(tower_http::cors::AllowOrigin::mirror_request())
@@ -157,14 +149,14 @@ async fn start_https_server(state: AppState) {
 
     let app = Router::new()
         .route("/health", get(handle_health))
-        .route("/ws", get(ws_handler))
+        // WebSocket route handles both GET (upgrade) and OPTIONS (PNA preflight)
+        .route("/ws", get(ws_handler).options(ws_preflight))
         .route("/detect-figma", post(handle_detect_figma))
         .route("/detect-penpot", post(handle_detect_penpot))
         .route("/export-penpot", post(handle_export_penpot))
         .layer(cors)
         .with_state(state.clone());
 
-    // Include Let's Encrypt certificates directly into the binary
     let cert_pem = include_bytes!("../resources/cert.pem");
     let key_pem = include_bytes!("../resources/key.pem");
 
@@ -172,27 +164,41 @@ async fn start_https_server(state: AppState) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Failed to initialize SSL configuration: {}", e);
-            state.emit_status("error", 0, Some(format!("Failed to initialize SSL configuration: {}", e))).await;
+            state.emit_status("error", 0, Some(format!("[Bridge] SSL init failed: {}", e))).await;
             return;
         }
     };
 
-    // Bind to 127.0.0.1:4401 (resolves to local-syncboard.luiskobayashi.com)
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 4401));
-    println!("Tauri Secure Bridge listening on https://127.0.0.1:4401");
+    state.log("Bridge", format!("Listening on https://localhost:4401")).await;
+    state.log("Bridge", "Ready — accepting connections from Penpot Companion Plugin and SyncBoard Miro plugin.".to_string()).await;
 
     if let Err(e) = axum_server::bind_rustls(addr, config)
         .serve(app.into_make_service())
         .await
     {
         eprintln!("Axum server shut down with error: {}", e);
-        state.emit_status("error", 0, Some(format!("Server shut down: {}", e))).await;
+        state.emit_status("error", 0, Some(format!("[Bridge] Server shut down: {}", e))).await;
     }
 }
 
-// WebSocket connection upgrade route
-// Injects Access-Control-Allow-Private-Network: true directly into the
-// 101 Switching Protocols response to satisfy Chrome's PNA preflight check.
+// ── Private Network Access (PNA) preflight for WebSocket ──────────
+// Chrome sends an OPTIONS preflight before the WebSocket upgrade when
+// the target is on a local/private network. This handler responds
+// correctly so Chrome allows the wss:// connection through.
+async fn ws_preflight(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    state.log("Bridge", "PNA preflight received for WebSocket — allowing private network access.".to_string()).await;
+    let headers = [
+        (HeaderName::from_static("access-control-allow-origin"), HeaderValue::from_static("*")),
+        (HeaderName::from_static("access-control-allow-methods"), HeaderValue::from_static("GET")),
+        (HeaderName::from_static("access-control-allow-private-network"), HeaderValue::from_static("true")),
+    ];
+    (StatusCode::NO_CONTENT, headers)
+}
+
+// ── WebSocket handler ────────────────────────────────────────────
 async fn ws_handler(
     ws: WebSocketUpgrade,
     Query(params): Query<HashMap<String, String>>,
@@ -202,6 +208,8 @@ async fn ws_handler(
     let mut response = ws
         .on_upgrade(move |socket| handle_socket(socket, pairing_id, state))
         .into_response();
+
+    // Chrome's PNA also requires the header in the 101 Switching Protocols response
     response.headers_mut().insert(
         HeaderName::from_static("access-control-allow-private-network"),
         HeaderValue::from_static("true"),
@@ -211,19 +219,20 @@ async fn ws_handler(
 
 async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
     if pairing_id.is_empty() {
+        state.log("Bridge", "Rejected WebSocket with empty pairingId.".to_string()).await;
         return;
     }
 
     let (mut sender, mut receiver) = socket.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<AxumMessage>();
 
-    // Register active Penpot connection and emit status
     let sessions = {
         let mut conns = state.connections.lock().await;
         conns.insert(pairing_id.clone(), tx);
         conns.len()
     };
-    state.emit_status("active", sessions, Some(format!("Penpot connection established: {}", pairing_id))).await;
+    state.log("Penpot", format!("Plugin connected (pairingId: {}, {} active session{})",
+        pairing_id, sessions, if sessions == 1 { "" } else { "s" })).await;
 
     let mut write_task = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
@@ -239,7 +248,12 @@ async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
         while let Some(Ok(msg)) = receiver.next().await {
             if let AxumMessage::Text(text) = msg {
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
-                    if let Some(req_id) = val.get("requestId").and_then(|v| v.as_str()) {
+                    // Log incoming messages from the Penpot plugin
+                    if let Some(action) = val.get("action").and_then(|v| v.as_str()) {
+                        let name = val.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
+                        state_clone.log("Penpot", format!("Plugin responded to '{}' — {}", action, name)).await;
+                    }
+                    if let Some(req_id) = val.get("id").and_then(|v| v.as_str()) {
                         let mut pending = state_clone.pending.lock().await;
                         if let Some(tx) = pending.remove(req_id) {
                             let data = val.get("data").cloned().unwrap_or(serde_json::Value::Null);
@@ -256,19 +270,18 @@ async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
         _ = (&mut read_task) => {}
     }
 
-    // Deregister connection and emit status
     let sessions = {
         let mut conns = state.connections.lock().await;
         conns.remove(&pairing_id_clone);
         conns.len()
     };
-    state.emit_status("active", sessions, Some(format!("Penpot connection closed: {}", pairing_id_clone))).await;
+    state.log("Penpot", format!("Plugin disconnected (pairingId: {}, {} active session{})",
+        pairing_id_clone, sessions, if sessions == 1 { "" } else { "s" })).await;
 }
 
-// Figma local selection detection handler
+// ── Figma detection ──────────────────────────────────────────────
 async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse {
-    let sessions = state.connections.lock().await.len();
-    state.emit_status("active", sessions, Some("Detecting Figma selection...".to_string())).await;
+    state.log("Figma", "Detecting local selection…".to_string()).await;
 
     let client = reqwest::Client::new();
     let body = serde_json::json!({
@@ -281,7 +294,6 @@ async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse
         "id": 1
     });
 
-    // Query Figma Desktop local MCP server on port 3845
     let res = match client.post("http://127.0.0.1:3845/mcp")
         .json(&body)
         .send()
@@ -289,7 +301,7 @@ async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse
     {
         Ok(r) => r,
         Err(e) => {
-            state.emit_status("active", sessions, Some(format!("Figma local server unreachable: {}", e))).await;
+            state.log("Figma", format!("Local server unreachable (port 3845): {}", e)).await;
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(ApiResponse {
@@ -301,7 +313,7 @@ async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse
     };
 
     if !res.status().is_success() {
-        state.emit_status("active", sessions, Some(format!("Figma selection failed (HTTP {})", res.status()))).await;
+        state.log("Figma", format!("MCP server error (HTTP {})", res.status())).await;
         return (
             StatusCode::BAD_GATEWAY,
             Json(ApiResponse {
@@ -314,7 +326,7 @@ async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse
     let payload = match res.json::<serde_json::Value>().await {
         Ok(p) => p,
         Err(e) => {
-            state.emit_status("active", sessions, Some(format!("Failed to parse Figma payload: {}", e))).await;
+            state.log("Figma", format!("Failed to parse Figma MCP response: {}", e)).await;
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ApiResponse {
@@ -325,14 +337,13 @@ async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse
         }
     };
 
-    // Extract regex details
     if let Some(text) = payload.pointer("/result/content/0/text").and_then(|v| v.as_str()) {
         let file_key = regex_capture(text, r"fileKey:\s*([a-zA-Z0-9]+)");
         let node_id = regex_capture(text, r"nodeId:\s*([a-zA-Z0-9\-:]+)");
         let name = regex_capture(text, r"name:\s*([^\n]+)").unwrap_or_else(|| "Figma Screen".to_string());
 
         if let (Some(fk), Some(nd)) = (file_key, node_id) {
-            state.emit_status("active", sessions, Some(format!("Figma selection detected: {}", name))).await;
+            state.log("Figma", format!("Detected: {} (file: {}, node: {})", name, fk, nd)).await;
             return (
                 StatusCode::OK,
                 Json(ApiResponse {
@@ -347,7 +358,7 @@ async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse
         }
     }
 
-    state.emit_status("active", sessions, Some("Figma selection: Empty".to_string())).await;
+    state.log("Figma", "No selection found in active design file.".to_string()).await;
     (
         StatusCode::NOT_FOUND,
         Json(ApiResponse {
@@ -362,14 +373,11 @@ fn regex_capture(text: &str, pattern: &str) -> Option<String> {
     re.captures(text).and_then(|c| c.get(1)).map(|m| m.as_str().to_string())
 }
 
-// Penpot selection detection handler (WSS relay)
+// ── Penpot selection detection (WSS relay) ───────────────────────
 async fn handle_detect_penpot(
     State(state): State<AppState>,
     Json(payload): Json<PairingPayload>,
 ) -> impl IntoResponse {
-    let sessions = state.connections.lock().await.len();
-    
-    // Allow blank pairing requests for health check
     if payload.pairing_id.is_empty() {
         return (
             StatusCode::OK,
@@ -380,7 +388,7 @@ async fn handle_detect_penpot(
         );
     }
 
-    state.emit_status("active", sessions, Some(format!("Detecting Penpot selection (pairingId: {})", payload.pairing_id))).await;
+    state.log("Penpot", format!("Selection query for pairingId: {}", payload.pairing_id)).await;
 
     let tx = {
         let conn = state.connections.lock().await;
@@ -390,7 +398,7 @@ async fn handle_detect_penpot(
     let tx = match tx {
         Some(t) => t,
         None => {
-            state.emit_status("active", sessions, Some("Penpot tab not connected".to_string())).await;
+            state.log("Penpot", format!("Tab not connected (pairingId: {})", payload.pairing_id)).await;
             return (
                 StatusCode::NOT_FOUND,
                 Json(ApiResponse {
@@ -413,7 +421,7 @@ async fn handle_detect_penpot(
 
     if tx.send(AxumMessage::Text(ws_msg.to_string())).is_err() {
         state.pending.lock().await.remove(&req_id);
-        state.emit_status("active", sessions, Some("Failed to transmit request to Penpot client".to_string())).await;
+        state.log("Penpot", format!("Failed to send selection request to plugin (pairingId: {})", payload.pairing_id)).await;
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse {
@@ -423,11 +431,11 @@ async fn handle_detect_penpot(
         );
     }
 
-    // Await response with a 5-second timeout
+    let log_id = payload.pairing_id.clone();
     match tokio::time::timeout(std::time::Duration::from_secs(5), reply_rx).await {
         Ok(Ok(val)) => {
             if val.is_null() {
-                state.emit_status("active", sessions, Some("Penpot selection: Empty".to_string())).await;
+                state.log("Penpot", "Selection: empty (nothing selected in Penpot)".to_string()).await;
                 (
                     StatusCode::OK,
                     Json(ApiResponse {
@@ -437,7 +445,8 @@ async fn handle_detect_penpot(
                 )
             } else {
                 let name = val.get("name").and_then(|v| v.as_str()).unwrap_or("Penpot Screen");
-                state.emit_status("active", sessions, Some(format!("Penpot selection detected: {}", name))).await;
+                let shape_id = val.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+                state.log("Penpot", format!("Selected: {} (shapeId: {})", name, shape_id)).await;
                 (
                     StatusCode::OK,
                     Json(ApiResponse {
@@ -449,7 +458,7 @@ async fn handle_detect_penpot(
         }
         _ => {
             state.pending.lock().await.remove(&req_id);
-            state.emit_status("active", sessions, Some("Penpot query timed out".to_string())).await;
+            state.log("Penpot", format!("Selection query timed out (pairingId: {})", log_id)).await;
             (
                 StatusCode::GATEWAY_TIMEOUT,
                 Json(ApiResponse {
@@ -461,13 +470,12 @@ async fn handle_detect_penpot(
     }
 }
 
-// Penpot frame render export handler (WSS relay)
+// ── Penpot frame export (WSS relay) ──────────────────────────────
 async fn handle_export_penpot(
     State(state): State<AppState>,
     Json(payload): Json<ExportPayload>,
 ) -> impl IntoResponse {
-    let sessions = state.connections.lock().await.len();
-    state.emit_status("active", sessions, Some(format!("Exporting Penpot shape: {}", payload.shape_id))).await;
+    state.log("Penpot", format!("Export request: shapeId={}, format={}, scale={}", payload.shape_id, payload.format, payload.scale)).await;
 
     let tx = {
         let conn = state.connections.lock().await;
@@ -477,7 +485,7 @@ async fn handle_export_penpot(
     let tx = match tx {
         Some(t) => t,
         None => {
-            state.emit_status("active", sessions, Some("Penpot tab not connected".to_string())).await;
+            state.log("Penpot", format!("Export failed — tab not connected (pairingId: {})", payload.pairing_id)).await;
             return (
                 StatusCode::NOT_FOUND,
                 Json(ApiResponse {
@@ -503,7 +511,7 @@ async fn handle_export_penpot(
 
     if tx.send(AxumMessage::Text(ws_msg.to_string())).is_err() {
         state.pending.lock().await.remove(&req_id);
-        state.emit_status("active", sessions, Some("Failed to transmit render request to Penpot client".to_string())).await;
+        state.log("Penpot", format!("Failed to send export request to plugin (shapeId: {})", payload.shape_id)).await;
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse {
@@ -513,10 +521,12 @@ async fn handle_export_penpot(
         );
     }
 
-    // Await response with a 15-second timeout (renders can be slower)
+    let shape_id_log = payload.shape_id.clone();
     match tokio::time::timeout(std::time::Duration::from_secs(15), reply_rx).await {
         Ok(Ok(val)) => {
-            state.emit_status("active", sessions, Some(format!("Penpot shape exported successfully: {}", payload.shape_id))).await;
+            let svg_size = val.get("svg").and_then(|v| v.as_str()).map(|s| s.len()).unwrap_or(0);
+            let b64_size = val.get("base64").and_then(|v| v.as_str()).map(|s| s.len()).unwrap_or(0);
+            state.log("Penpot", format!("Export complete: shapeId={}, svg={}B, base64={}B", shape_id_log, svg_size, b64_size)).await;
             (
                 StatusCode::OK,
                 Json(ApiResponse {
@@ -527,7 +537,7 @@ async fn handle_export_penpot(
         }
         _ => {
             state.pending.lock().await.remove(&req_id);
-            state.emit_status("active", sessions, Some("Penpot render timed out".to_string())).await;
+            state.log("Penpot", format!("Export timed out (shapeId: {})", shape_id_log)).await;
             (
                 StatusCode::GATEWAY_TIMEOUT,
                 Json(ApiResponse {
@@ -544,12 +554,8 @@ fn rand_id() -> String {
     format!("{:x}", r)
 }
 
-// Basic health check route
 async fn handle_health() -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({ "status": "ok" }))
-    )
+    (StatusCode::OK, Json(serde_json::json!({ "status": "ok" })))
 }
 
 #[tauri::command]
