@@ -74,8 +74,8 @@ export function usePenpotImporter(
       throw new Error('No frame currently selected in Penpot.');
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      setSyncStatusParent(`Detection failed: ${errMsg} (Tip: If you restarted the server, reconnect the WebSocket bridge in your Penpot editor tab under File -> MCP Server -> Connect)`);
-      console.warn('Local Penpot MCP selection fail:', err);
+      setSyncStatusParent(`Detection failed: ${errMsg} (Tip: Make sure SyncBridge is running and your Penpot Companion Plugin is connected.)`);
+      console.warn('Local Penpot selection fail:', err);
     } finally {
       setIsDetectingLocal(false);
     }

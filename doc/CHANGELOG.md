@@ -6,7 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [0.1.12] - 2026-07-11
+## [0.2.1] - 2026-07-11
+
+### Changed
+* **SyncBridge Rebranding:** Renamed all occurrences of "Tauri Desktop Bridge" to "SyncBridge" across the codebase, user interface, error messages, and documentation.
+* **SyncBridge UI Alignment:** Aligned the SyncBridge connection card in the Settings panel to match the Connect/Disconnect pattern of Figma and Miro (replacing the toggle checkbox).
+
+### Fixed
+* **Tokio Runtime Panic:** Switched background server thread initialization from `tokio::spawn` to `tauri::async_runtime::spawn` to resolve the "there is no reactor running" startup panic in the compiled binary.
+* **Penpot Selection Pointers:** Cleaned up outdated selection error tip reminders inside `usePenpotImporter.ts`.
+
+## [0.2.0] - 2026-07-11
 
 ### Added
 * **Tauri Desktop App Workspace:** Initialized standard Tauri v2 application inside `/tauri-bridge` using Yarn and Vanilla TypeScript template.
@@ -23,7 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Penpot Companion Plugin:** Created `penpot-companion-plugin.html` script which connects the Penpot editor tab directly to the Tauri proxy over WebSockets.
 * **Tauri client support:** Configured `penpotMcpClient.ts` to connect to Tauri secure loopback `local.syncboard.com` when the bridge toggle is active.
 * **Figma Tauri support:** Enabled local Figma selection detection through the Tauri proxy inside `useFigmaImporter.ts`.
-* **Sidebar settings toggle:** Added a toggle switch in the settings tab for "Tauri Desktop Bridge" along with a pairing ID generator and clipboard copy utility.
+* **Sidebar settings toggle:** Added a Connect/Disconnect widget in the settings tab for "SyncBridge" along with a pairing ID generator and clipboard copy utility.
 
 ### Removed
 * **Penpot MCP Server Client:** Deleted all redundant Penpot MCP server connection code from `penpotMcpClient.ts`, transitioning exclusively to the Tauri secure loopback bridge.

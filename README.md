@@ -14,7 +14,7 @@ Unlike official live embeds which require browser logins and degrade board perfo
 * **Consolidated Selection & Copies Counter:** Group duplicates of the same frame inside the sidebar under a single card, displaying a count badge (e.g., `x3`) in the top-right. Updating scale or format updates all copies simultaneously.
 * **Dual-Platform Sync:** Supports **Figma** (cloud-native sync) and **Penpot** (local loopback bridge sync) side-by-side.
 * **Zero-Setup Figma Sync:** Connects to Figma's public API to render and update screens in the cloud with no local servers or databases required.
-* **Tauri Desktop Bridge (For Penpot):** Connects Miro Desktop (Electron) to local Penpot browser tabs securely using a local secure HTTPS loopback server, bypassing mixed-content browser restrictions with no tunnels.
+* **SyncBridge Companion (For Figma & Penpot):** Connects Miro Desktop (Electron) to local Figma servers and Penpot browser tabs securely using a local secure HTTPS loopback server, bypassing browser mixed-content restrictions with no tunnels.
 
 ---
 

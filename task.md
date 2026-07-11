@@ -59,7 +59,7 @@ Track active implementation checklist for codebase quality, security, testing, a
 - [x] Create detailed Tauri secure HTTPS loopback bridge and Penpot companion plugin specification artifact (`tauri_bridge_spec.md`).
 - [x] Implement Penpot Companion Plugin script skeleton (`penpot-companion-plugin.html`) that handles WebSocket messaging and native exports.
 - [x] Adapt client-side `penpotMcpClient.ts` to connect to `https://local.syncboard.com:4401` when the Tauri bridge is active, and remove redundant Penpot MCP server fallback code.
-- [x] Add "Tauri Desktop Bridge" toggle and pairing status information to the Miro plugin Settings tab.
+- [x] Add "SyncBridge" connection widgets and pairing status information to the Miro plugin Settings tab.
 - [x] Document local SSL code-signing/trusted certificate installation steps inside `doc/tauri-setup.md`.
 
 ### Phase 8: Tauri Project Setup & Release Workflow

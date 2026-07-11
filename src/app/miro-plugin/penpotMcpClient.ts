@@ -25,7 +25,7 @@ export async function callPenpotMcpTool(toolName: string, toolArgs: Record<strin
 
   const useTauri = localStorage.getItem('syncboard_use_tauri') === 'true';
   if (!useTauri) {
-    throw new Error('Tauri Desktop Bridge is disabled. Enable it in the Settings tab to sync Penpot.');
+    throw new Error('SyncBridge is disconnected. Connect it in the Settings tab to sync Penpot.');
   }
 
   const pairingId = getOrCreatePairingId();

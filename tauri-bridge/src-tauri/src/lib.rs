@@ -57,7 +57,7 @@ pub fn run() {
 
     // Spawn our background Axum HTTPS & WS secure bridge server
     let state_clone = state.clone();
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         start_https_server(state_clone).await;
     });
 

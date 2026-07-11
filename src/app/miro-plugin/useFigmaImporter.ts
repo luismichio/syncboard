@@ -77,13 +77,13 @@ export function useFigmaImporter(
             nodeId: selection.id,
             name: selection.name || 'Figma Screen',
           });
-          setSyncStatusParent('Local Figma selection detected via Tauri!');
+          setSyncStatusParent('Local Figma selection detected via SyncBridge!');
         } else {
-          throw new Error('Tauri returned empty Figma selection details. Make sure your design file is open.');
+          throw new Error('SyncBridge returned empty Figma selection details. Make sure your design file is open.');
         }
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        setSyncStatusParent(`Tauri Figma detection failed: ${errMsg}`);
+        setSyncStatusParent(`SyncBridge Figma detection failed: ${errMsg}`);
       } finally {
         setIsDetectingLocal(false);
       }

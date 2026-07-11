@@ -561,25 +561,32 @@ export default function MiroPluginPage() {
                   )}
                 </div>
 
-                {/* Tauri Desktop Bridge Card */}
+                {/* SyncBridge Status Card */}
                 <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
                   <div>
-                    <div className="text-xs font-semibold text-text-page">Tauri Desktop Bridge</div>
+                    <div className="text-xs font-semibold text-text-page">SyncBridge</div>
                     <div className="text-[10px] text-text-muted">
-                      {useTauri ? 'Local HTTPS loopback active' : 'Disabled (using direct MCP)'}
+                      {useTauri ? 'Local HTTPS loopback active' : 'Local desktop companion'}
                     </div>
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={useTauri}
-                      onChange={(e) => handleTauriToggle(e.target.checked)}
-                      className="accent-accent w-3.5 h-3.5"
-                    />
-                    <span className="text-[10px] text-text-muted font-mono uppercase tracking-wider">
-                      {useTauri ? 'ON' : 'OFF'}
-                    </span>
-                  </label>
+                  {useTauri ? (
+                    <div className="flex items-center gap-3">
+                      <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                      <button
+                        onClick={() => handleTauriToggle(false)}
+                        className="text-[9px] font-mono font-bold tracking-wider text-text-muted hover:text-accent uppercase underline bg-transparent cursor-pointer"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleTauriToggle(true)}
+                      className="text-[10px] font-mono tracking-wider font-semibold border border-accent text-accent rounded px-2.5 py-1 bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer"
+                    >
+                      CONNECT
+                    </button>
+                  )}
                 </div>
 
                 {useTauri ? (
@@ -605,16 +612,16 @@ export default function MiroPluginPage() {
                     </p>
                   </div>
                 ) : (
-                  /* Penpot Local MCP Indicator Card */
+                  /* Penpot Disabled Reminder Card */
                   <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
                     <div>
-                      <div className="text-xs font-semibold text-text-page">Penpot Local MCP</div>
+                      <div className="text-xs font-semibold text-text-page">Penpot Syncing</div>
                       <div className="text-[10px] text-text-muted">
-                        Listening on localhost:4401
+                        Enable the Tauri bridge to pair workspaces.
                       </div>
                     </div>
-                    <span className="px-2 py-0.5 text-[8px] font-mono font-bold bg-green-950/40 border border-green-800/40 text-green-400 rounded">
-                      ACTIVE
+                    <span className="px-2 py-0.5 text-[8px] font-mono font-bold bg-border-card text-text-muted rounded">
+                      INACTIVE
                     </span>
                   </div>
                 )}
