@@ -33,28 +33,6 @@ listen<{ status: string; sessions: number; message?: string }>('bridge_status', 
   }
 });
 
-// Verify local HTTPS is reachable (proxy health check from webview)
-async function checkBridgeHealth() {
-  try {
-    const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/detect-penpot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-      signal: AbortSignal.timeout(3000),
-    });
-    if (res.status === 200 || res.status === 422) {
-      if (statusText) statusText.textContent = 'ACTIVE';
-      if (statusBadge) statusBadge.className = 'status-badge active';
-      appendLog('Bridge server confirmed reachable on port 4401.', 'success');
-    }
-  } catch {
-    if (statusText) statusText.textContent = 'ERROR';
-    if (statusBadge) statusBadge.className = 'status-badge error';
-    appendLog('Bridge server not reachable — SSL certificate may be missing.', 'error');
-  }
-}
-
 window.addEventListener('DOMContentLoaded', () => {
   appendLog('SyncBridge starting…', 'info');
-  setTimeout(checkBridgeHealth, 1500);
 });

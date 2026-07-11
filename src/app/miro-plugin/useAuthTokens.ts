@@ -103,28 +103,71 @@ export function useAuthTokens(isInitMode: boolean | null) {
     }
   }, [isInitMode]);
 
+  const startPolling = (platform: 'figma' | 'miro', state: string, popup: Window | null) => {
+    const interval = setInterval(async () => {
+      // If popup was closed manually, stop polling
+      if (popup && popup.closed) {
+        clearInterval(interval);
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/oauth/store?state=${state}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        if (data.status === 'success' && data.tokens) {
+          clearInterval(interval);
+          if (platform === 'figma') {
+            setFigmaToken(data.tokens.accessToken);
+            await saveToken('figma', data.tokens as TokenData);
+          } else {
+            setMiroToken(data.tokens.accessToken);
+            await saveToken('miro', data.tokens as TokenData);
+          }
+          if (popup) {
+            try {
+              popup.close();
+            } catch {
+              // ignore
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`Error polling for ${platform} tokens:`, err);
+      }
+    }, 1500);
+
+    // Stop polling after 5 minutes to prevent infinite loops
+    setTimeout(() => clearInterval(interval), 5 * 60 * 1000);
+  };
+
   const connectFigma = () => {
+    const state = 'fig_' + Math.random().toString(36).substring(2, 15);
     const width = 600;
     const height = 700;
     const left = window.screen.width / 2 - width / 2;
     const top = window.screen.height / 2 - height / 2;
-    window.open(
-      '/api/oauth/figma/auth',
+    const popup = window.open(
+      `/api/oauth/figma/auth?state=${state}`,
       'Connect Figma',
       `width=${width},height=${height},top=${top},left=${left}`
     );
+    startPolling('figma', state, popup);
   };
 
   const connectMiro = () => {
+    const state = 'mir_' + Math.random().toString(36).substring(2, 15);
     const width = 600;
     const height = 700;
     const left = window.screen.width / 2 - width / 2;
     const top = window.screen.height / 2 - height / 2;
-    window.open(
-      '/api/oauth/miro/auth',
+    const popup = window.open(
+      `/api/oauth/miro/auth?state=${state}`,
       'Connect Miro',
       `width=${width},height=${height},top=${top},left=${left}`
     );
+    startPolling('miro', state, popup);
   };
 
   const disconnectFigma = async () => {

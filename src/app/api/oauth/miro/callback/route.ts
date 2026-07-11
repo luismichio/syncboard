@@ -189,6 +189,7 @@ ${HTML_HEAD}
     <div class="spinner"></div>
     <script>
       const tokens = ${JSON.stringify(tokenPayload)};
+      const state = ${JSON.stringify(stateParam)};
       // Save locally in client storage
       try {
         localStorage.setItem('miro_tokens', JSON.stringify(tokens));
@@ -211,10 +212,18 @@ ${HTML_HEAD}
       } catch (e) {
         console.error("PostMessage failed:", e);
       }
-      // Close the popup window
-      setTimeout(() => {
-        window.close();
-      }, 1000);
+      // POST to stateless backend cache to allow polling inside Desktop App process
+      fetch('/api/oauth/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state, tokens })
+      })
+      .catch(err => console.error("Stateless store failed:", err))
+      .finally(() => {
+        setTimeout(() => {
+          window.close();
+        }, 1200);
+      });
     </script>
   </div>
 </body>

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const figmaClientId = process.env.FIGMA_CLIENT_ID;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const redirectUri = `${appUrl}/api/oauth/figma/callback`;
@@ -52,8 +52,9 @@ export async function GET() {
     );
   }
 
-  // Generate a cryptographically secure random state parameter to prevent CSRF attacks
-  const state = crypto.randomBytes(16).toString('hex');
+  // Read state parameter from client query, or fallback to generating a random one
+  const { searchParams } = new URL(request.url);
+  const state = searchParams.get('state') || crypto.randomBytes(16).toString('hex');
 
   // We request 'file_content:read' scope to fetch the file structure and render screenshots
   const authUrl = `https://www.figma.com/oauth?client_id=${figmaClientId}&redirect_uri=${encodeURIComponent(

@@ -59,13 +59,11 @@ export default function MiroPluginPage() {
     if (!useTauri) return;
     const check = async () => {
       try {
-        const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/detect-penpot', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
+        const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/health', {
+          method: 'GET',
           signal: AbortSignal.timeout(3000),
         });
-        if (res.status !== 200 && res.status !== 422) throw new Error('unreachable');
+        if (res.status !== 200) throw new Error('unreachable');
       } catch {
         setUseTauri(false);
         localStorage.setItem('syncboard_use_tauri', 'false');
@@ -90,9 +88,28 @@ export default function MiroPluginPage() {
 
   const [copiedPairing, setCopiedPairing] = useState<boolean>(false);
 
-  const handleTauriToggle = (val: boolean) => {
-    setUseTauri(val);
-    localStorage.setItem('syncboard_use_tauri', val ? 'true' : 'false');
+  const handleTauriToggle = async (val: boolean) => {
+    if (val) {
+      try {
+        const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/health', {
+          method: 'GET',
+          signal: AbortSignal.timeout(3000),
+        });
+        if (res.status === 200) {
+          setUseTauri(true);
+          localStorage.setItem('syncboard_use_tauri', 'true');
+        } else {
+          throw new Error('unreachable');
+        }
+      } catch {
+        alert('SyncBridge is not running or the certificate is untrusted. Please ensure the desktop app is open and you have trusted the local SSL certificate.');
+        setUseTauri(false);
+        localStorage.setItem('syncboard_use_tauri', 'false');
+      }
+    } else {
+      setUseTauri(false);
+      localStorage.setItem('syncboard_use_tauri', 'false');
+    }
   };
 
   const copyPairingId = () => {

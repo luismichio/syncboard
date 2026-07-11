@@ -13,7 +13,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex, oneshot};
 use tower_http::cors::CorsLayer;
-use tower_http::set_header::SetResponseHeaderLayer;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
@@ -140,21 +139,21 @@ pub fn run() {
 }
 
 async fn start_https_server(state: AppState) {
-    // Chrome Private Network Access (PNA) requires this header on all responses
-    // so that public sites (like design.penpot.app) can connect to local loopback servers.
-    let pna_header = SetResponseHeaderLayer::overriding(
-        HeaderName::from_static("access-control-allow-private-network"),
-        HeaderValue::from_static("true"),
-    );
+    // Configure CORS with native Private Network Access (PNA) preflight support.
+    // This responds correctly to browser OPTIONS checks for cross-origin local network requests.
+    let cors = CorsLayer::new()
+        .allow_private_network(true)
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any);
 
     let app = Router::new()
-        .route("/ws", get(ws_handler).options(ws_preflight))
+        .route("/ws", get(ws_handler))
         .route("/detect-figma", post(handle_detect_figma))
         .route("/detect-penpot", post(handle_detect_penpot))
         .route("/export-penpot", post(handle_export_penpot))
-        .layer(pna_header)
-        .layer(CorsLayer::permissive())
-        .with_state(state);
+        .layer(cors)
+        .with_state(state.clone());
 
     // Include Let's Encrypt certificates directly into the binary
     let cert_pem = include_bytes!("../resources/cert.pem");
@@ -164,6 +163,7 @@ async fn start_https_server(state: AppState) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Failed to initialize SSL configuration: {}", e);
+            state.emit_status("error", 0, Some(format!("Failed to initialize SSL configuration: {}", e))).await;
             return;
         }
     };
@@ -172,11 +172,15 @@ async fn start_https_server(state: AppState) {
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 4401));
     println!("Tauri Secure Bridge listening on https://127.0.0.1:4401");
 
+    // Emit server startup log to the desktop webview
+    state.emit_status("active", 0, Some("Secure loopback bridge server started successfully.".to_string())).await;
+
     if let Err(e) = axum_server::bind_rustls(addr, config)
         .serve(app.into_make_service())
         .await
     {
         eprintln!("Axum server shut down with error: {}", e);
+        state.emit_status("error", 0, Some(format!("Server shut down: {}", e))).await;
     }
 }
 
@@ -197,21 +201,6 @@ async fn ws_handler(
         HeaderValue::from_static("true"),
     );
     response
-}
-
-// Chrome Private Network Access preflight handler for WebSocket route.
-// Chrome sends an OPTIONS preflight to /ws before upgrading to WebSocket
-// when the target is a local/private network address. We must respond
-// with 200 OK and Access-Control-Allow-Private-Network: true.
-async fn ws_preflight() -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        [(
-            HeaderName::from_static("access-control-allow-private-network"),
-            HeaderValue::from_static("true"),
-        )],
-        "",
-    )
 }
 
 async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
