@@ -2,16 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>SyncBoard Companion Plugin</title>
+  <title>SyncBoard Companion UI</title>
   <style>
     :root {
-      --bg-page: #0c0a0f;
-      --bg-card: #141218;
-      --border-card: #23202a;
-      --text-page: #e3e1e6;
-      --text-muted: #918f99;
-      --accent: #5efb6e; /* Neon Green focus */
-      --accent-purple: #c384fc; /* Secondary branding purple */
+      --bg-page: #0b0c0d;
+      --bg-card: #121417;
+      --border-card: #1f232a;
+      --text-page: #f3f4f6;
+      --text-muted: #6b7280;
+      --accent: #01C8F1; /* Brand Cyan */
+      --pulse-bg: rgba(1, 200, 241, 0.08);
+      --pulse-border: rgba(1, 200, 241, 0.2);
     }
 
     body {
@@ -131,15 +132,15 @@
     }
 
     .badge-connected {
-      background-color: rgba(94, 251, 110, 0.1);
+      background-color: var(--pulse-bg);
       color: var(--accent);
-      border-color: rgba(94, 251, 110, 0.2);
+      border-color: var(--pulse-border);
     }
 
     .badge-connecting {
-      background-color: rgba(195, 132, 252, 0.1);
-      color: var(--accent-purple);
-      border-color: rgba(195, 132, 252, 0.2);
+      background-color: rgba(107, 114, 128, 0.1);
+      color: var(--text-muted);
+      border-color: rgba(107, 114, 128, 0.2);
     }
 
     .log-box {
@@ -176,8 +177,8 @@
         <span id="status-badge" class="badge badge-disconnected">Disconnected</span>
       </div>
       <div class="status-row" style="margin-top: 4px;">
-        <span>Active File:</span>
-        <span id="file-name" style="color: var(--text-muted)">None loaded</span>
+        <span>Active Connection:</span>
+        <span id="file-name" style="color: var(--text-muted)">Stand-alone mode</span>
       </div>
     </div>
 
@@ -190,6 +191,7 @@
   <script>
     let ws = null;
     let reconnectTimeout = null;
+    const pendingRequests = new Map();
 
     const pairingInput = document.getElementById('pairing-id');
     const connectBtn = document.getElementById('connect-btn');
@@ -237,8 +239,7 @@
       updateStatus('connecting', 'Connecting...');
       log(`Initiating connection to Tauri bridge...`);
 
-      // Connect to Tauri local secure loopback WS server
-      // Using standard fallback: local.syncboard.com (resolves to 127.0.0.1) on port 4402
+      // Connect to Tauri local secure loopback WS server (port 4402)
       const wsUrl = `wss://local.syncboard.com:4402?pairingId=${pairingId}`;
       
       try {
@@ -252,14 +253,7 @@
       ws.onopen = () => {
         updateStatus('connected', 'Connected');
         log("Connection established successfully with Tauri!");
-        
-        // Listen to active Penpot file info
-        if (typeof penpot !== 'undefined' && penpot.currentFile) {
-          fileNameText.textContent = penpot.currentFile.name || 'Unnamed file';
-          log(`Syncing active file: ${penpot.currentFile.name}`);
-        } else {
-          fileNameText.textContent = 'Stand-alone mode';
-        }
+        fileNameText.textContent = 'Active Connection';
       };
 
       ws.onclose = () => {
@@ -279,80 +273,72 @@
           log(`Received command: "${request.action}"`);
 
           if (request.action === 'select') {
-            if (typeof penpot === 'undefined') {
-              ws.send(JSON.stringify({
-                requestId: request.id,
-                error: 'Penpot context is missing.'
-              }));
-              return;
-            }
-
-            const selection = penpot.selection[0];
-            const file = penpot.currentFile;
+            log(`Querying active selection from Penpot...`);
+            pendingRequests.set(request.id, request);
             
-            log(`Querying active Penpot selection...`);
-            ws.send(JSON.stringify({
-              requestId: request.id,
-              data: selection ? {
-                id: selection.id,
-                name: selection.name,
-                fileId: file ? file.id : 'unknown'
-              } : null
-            }));
+            // Post message to background script
+            parent.postMessage({
+              action: 'get-selection',
+              requestId: request.id
+            }, '*');
           }
 
           if (request.action === 'export') {
-            if (typeof penpot === 'undefined') {
-              ws.send(JSON.stringify({
-                requestId: request.id,
-                error: 'Penpot context is missing.'
-              }));
-              return;
-            }
-
             log(`Exporting shape: "${request.shapeId}" (${request.format || 'svg'})...`);
-            
-            try {
-              // Trigger native Penpot plugin export engine
-              const buffer = await penpot.export(request.shapeId, {
-                format: request.format || 'svg',
-                scale: request.scale || 2
-              });
+            pendingRequests.set(request.id, request);
 
-              if (request.format === 'svg') {
-                // SVG returns raw text content
-                const svgText = new TextDecoder().decode(buffer);
-                ws.send(JSON.stringify({
-                  requestId: request.id,
-                  data: { svg: svgText }
-                }));
-              } else {
-                // PNG returns binary arraybuffer, encode as base64
-                const bytes = new Uint8Array(buffer);
-                let binary = '';
-                for (let i = 0; i < bytes.byteLength; i++) {
-                  binary += String.fromCharCode(bytes[i]);
-                }
-                const base64 = btoa(binary);
-                ws.send(JSON.stringify({
-                  requestId: request.id,
-                  data: { base64 }
-                }));
-              }
-              log("Export completed successfully.");
-            } catch (exportErr) {
-              log(`Export failed: ${exportErr.message}`);
-              ws.send(JSON.stringify({
-                requestId: request.id,
-                error: exportErr.message
-              }));
-            }
+            // Post message to background script
+            parent.postMessage({
+              action: 'export-shape',
+              requestId: request.id,
+              shapeId: request.shapeId,
+              format: request.format || 'svg',
+              scale: request.scale || 2
+            }, '*');
           }
         } catch (msgErr) {
           log(`Message processing error: ${msgErr.message}`);
         }
       };
     }
+
+    // Listen for messages from background script
+    window.addEventListener("message", (event) => {
+      const response = event.data;
+      if (!response || !response.action) return;
+
+      if (response.action === "selection-result") {
+        const request = pendingRequests.get(response.requestId);
+        if (request && ws) {
+          ws.send(JSON.stringify({
+            requestId: request.id,
+            data: response.data
+          }));
+          pendingRequests.delete(response.requestId);
+          log(`Selection returned: ${response.data ? response.data.name : 'None selected'}`);
+        }
+      }
+
+      if (response.action === "export-result") {
+        const request = pendingRequests.get(response.requestId);
+        if (request && ws) {
+          if (response.error) {
+            ws.send(JSON.stringify({
+              requestId: request.id,
+              error: response.error
+            }));
+            log(`Export failed: ${response.error}`);
+          } else {
+            ws.send(JSON.stringify({
+              requestId: request.id,
+              data: response.data
+            }));
+            log("Export payload transmitted to Miro.");
+          }
+          pendingRequests.delete(response.requestId);
+        }
+      }
+    });
 
     connectBtn.addEventListener('click', () => {
       clearTimeout(reconnectTimeout);

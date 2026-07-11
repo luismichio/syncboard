@@ -6,7 +6,15 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/penpot-companion-plugin.html",
+        source: "/penpot-companion-plugin.js",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET,OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "Content-Type" },
+        ],
+      },
+      {
+        source: "/penpot-companion-ui.html",
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },
           { key: "Access-Control-Allow-Methods", value: "GET,OPTIONS" },

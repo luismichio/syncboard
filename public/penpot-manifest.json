@@ -2,7 +2,7 @@
   "name": "SyncBoard Companion",
   "description": "Bridges local Penpot workspaces with Miro SyncBoard selection queries.",
   "version": 2,
-  "code": "penpot-companion-plugin.html",
+  "code": "penpot-companion-plugin.js",
   "icon": "syncboard_logo.svg",
   "permissions": [
     "content:read",
