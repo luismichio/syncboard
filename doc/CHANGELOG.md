@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.5.0] - 2026-07-11
+
+### Fixed
+* **Penpot PNA Bypass:** Replaced WebSocket connection in Penpot companion plugin with HTTP `fetch()` polling to bypass Chrome's Private Network Access restrictions. The `fetch()` API supports `targetAddressSpace: 'loopback'` which allows public web pages (Penpot) to connect to local loopback servers (SyncBridge) after user approval.
+* **Bridge HTTP Polling:** Added three new SyncBridge endpoints for HTTP-based command queuing: `POST /penpot/register`, `GET /penpot/poll`, and `POST /penpot/result`. The companion plugin now polls for commands every ~1 second instead of maintaining a WebSocket connection.
+* **Command Queue Architecture:** Modified `handle_detect_penpot` and `handle_export_penpot` to enqueue commands in a per-pairingId queue instead of sending via WebSocket. The polling handler (`handle_penpot_poll`) waits up to 30 seconds for commands using long-poll with tokio `Notify` signaling.
+
 ## [0.4.0] - 2026-07-11
 
 ### Added
