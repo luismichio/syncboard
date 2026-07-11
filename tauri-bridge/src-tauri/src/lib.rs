@@ -281,6 +281,7 @@ async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
 
 // ── Figma detection ──────────────────────────────────────────────
 async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse {
+    state.log("Miro", format!("→ Requested Figma selection detection")).await;
     state.log("Figma", "Detecting local selection…".to_string()).await;
 
     let client = reqwest::Client::new();
@@ -388,6 +389,7 @@ async fn handle_detect_penpot(
         );
     }
 
+    state.log("Miro", format!("→ Requested Penpot selection detection (pairingId: {})", payload.pairing_id)).await;
     state.log("Penpot", format!("Selection query for pairingId: {}", payload.pairing_id)).await;
 
     let tx = {
@@ -475,6 +477,7 @@ async fn handle_export_penpot(
     State(state): State<AppState>,
     Json(payload): Json<ExportPayload>,
 ) -> impl IntoResponse {
+    state.log("Miro", format!("→ Requested Penpot shape export (shapeId: {})", payload.shape_id)).await;
     state.log("Penpot", format!("Export request: shapeId={}, format={}, scale={}", payload.shape_id, payload.format, payload.scale)).await;
 
     let tx = {
