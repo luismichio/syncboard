@@ -83,6 +83,12 @@ When running the development server locally:
    http://localhost:3000/penpot-manifest.json
    ```
 
+### Troubleshooting: DNS Rebinding Protection (`ERR_NAME_NOT_RESOLVED`)
+Some routers or corporate DNS servers block public domains from resolving to local loopback addresses (like `127.0.0.1`). If you see a `net::ERR_NAME_NOT_RESOLVED` error in your browser console when launching the Penpot plugin:
+* Add a local mapping to your system's `hosts` file:
+  * **Windows:** Append `127.0.0.1 local.syncboard.com` to `C:\Windows\System32\drivers\etc\hosts` (run your text editor as Administrator).
+  * **macOS / Linux:** Run `sudo sh -c 'echo "127.0.0.1 local.syncboard.com" >> /etc/hosts'` in your terminal.
+
 ---
 
 ## 💻 Local Development

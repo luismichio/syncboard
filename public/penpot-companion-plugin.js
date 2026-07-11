@@ -1,7 +1,16 @@
 // SyncBoard Companion Plugin - Penpot background runner
-penpot.ui.open("SyncBoard Companion", "./penpot-companion-ui.html", {
+const initialTheme = penpot.theme || "dark";
+penpot.ui.open("SyncBoard Companion", `./penpot-companion-ui.html?theme=${initialTheme}`, {
   width: 320,
   height: 480
+});
+
+// Listen to theme changes from Penpot and update UI
+penpot.on("themechange", (theme) => {
+  penpot.ui.sendMessage({
+    action: "theme-change",
+    theme: theme
+  });
 });
 
 // Listen to messages from the UI Iframe
