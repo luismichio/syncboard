@@ -348,3 +348,76 @@ h1 {
 .btn-secondary:active {
   transform: translateY(0);
 }
+
+/* Activity Log */
+.activity-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.activity-log {
+  height: 120px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.activity-log .log-entry {
+  display: flex;
+  gap: 8px;
+}
+
+.activity-log .log-time {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.activity-log .log-msg {
+  color: var(--text-secondary);
+}
+
+.activity-log .log-msg.success { color: #22c55e; }
+.activity-log .log-msg.error   { color: #ef4444; }
+.activity-log .log-msg.info    { color: var(--accent); }
+
+.activity-log:empty::after {
+  content: 'Waiting for connections...';
+  color: var(--text-muted);
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.btn-clear {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-card);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.btn-clear:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}

@@ -66,9 +66,9 @@
       <div class="status-card">
         <div class="status-row">
           <span class="status-label">Bridge Status</span>
-          <div class="status-badge active">
+          <div id="bridge-status-badge" class="status-badge active">
             <span class="pulse-dot"></span>
-            ACTIVE
+            <span id="bridge-status-text">STARTING</span>
           </div>
         </div>
         <div class="divider"></div>
@@ -82,14 +82,22 @@
             <span class="info-value font-mono">4401</span>
           </div>
           <div class="info-item">
+            <span class="info-label">Active Sessions</span>
+            <span id="active-sessions" class="info-value text-accent font-mono">0</span>
+          </div>
+          <div class="info-item">
             <span class="info-label">Figma Relay</span>
             <span class="info-value text-accent font-mono">localhost:3845</span>
           </div>
-          <div class="info-item">
-            <span class="info-label">Penpot Relay</span>
-            <span class="info-value text-accent font-mono">Secure WSS</span>
-          </div>
         </div>
+      </div>
+
+      <div class="activity-card">
+        <div class="activity-header">
+          <span class="info-label">Activity Log</span>
+          <button onclick="document.getElementById('activity-log').innerHTML = ''" class="btn-clear">CLEAR</button>
+        </div>
+        <div id="activity-log" class="activity-log"></div>
       </div>
 
       <div class="guide-card">

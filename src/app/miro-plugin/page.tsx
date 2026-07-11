@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMiroPlugin } from './useMiroPlugin';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -52,6 +52,29 @@ export default function MiroPluginPage() {
     }
     return false;
   });
+
+  // Verify SyncBridge is actually reachable on mount and every 30s.
+  // If the bridge is closed, flip useTauri to false so the UI reflects reality.
+  useEffect(() => {
+    if (!useTauri) return;
+    const check = async () => {
+      try {
+        const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/detect-penpot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+          signal: AbortSignal.timeout(3000),
+        });
+        if (res.status !== 200 && res.status !== 422) throw new Error('unreachable');
+      } catch {
+        setUseTauri(false);
+        localStorage.setItem('syncboard_use_tauri', 'false');
+      }
+    };
+    check();
+    const interval = setInterval(check, 30_000);
+    return () => clearInterval(interval);
+  }, [useTauri]);
 
   const [pairingId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
