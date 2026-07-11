@@ -37,7 +37,8 @@ export async function callPenpotMcpTool(toolName: string, toolArgs: Record<strin
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pairingId }),
-    });
+      targetAddressSpace: 'loopback',
+    } as unknown as RequestInit);
     if (!res.ok) {
       throw new Error(`Tauri connection failed: HTTP ${res.status}`);
     }
@@ -63,7 +64,8 @@ export async function callPenpotMcpTool(toolName: string, toolArgs: Record<strin
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pairingId, shapeId, format, scale }),
-    });
+      targetAddressSpace: 'loopback',
+    } as unknown as RequestInit);
     if (!res.ok) {
       throw new Error(`Tauri export failed: HTTP ${res.status}`);
     }
@@ -105,7 +107,8 @@ export async function callFigmaSelectionTauri(): Promise<{ id: string; name: str
     const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/detect-figma', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-    });
+      targetAddressSpace: 'loopback',
+    } as unknown as RequestInit);
     if (!res.ok) return null;
     const payload = await res.json() as { error?: string; data?: { id: string; name: string; fileKey: string } | null };
     return payload.data || null;

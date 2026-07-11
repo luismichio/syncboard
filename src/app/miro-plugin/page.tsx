@@ -62,7 +62,8 @@ export default function MiroPluginPage() {
         const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/health', {
           method: 'GET',
           signal: AbortSignal.timeout(3000),
-        });
+          targetAddressSpace: 'loopback',
+        } as unknown as RequestInit);
         if (res.status !== 200) throw new Error('unreachable');
       } catch {
         setUseTauri(false);
@@ -94,7 +95,8 @@ export default function MiroPluginPage() {
         const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/health', {
           method: 'GET',
           signal: AbortSignal.timeout(3000),
-        });
+          targetAddressSpace: 'loopback',
+        } as unknown as RequestInit);
         if (res.status === 200) {
           setUseTauri(true);
           localStorage.setItem('syncboard_use_tauri', 'true');
