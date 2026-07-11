@@ -275,11 +275,11 @@ export default function MiroPluginPage() {
                         {/* Platform & Copy Counter Badges */}
                         <div className="absolute top-2 right-2 flex items-center gap-1.5">
                           {group.platform === 'penpot' ? (
-                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-purple-400 border border-purple-400/40 bg-transparent px-1.5 py-0.5 rounded">
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-accent border border-accent/40 bg-transparent px-1.5 py-0.5 rounded">
                               Penpot
                             </span>
                           ) : (
-                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-green-400 border border-green-400/40 bg-transparent px-1.5 py-0.5 rounded">
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-accent border border-accent/40 bg-transparent px-1.5 py-0.5 rounded">
                               Figma
                             </span>
                           )}
