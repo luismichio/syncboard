@@ -38,8 +38,9 @@ impl AppState {
     }
 
     /// Emit a log entry prefixed with the service name for clarity in the activity log.
-    async fn log(&self, service: &str, message: String) {
-        self.emit_status("active", self.connections.lock().await.len(), Some(format!("[{}] {}", service, message))).await;
+    async fn log(&self, service: &str, message: impl Into<String>) {
+        let msg: String = message.into();
+        self.emit_status("active", self.connections.lock().await.len(), Some(format!("[{}] {}", service, msg))).await;
     }
 }
 
@@ -557,7 +558,8 @@ fn rand_id() -> String {
     format!("{:x}", r)
 }
 
-async fn handle_health() -> impl IntoResponse {
+async fn handle_health(State(state): State<AppState>) -> impl IntoResponse {
+    state.log("Miro", format!("Health check — Bridge is online and reachable")).await;
     (StatusCode::OK, Json(serde_json::json!({ "status": "ok" })))
 }
 
