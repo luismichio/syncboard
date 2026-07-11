@@ -126,7 +126,7 @@ async fn start_https_server(state: AppState) {
     );
 
     let app = Router::new()
-        .route("/ws", get(ws_handler))
+        .route("/ws", get(ws_handler).options(ws_preflight))
         .route("/detect-figma", post(handle_detect_figma))
         .route("/detect-penpot", post(handle_detect_penpot))
         .route("/export-penpot", post(handle_export_penpot))
@@ -166,6 +166,21 @@ async fn ws_handler(
 ) -> impl IntoResponse {
     let pairing_id = params.get("pairingId").cloned().unwrap_or_default();
     ws.on_upgrade(move |socket| handle_socket(socket, pairing_id, state))
+}
+
+// Chrome Private Network Access preflight handler for WebSocket route.
+// Chrome sends an OPTIONS preflight to /ws before upgrading to WebSocket
+// when the target is a local/private network address. We must respond
+// with 200 OK and Access-Control-Allow-Private-Network: true.
+async fn ws_preflight() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [(
+            HeaderName::from_static("access-control-allow-private-network"),
+            HeaderValue::from_static("true"),
+        )],
+        "",
+    )
 }
 
 async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
