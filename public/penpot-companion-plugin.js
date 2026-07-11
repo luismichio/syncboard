@@ -1,9 +1,17 @@
 // SyncBoard Companion Plugin - Penpot background runner
-const initialTheme = penpot.theme || "dark";
-penpot.ui.open("SyncBoard Companion", `./penpot-companion-ui.html?theme=${initialTheme}`, {
+penpot.ui.open("SyncBoard Companion", `./penpot-companion-ui.html`, {
   width: 320,
   height: 480
 });
+
+// Send initial theme once the UI iframe is ready
+// We use a short delay to ensure the iframe has loaded before sending the message
+setTimeout(() => {
+  penpot.ui.sendMessage({
+    action: "theme-change",
+    theme: penpot.theme || "dark"
+  });
+}, 300);
 
 // Listen to theme changes from Penpot and update UI
 penpot.on("themechange", (theme) => {

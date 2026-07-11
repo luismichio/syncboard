@@ -390,11 +390,6 @@
       connectBridge(false);
     });
 
-    // Parse URL theme query parameter and apply initial theme
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialTheme = urlParams.get('theme') || 'dark';
-    applyTheme(initialTheme);
-
     // Auto-connect if pairing ID exists
     if (savedId) {
       connectBridge(false);
