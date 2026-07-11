@@ -8,12 +8,11 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use axum::middleware;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex, oneshot};
-use axum::middleware;
-use tower_http::cors::CorsLayer;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
@@ -38,7 +37,6 @@ impl AppState {
         }
     }
 
-    /// Emit a log entry prefixed with the service name for clarity in the activity log.
     async fn log(&self, service: &str, message: impl Into<String>) {
         let msg: String = message.into();
         self.emit_status("active", self.connections.lock().await.len(), Some(format!("[{}] {}", service, msg))).await;
@@ -94,7 +92,7 @@ pub fn run() {
                 handle.emit("bridge_status", serde_json::json!({
                     "status": "starting",
                     "sessions": 0,
-                    "message": "[Bridge] Starting HTTPS server on localhost:4401…",
+                    "message": "[Bridge] Starting HTTPS server on localhost:4401\u{2026}",
                 })).ok();
             });
 
@@ -142,28 +140,58 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-/// Axum middleware that adds `Access-Control-Allow-Private-Network: true`
-/// to every response. Chrome requires this header when public HTTPS sites
-/// connect to local/private network servers (Private Network Access check).
-async fn add_pna_header(
+/// Middleware that adds CORS and PNA headers to every response.
+/// Handles OPTIONS preflight directly (returns 204 with all headers).
+/// This replaces tower-http CorsLayer which had compatibility issues
+/// with WebSocket upgrade (101) responses and PNA headers.
+async fn add_cors_and_pna(
     request: axum::http::Request<axum::body::Body>,
     next: middleware::Next,
 ) -> impl IntoResponse {
+    let method = request.method().clone();
+    let uri = request.uri().clone();
+    let origin = request
+        .headers()
+        .get("origin")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("*")
+        .to_string();
+
+    eprintln!("[CORS+PNA] {method} {uri} (origin: {origin})");
+
+    // For OPTIONS preflight (CORS + PNA), return 204 with all headers
+    if method == axum::http::Method::OPTIONS {
+        eprintln!("[CORS+PNA] Returning OPTIONS preflight (204)");
+        let headers = [
+            (HeaderName::from_static("access-control-allow-origin"), HeaderValue::from_str(&origin).unwrap_or(HeaderValue::from_static("*"))),
+            (HeaderName::from_static("access-control-allow-methods"), HeaderValue::from_static("GET, POST, OPTIONS")),
+            (HeaderName::from_static("access-control-allow-headers"), HeaderValue::from_static("*")),
+            (HeaderName::from_static("access-control-allow-private-network"), HeaderValue::from_static("true")),
+            (HeaderName::from_static("access-control-max-age"), HeaderValue::from_static("86400")),
+        ];
+        return (StatusCode::NO_CONTENT, headers).into_response();
+    }
+
+    // For non-OPTIONS requests, call next handler then add CORS + PNA
     let mut response = next.run(request).await;
+
+    // Reflect origin or allow all
+    response.headers_mut().insert(
+        HeaderName::from_static("access-control-allow-origin"),
+        HeaderValue::from_str(&origin).unwrap_or(HeaderValue::from_static("*")),
+    );
+
+    // PNA: required for Chrome when public sites access local/private network
     response.headers_mut().insert(
         HeaderName::from_static("access-control-allow-private-network"),
         HeaderValue::from_static("true"),
     );
+
+    eprintln!("[CORS+PNA] Response status: {}", response.status());
     response
 }
 
 async fn start_https_server(state: AppState) {
-    let cors = CorsLayer::new()
-        .allow_private_network(true)
-        .allow_origin(tower_http::cors::AllowOrigin::mirror_request())
-        .allow_methods(tower_http::cors::Any)
-        .allow_headers(tower_http::cors::Any);
-
     let app = Router::new()
         .route("/health", get(handle_health))
         .route("/ws", get(ws_handler))
@@ -171,11 +199,7 @@ async fn start_https_server(state: AppState) {
         .route("/detect-figma", post(handle_detect_figma))
         .route("/detect-penpot", post(handle_detect_penpot))
         .route("/export-penpot", post(handle_export_penpot))
-        // Add PNA header to EVERY response — Chrome requires this for
-        // private-network access from public websites. This middleware runs
-        // after CORS, so it also covers the CORS preflight (OPTIONS) response.
-        .layer(middleware::from_fn(add_pna_header))
-        .layer(cors)
+        .route_layer(middleware::from_fn(add_cors_and_pna))
         .with_state(state.clone());
 
     let cert_pem = include_bytes!("../resources/cert.pem");
@@ -192,7 +216,7 @@ async fn start_https_server(state: AppState) {
 
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 4401));
     state.log("Bridge", format!("Listening on https://localhost:4401")).await;
-    state.log("Bridge", "Ready — accepting connections from Penpot Companion Plugin and SyncBoard Miro plugin.".to_string()).await;
+    state.log("Bridge", "Ready \u{2014} accepting connections from Penpot Companion Plugin and SyncBoard Miro plugin.").await;
 
     if let Err(e) = axum_server::bind_rustls(addr, config)
         .serve(app.into_make_service())
@@ -203,18 +227,19 @@ async fn start_https_server(state: AppState) {
     }
 }
 
-// ── WebSocket handler ────────────────────────────────────────────
+// \u{2500}\u{2500} WebSocket handler \u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}
 async fn ws_handler(
     ws: WebSocketUpgrade,
     Query(params): Query<HashMap<String, String>>,
     State(state): State<AppState>,
 ) -> Response {
     let pairing_id = params.get("pairingId").cloned().unwrap_or_default();
+    let pid = pairing_id.clone();
     let mut response = ws
         .on_upgrade(move |socket| handle_socket(socket, pairing_id, state))
         .into_response();
 
-    // Chrome's PNA also requires the header in the 101 Switching Protocols response
+    eprintln!("[WS-HANDLER] Adding PNA header to 101 response (pairingId: {pid})");
     response.headers_mut().insert(
         HeaderName::from_static("access-control-allow-private-network"),
         HeaderValue::from_static("true"),
@@ -224,7 +249,7 @@ async fn ws_handler(
 
 async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
     if pairing_id.is_empty() {
-        state.log("Bridge", "Rejected WebSocket with empty pairingId.".to_string()).await;
+        state.log("Bridge", "Rejected WebSocket with empty pairingId.").await;
         return;
     }
 
@@ -236,6 +261,7 @@ async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
         conns.insert(pairing_id.clone(), tx);
         conns.len()
     };
+    eprintln!("[WS-SOCKET] Penpot plugin connected via WS (pairingId: {pairing_id}, sessions: {sessions})");
     state.log("Penpot", format!("Plugin connected (pairingId: {}, {} active session{})",
         pairing_id, sessions, if sessions == 1 { "" } else { "s" })).await;
 
@@ -253,10 +279,9 @@ async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
         while let Some(Ok(msg)) = receiver.next().await {
             if let AxumMessage::Text(text) = msg {
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
-                    // Log incoming messages from the Penpot plugin
                     if let Some(action) = val.get("action").and_then(|v| v.as_str()) {
                         let name = val.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
-                        state_clone.log("Penpot", format!("Plugin responded to '{}' — {}", action, name)).await;
+                        state_clone.log("Penpot", format!("Plugin responded to '{}' \u{2014} {}", action, name)).await;
                     }
                     if let Some(req_id) = val.get("id").and_then(|v| v.as_str()) {
                         let mut pending = state_clone.pending.lock().await;
@@ -284,10 +309,10 @@ async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
         pairing_id_clone, sessions, if sessions == 1 { "" } else { "s" })).await;
 }
 
-// ── Figma detection ──────────────────────────────────────────────
+// \u{2500}\u{2500} Figma detection \u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}
 async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse {
-    state.log("Miro", format!("→ Requested Figma selection detection")).await;
-    state.log("Figma", "Detecting local selection…".to_string()).await;
+    state.log("Miro", format!("\u{2192} Requested Figma selection detection")).await;
+    state.log("Figma", "Detecting local selection\u{2026}").await;
 
     let client = reqwest::Client::new();
     let body = serde_json::json!({
@@ -364,7 +389,7 @@ async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse
         }
     }
 
-    state.log("Figma", "No selection found in active design file.".to_string()).await;
+    state.log("Figma", "No selection found in active design file.").await;
     (
         StatusCode::NOT_FOUND,
         Json(ApiResponse {
@@ -379,7 +404,7 @@ fn regex_capture(text: &str, pattern: &str) -> Option<String> {
     re.captures(text).and_then(|c| c.get(1)).map(|m| m.as_str().to_string())
 }
 
-// ── Penpot selection detection (WSS relay) ───────────────────────
+// \u{2500}\u{2500} Penpot selection detection (WSS relay) \u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}
 async fn handle_detect_penpot(
     State(state): State<AppState>,
     Json(payload): Json<PairingPayload>,
@@ -394,7 +419,7 @@ async fn handle_detect_penpot(
         );
     }
 
-    state.log("Miro", format!("→ Requested Penpot selection detection (pairingId: {})", payload.pairing_id)).await;
+    state.log("Miro", format!("\u{2192} Requested Penpot selection detection (pairingId: {})", payload.pairing_id)).await;
     state.log("Penpot", format!("Selection query for pairingId: {}", payload.pairing_id)).await;
 
     let tx = {
@@ -442,7 +467,7 @@ async fn handle_detect_penpot(
     match tokio::time::timeout(std::time::Duration::from_secs(5), reply_rx).await {
         Ok(Ok(val)) => {
             if val.is_null() {
-                state.log("Penpot", "Selection: empty (nothing selected in Penpot)".to_string()).await;
+                state.log("Penpot", "Selection: empty (nothing selected in Penpot)").await;
                 (
                     StatusCode::OK,
                     Json(ApiResponse {
@@ -477,12 +502,12 @@ async fn handle_detect_penpot(
     }
 }
 
-// ── Penpot frame export (WSS relay) ──────────────────────────────
+// \u{2500}\u{2500} Penpot frame export (WSS relay) \u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}
 async fn handle_export_penpot(
     State(state): State<AppState>,
     Json(payload): Json<ExportPayload>,
 ) -> impl IntoResponse {
-    state.log("Miro", format!("→ Requested Penpot shape export (shapeId: {})", payload.shape_id)).await;
+    state.log("Miro", format!("\u{2192} Requested Penpot shape export (shapeId: {})", payload.shape_id)).await;
     state.log("Penpot", format!("Export request: shapeId={}, format={}, scale={}", payload.shape_id, payload.format, payload.scale)).await;
 
     let tx = {
@@ -493,7 +518,7 @@ async fn handle_export_penpot(
     let tx = match tx {
         Some(t) => t,
         None => {
-            state.log("Penpot", format!("Export failed — tab not connected (pairingId: {})", payload.pairing_id)).await;
+            state.log("Penpot", format!("Export failed \u{2014} tab not connected (pairingId: {})", payload.pairing_id)).await;
             return (
                 StatusCode::NOT_FOUND,
                 Json(ApiResponse {
@@ -562,14 +587,14 @@ fn rand_id() -> String {
     format!("{:x}", r)
 }
 
-// Silent health check — called by Miro plugin every 30s. No logging to avoid flooding.
+// Silent health check \u{2014} called by Miro plugin every 30s. No logging to avoid flooding.
 async fn handle_health() -> impl IntoResponse {
     (StatusCode::OK, Json(serde_json::json!({ "status": "ok" })))
 }
 
 /// Called once by the Miro plugin when the user first connects to the bridge.
 async fn handle_miro_connect(State(state): State<AppState>) -> impl IntoResponse {
-    state.log("Miro", "Connected — SyncBoard plugin is now linked to SyncBridge").await;
+    state.log("Miro", "Connected \u{2014} SyncBoard plugin is now linked to SyncBridge").await;
     (StatusCode::OK, Json(serde_json::json!({ "status": "connected" })))
 }
 
