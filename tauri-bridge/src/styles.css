@@ -375,6 +375,8 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .activity-log .log-entry {
