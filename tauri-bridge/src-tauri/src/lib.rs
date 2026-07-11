@@ -3,7 +3,7 @@ use axum::{
         ws::{Message as AxumMessage, WebSocket, WebSocketUpgrade},
         State, Query,
     },
-    http::StatusCode,
+    http::{HeaderName, HeaderValue, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex, oneshot};
 use tower_http::cors::CorsLayer;
+use tower_http::set_header::SetResponseHeaderLayer;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 
 #[derive(Clone)]
@@ -117,11 +118,19 @@ pub fn run() {
 }
 
 async fn start_https_server(state: AppState) {
+    // Chrome Private Network Access (PNA) requires this header on all responses
+    // so that public sites (like design.penpot.app) can connect to local loopback servers.
+    let pna_header = SetResponseHeaderLayer::overriding(
+        HeaderName::from_static("access-control-allow-private-network"),
+        HeaderValue::from_static("true"),
+    );
+
     let app = Router::new()
         .route("/ws", get(ws_handler))
         .route("/detect-figma", post(handle_detect_figma))
         .route("/detect-penpot", post(handle_detect_penpot))
         .route("/export-penpot", post(handle_export_penpot))
+        .layer(pna_header)
         .layer(CorsLayer::permissive())
         .with_state(state);
 
