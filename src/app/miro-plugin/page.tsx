@@ -275,11 +275,11 @@ export default function MiroPluginPage() {
                         {/* Platform & Copy Counter Badges */}
                         <div className="absolute top-2 right-2 flex items-center gap-1.5">
                           {group.platform === 'penpot' ? (
-                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-purple-400 bg-purple-950/40 border border-purple-800/40 px-1 py-0.5 rounded">
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-purple-400 border border-purple-400/40 bg-transparent px-1.5 py-0.5 rounded">
                               Penpot
                             </span>
                           ) : (
-                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-green-400 bg-green-950/40 border border-green-800/40 px-1 py-0.5 rounded">
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-green-400 border border-green-400/40 bg-transparent px-1.5 py-0.5 rounded">
                               Figma
                             </span>
                           )}
@@ -589,7 +589,7 @@ export default function MiroPluginPage() {
                   )}
                 </div>
 
-                {useTauri ? (
+                {useTauri && (
                   /* Sync Pairing ID Card */
                   <div className="p-3 rounded-lg bg-bg-card border border-border-card flex flex-col gap-2 animate-fade-in">
                     <div className="flex justify-between items-center">
@@ -610,19 +610,6 @@ export default function MiroPluginPage() {
                     <p className="text-[9px] text-text-muted leading-tight mt-0.5">
                       Paste this pairing ID inside the Penpot Companion Plugin to connect the bridge.
                     </p>
-                  </div>
-                ) : (
-                  /* Penpot Disabled Reminder Card */
-                  <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
-                    <div>
-                      <div className="text-xs font-semibold text-text-page">Penpot Syncing</div>
-                      <div className="text-[10px] text-text-muted">
-                        Enable the Tauri bridge to pair workspaces.
-                      </div>
-                    </div>
-                    <span className="px-2 py-0.5 text-[8px] font-mono font-bold bg-border-card text-text-muted rounded">
-                      INACTIVE
-                    </span>
                   </div>
                 )}
               </div>

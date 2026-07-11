@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.2.2] - 2026-07-11
+
+### Changed
+* **Clean Platform Badges:** Replaced dark background colored badges in the Sync tab selection cards with transparent background, outline-only badges styled in each platform's accent color (neon green for Figma, purple for Penpot).
+
+### Removed
+* **Redundant Penpot Card:** Completely removed the redundant disabled "Penpot Syncing - INACTIVE" card from the Settings panel when SyncBridge is disconnected. All local workspace pairing states are now cleanly represented by the SyncBridge card itself.
+
 ## [0.2.1] - 2026-07-11
 
 ### Changed
