@@ -1,5 +1,6 @@
 // SyncBridge Webview Entrypoint
 import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 
 const statusBadge = document.getElementById('bridge-status-badge');
 const statusText  = document.getElementById('bridge-status-text');
@@ -33,6 +34,22 @@ listen<{ status: string; sessions: number; message?: string }>('bridge_status', 
   }
 });
 
+// Proactively pull initial status on load to prevent event timing race conditions
+async function initStatus() {
+  try {
+    const initial = await invoke<{ status: string; sessions: number }>('get_bridge_status');
+    if (statusText) statusText.textContent = initial.status.toUpperCase();
+    if (sessionSpan) sessionSpan.textContent = String(initial.sessions);
+    if (statusBadge) {
+      statusBadge.className = `status-badge ${initial.status === 'active' ? 'active' : 'error'}`;
+    }
+    appendLog('Connected to bridge core.', 'success');
+  } catch (err) {
+    appendLog('Failed to fetch bridge core status: ' + err, 'error');
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   appendLog('SyncBridge starting…', 'info');
+  initStatus();
 });

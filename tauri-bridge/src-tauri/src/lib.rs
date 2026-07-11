@@ -81,13 +81,21 @@ pub fn run() {
     });
 
     tauri::Builder::default()
+        .manage(state.clone())
         .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![get_bridge_status])
         .setup(move |app| {
             // Set the app handle inside AppState
             let handle = app.handle().clone();
             let app_handle_clone = state.app_handle.clone();
             tauri::async_runtime::spawn(async move {
-                *app_handle_clone.lock().await = Some(handle);
+                *app_handle_clone.lock().await = Some(handle.clone());
+                // Emit active startup status now that app_handle is set
+                let _ = handle.emit("bridge_status", serde_json::json!({
+                    "status": "active",
+                    "sessions": 0,
+                    "message": "Secure loopback bridge server started successfully.",
+                }));
             });
 
             // Create tray menu items
@@ -143,11 +151,12 @@ async fn start_https_server(state: AppState) {
     // This responds correctly to browser OPTIONS checks for cross-origin local network requests.
     let cors = CorsLayer::new()
         .allow_private_network(true)
-        .allow_origin(tower_http::cors::Any)
+        .allow_origin(tower_http::cors::AllowOrigin::mirror_request())
         .allow_methods(tower_http::cors::Any)
         .allow_headers(tower_http::cors::Any);
 
     let app = Router::new()
+        .route("/health", get(handle_health))
         .route("/ws", get(ws_handler))
         .route("/detect-figma", post(handle_detect_figma))
         .route("/detect-penpot", post(handle_detect_penpot))
@@ -171,9 +180,6 @@ async fn start_https_server(state: AppState) {
     // Bind to 127.0.0.1:4401 (resolves to local-syncboard.luiskobayashi.com)
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 4401));
     println!("Tauri Secure Bridge listening on https://127.0.0.1:4401");
-
-    // Emit server startup log to the desktop webview
-    state.emit_status("active", 0, Some("Secure loopback bridge server started successfully.".to_string())).await;
 
     if let Err(e) = axum_server::bind_rustls(addr, config)
         .serve(app.into_make_service())
@@ -536,4 +542,21 @@ async fn handle_export_penpot(
 fn rand_id() -> String {
     let r: u32 = rand::random();
     format!("{:x}", r)
+}
+
+// Basic health check route
+async fn handle_health() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "status": "ok" }))
+    )
+}
+
+#[tauri::command]
+async fn get_bridge_status(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let sessions = state.connections.lock().await.len();
+    Ok(serde_json::json!({
+        "status": "active",
+        "sessions": sessions,
+    }))
 }
