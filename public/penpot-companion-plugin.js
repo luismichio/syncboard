@@ -5,7 +5,7 @@ penpot.ui.open("SyncBoard Companion", "./penpot-companion-ui.html", {
 });
 
 // Listen to messages from the UI Iframe
-penpot.ui.on("message", async (message) => {
+penpot.ui.onMessage(async (message) => {
   if (message.action === "get-selection") {
     const selection = penpot.selection[0];
     const file = penpot.currentFile;
