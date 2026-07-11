@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.3.0] - 2026-07-11
+
+### Added
+* **Penpot Manifest File:** Created `public/penpot-manifest.json` specifying metadata, permissions, entry point, and icon links to enable native custom plugin registration inside the Penpot Workspace editor.
+
 ## [0.2.3] - 2026-07-11
 
 ### Changed

@@ -1,4 +1,4 @@
-# Contributing to SyncBoard 🔄
+# Contributing to SyncBoard
 
 First off, thank you for taking the time to contribute! Contributions from the community help make SyncBoard better for everyone.
 

@@ -1,4 +1,4 @@
-# SyncBoard 🔄 (Figma & Penpot to Miro Sync Engine)
+# SyncBoard (Figma & Penpot to Miro Sync Engine)
 
 SyncBoard is a stateless, open-source integration tool that lets product and design teams sync design screens from **Figma** and **Penpot** directly into Miro boards as lightweight, flat images. It prevents canvas clutter by updating images **in-place** (zero duplicates) using metadata tagged inside Miro's native `title` property.
 
