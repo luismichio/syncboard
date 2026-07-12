@@ -182,7 +182,7 @@ export function useMiroSync(
 
       // --- Penpot Batch Rendering ---
       if (penpotTargets.length > 0) {
-        setSyncStatus(`Requesting ${penpotTargets.length} frame(s) from Penpot MCP server...`);
+        setSyncStatus(`Requesting ${penpotTargets.length} frame(s) from Penpot Companion relay...`);
         
         await Promise.all(
           penpotTargets.map(async (target) => {
@@ -211,7 +211,7 @@ export function useMiroSync(
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err);
               console.error(`Penpot export failed for node ${target.nodeId}:`, err);
-              throw new Error(`Penpot sync failed for '${target.nodeName}': ${msg}. Make sure Penpot is open, the file is connected to the local MCP, and the server is running on port 4401.`);
+              throw new Error(`Penpot sync failed for '${target.nodeName}': ${msg}. Make sure Penpot is open and the Companion Plugin is connected with the same Pairing ID.`);
             }
           })
         );

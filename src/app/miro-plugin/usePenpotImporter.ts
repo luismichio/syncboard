@@ -9,7 +9,7 @@ export interface PenpotNodeInfo {
 }
 
 /**
- * Handles Penpot design URL validation, local selection detection via local Penpot MCP server,
+ * Handles Penpot design URL validation, selection detection via Penpot Companion relay,
  * and vector asset canvas placement task.
  * Saves Penpot configuration and platform metadata in the Miro image widget.
  */
@@ -41,7 +41,7 @@ export function usePenpotImporter(
     setSyncStatusParent('Detecting selection from local Penpot MCP...');
     
     try {
-      // Query active design selection and fileId from local MCP
+      // Query active design selection and fileId from Companion relay
       const code = `
         const sel = penpot.selection[0];
         if (!sel) return null;
@@ -74,7 +74,7 @@ export function usePenpotImporter(
       throw new Error('No frame currently selected in Penpot.');
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      setSyncStatusParent(`Detection failed: ${errMsg} (Tip: Make sure SyncBridge is running and your Penpot Companion Plugin is connected.)`);
+      setSyncStatusParent(`Detection failed: ${errMsg} (Tip: Open Penpot Companion Plugin and connect using the same Pairing ID.)`);
       console.warn('Local Penpot selection fail:', err);
     } finally {
       setIsDetectingLocal(false);
@@ -95,7 +95,7 @@ export function usePenpotImporter(
       const x = viewport.x + viewport.width / 2;
       const y = viewport.y + viewport.height / 2;
 
-      // Fetch shape as SVG string from local MCP server
+      // Fetch shape as SVG string from Companion relay
       const mcpResponse = await callPenpotMcpTool('export_shape', {
         shapeId: penpotNodeInfo.objectId,
         format: 'svg',

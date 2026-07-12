@@ -152,7 +152,7 @@
   <div class="container">
     <header>
       <h2>SyncBoard Companion</h2>
-      <p class="subtitle">Penpot Connection Bridge</p>
+      <p class="subtitle">Penpot Companion Relay</p>
     </header>
     <div class="card">
       <label for="pairing-id">Miro Pairing ID</label>
@@ -163,7 +163,7 @@
     </div>
     <div class="card">
       <div class="status-row">
-        <span>Bridge Status:</span>
+        <span>Relay Status:</span>
         <span id="status-badge" class="badge badge-disconnected">Disconnected</span>
       </div>
       <div class="status-row" style="margin-top: 4px;">
@@ -177,8 +177,8 @@
     </div>
   </div>
   <script>
-    const BRIDGE_URL = 'https://local-syncboard.luiskobayashi.com:4401';
-    const FETCH_OPTIONS = { mode: 'cors', targetAddressSpace: 'loopback' };
+    const RELAY_URL = window.location.origin;
+    const FETCH_OPTIONS = { mode: 'cors' };
 
     let pollingActive = false;
     let reconnectTimeout = null;
@@ -231,7 +231,7 @@
       log(`Registering with bridge (pairingId: ${pairingId})...`);
 
       try {
-        const res = await fetch(`${BRIDGE_URL}/penpot/register`, {
+        const res = await fetch(`${RELAY_URL}/api/relay/penpot/register`, {
           ...FETCH_OPTIONS,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -244,7 +244,7 @@
 
         reconnectAttempts = 0;
         updateStatus('connected', 'Connected');
-        log("Connection established successfully with bridge!");
+        log("Companion connected to SyncBoard relay.");
         fileNameText.textContent = 'Active Connection';
 
         pollingActive = true;
@@ -265,7 +265,7 @@
     async function startPolling(pairingId) {
       while (pollingActive) {
         try {
-          const res = await fetch(`${BRIDGE_URL}/penpot/poll?pairingId=${pairingId}`, FETCH_OPTIONS);
+          const res = await fetch(`${RELAY_URL}/api/relay/penpot/poll?pairingId=${pairingId}`, FETCH_OPTIONS);
 
           if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
@@ -312,7 +312,7 @@
 
     async function submitResult(requestId, data, error) {
       try {
-        await fetch(`${BRIDGE_URL}/penpot/result`, {
+        await fetch(`${RELAY_URL}/api/relay/penpot/result`, {
           ...FETCH_OPTIONS,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -4,7 +4,7 @@ SyncBoard is a stateless, open-source integration tool that lets product and des
 
 Unlike official live embeds which require browser logins and degrade board performance, SyncBoard places fast-loading, flat images that stakeholders can annotate, draw on, and reference instantly.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN)
 
 ---
 
@@ -12,20 +12,22 @@ Unlike official live embeds which require browser logins and degrade board perfo
 
 * **In-Place Updates:** SyncBoard utilizes a custom `PATCH` update mechanism that replaces the binary image file of the Miro widget while keeping its position, dimensions, rotation, and parent frames intact.
 * **Consolidated Selection & Copies Counter:** Group duplicates of the same frame inside the sidebar under a single card, displaying a count badge (e.g., `x3`) in the top-right. Updating scale or format updates all copies simultaneously.
-* **Dual-Platform Sync:** Supports **Figma** (cloud-native sync) and **Penpot** (local loopback bridge sync) side-by-side.
+* **Dual-Platform Sync:** Supports **Figma** (cloud-native sync) and **Penpot** (relay-first sync for browser sandbox compatibility) side-by-side.
 * **Zero-Setup Figma Sync:** Connects to Figma's public API to render and update screens in the cloud with no local servers or databases required.
-* **SyncBridge Companion (For Figma & Penpot):** Connects Miro Desktop (Electron) to local Figma servers and Penpot browser tabs securely using a local secure HTTPS loopback server, bypassing browser mixed-content restrictions with no tunnels.
+* **Cloud Relay Transport (Penpot):** Public HTTPS relay (Upstash Redis + Vercel) coordinates between the Penpot Companion plugin and the Miro plugin — no localhost calls, no PNA blocks, works in any browser.
+* **SyncBridge Companion (Optional Desktop Extender):** Tauri-powered desktop app for advanced capabilities — large images (>4.5MB), Adobe UXP bridge, local LLMs, two-way sync. Not required for day-to-day sync.
 
 ### 📐 Integration & Compatibility Matrix
 
-Depending on your design tool and Miro client, here is when the local **SyncBridge** companion app is required:
-
-| Feature | Design Tool Context | Miro Client | SyncBridge Required? |
+| Feature | Design Tool Context | Miro Client | SyncBridge / Tauri Required? |
 | :--- | :--- | :--- | :--- |
-| **Figma URL Import / Sync** | Browser or Desktop | Browser or Desktop | **No** (Cloud-Native Sync) |
-| **Figma Auto-Detect Selection** | Figma Desktop | Miro Desktop | **Yes** (Queries local port 3845) |
-| **Penpot URL Import & Selection** | Penpot Browser | Miro Desktop | **Yes** (Relays render & selection to Penpot tab) |
-| **Figma / Miro Login (OAuth)** | Any browser | Browser or Desktop | **No** (Uses stateless polling) |
+| **Figma URL Import / Sync** | Browser or Desktop | Browser or Desktop | **No** (Cloud API sync) |
+| **Figma Auto-Detect Selection** | Figma Desktop or Browser | Any | **No with Figma plugin** (planned) / **Yes with SyncBridge** (current fallback) |
+| **Penpot URL Import & Selection** | Penpot Browser | Any | **No** (Cloud relay — works in any browser via Companion plugin) |
+| **Penpot Export & Render** | Penpot Browser | Any | **No** (Companion plugin renders locally, relay handles transport) |
+| **Large Images (>4.5MB)** | Any | Any | **Optional** (SyncBridge bypasses Vercel body limit) |
+| **Adobe UXP / Local LLMs / Two-Way Sync** | Desktop apps | Any | **Optional** (SyncBridge capability extender) |
+| **Figma / Miro Login (OAuth)** | Any browser | Browser or Desktop | **No** (Stateless OAuth polling) |
 
 ---
 
@@ -52,7 +54,24 @@ Depending on your design tool and Miro client, here is when the local **SyncBrid
    * `boards:write`
 5. Click **Create App** and copy your **Client ID** and **Client Secret**.
 
-### 3. Deploy to Vercel
+### 3. Set Up Upstash Redis (for Penpot Relay)
+
+SyncBoard uses Upstash Redis as a lightweight relay to coordinate commands between the Miro plugin and the Penpot Companion plugin. The free tier is sufficient for personal use.
+
+1. Go to **[Upstash Console](https://console.upstash.com/)** and create a free account.
+2. Click **Create Database**:
+   * Select **Redis** as the database type.
+   * Choose a name (e.g., `syncboard-relay`).
+   * Select the region closest to your Vercel deployment (e.g., `us-east-1` or `eu-west-1`).
+   * **TLS** should be enabled by default (required).
+3. After creation, copy two values from the **REST API** section:
+   * **REST URL** — looks like `https://your-endpoint.upstash.io`
+   * **REST Token** — a base64-encoded string starting with `AYV...`
+4. You will use these as `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in the next step.
+
+> **Pricing note:** The free tier includes 10,000 commands per day and 50 MB storage — enough for hundreds of sync operations. A single sync run uses ~10–20 Redis commands (register, poll loop, result store, cleanup).
+
+### 4. Deploy to Vercel
 1. Go to your Vercel Dashboard, import your `syncboard` repository, and configure these environment variables:
    | Variable | Value Example | Note |
    | :--- | :--- | :--- |
@@ -61,13 +80,15 @@ Depending on your design tool and Miro client, here is when the local **SyncBrid
    | `FIGMA_CLIENT_SECRET` | `...` | From Figma Portal |
    | `MIRO_CLIENT_ID` | `...` | From Miro Portal |
    | `MIRO_CLIENT_SECRET` | `...` | From Miro Portal |
+   | `UPSTASH_REDIS_REST_URL` | `https://...upstash.io` | Required for Penpot relay queue/presence keys |
+   | `UPSTASH_REDIS_REST_TOKEN` | `...` | Required for Penpot relay queue/presence keys |
 2. Click **Deploy**.
 
 ---
 
 ## 📐 Architecture & Specifications
 
-For details on how the system handles secure local loopbacks, DNS routing, metadata formats, and API rate limits, please refer to the dedicated **[SyncBoard Architecture Documentation](./doc/architecture.md)**.
+For details on the cloud-relay transport, data flow and cost model, Tauri capability extender role, and API rate limits, please refer to the dedicated **[SyncBoard Architecture Documentation](./doc/architecture.md)**.
 
 ---
 
@@ -84,7 +105,9 @@ To use SyncBoard with **Penpot**, you need to install the SyncBoard Companion Pl
    https://syncboard.luiskobayashi.com/penpot-manifest.json
    ```
 5. Click **Install**. The plugin will appear in your workspace list.
-6. Click the plugin to open it, connect to SyncBridge using your Pairing ID, and start syncing!
+6. Click the plugin to open it, copy the **Pairing ID** from the Miro plugin settings (under the Penpot section), and paste it into the Penpot Companion plugin to connect.
+
+> **Note:** The Penpot Companion communicates over the cloud relay (public HTTPS). No local server or desktop app is required. Rendering happens locally in your browser tab; transport goes through SyncBoard's relay.
 
 ### Local Development Installation
 When running the development server locally:
@@ -94,11 +117,11 @@ When running the development server locally:
    http://localhost:3000/penpot-manifest.json
    ```
 
-### Troubleshooting: DNS Rebinding Protection (`ERR_NAME_NOT_RESOLVED`)
-Some routers or corporate DNS servers block public domains from resolving to local loopback addresses (like `127.0.0.1`). If you see a `net::ERR_NAME_NOT_RESOLVED` error in your browser console when launching the Penpot plugin:
-* Add a local mapping to your system's `hosts` file:
-  * **Windows:** Append `127.0.0.1 local-syncboard.luiskobayashi.com` to `C:\Windows\System32\drivers\etc\hosts` (run your text editor as Administrator).
-  * **macOS / Linux:** Run `sudo sh -c 'echo "127.0.0.1 local-syncboard.luiskobayashi.com" >> /etc/hosts'` in your terminal.
+### Troubleshooting: Companion Plugin Not Connecting
+If the Penpot Companion plugin shows "offline" in the Miro plugin:
+1. Make sure both the Miro plugin and the Penpot Companion use the **exact same Pairing ID**.
+2. Check that your SyncBoard deployment is reachable (the companion polls `/api/relay/penpot/poll` via public HTTPS).
+3. The presence heartbeat expires after **120 seconds** of inactivity — the companion should poll at least every 30 seconds.
 
 ---
 
@@ -116,6 +139,8 @@ For testing and coding on your local machine:
    FIGMA_CLIENT_SECRET=your_local_secret
    MIRO_CLIENT_ID=your_local_id
    MIRO_CLIENT_SECRET=your_local_secret
+   UPSTASH_REDIS_REST_URL=https://your-upstash-endpoint.upstash.io
+   UPSTASH_REDIS_REST_TOKEN=your_upstash_token
    ```
 3. **Expose localhost using `cloudflared`:**
    ```bash

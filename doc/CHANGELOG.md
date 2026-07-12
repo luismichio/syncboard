@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.5.1] - 2026-07-11
+
+### Added
+* **Penpot Relay API (Upstash-backed):** Added `/api/relay/request`, `/api/relay/penpot/register`, `/api/relay/penpot/poll`, and `/api/relay/penpot/result` to relay Penpot selection/export commands over public HTTPS instead of localhost transport.
+* **Relay Store Module:** Added `src/lib/relayRedis.ts` with strict typed command queue helpers, presence heartbeat keys, response TTL caching, and key sanitization.
+
+### Changed
+* **Penpot Transport Default:** `src/app/miro-plugin/penpotMcpClient.ts` now defaults to cloud relay mode and keeps SyncBridge/Tauri as an optional fallback.
+* **Companion UI Endpoint Routing:** `public/penpot-companion-ui.html` now talks to `/api/relay/penpot/*` endpoints and no longer depends on `targetAddressSpace` localhost access.
+* **Settings UX:** Pairing ID is now always visible in the Miro plugin settings so Penpot can pair in both relay and SyncBridge modes.
+
+### Fixed
+* **PNA/LNA Block in Penpot Web Context:** Removed hard dependency on browser-to-localhost calls for Penpot sync path, preventing `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS` in relay mode.
+
+### Documentation
+* **Architecture Reassessment:** Updated `doc/architecture.md` with §7 (cloud-relay-first + Tauri as capability extender), revised §1.B, §2, and §5.B to reflect relay-first reality.
+* **Backlog Restructure:** `doc/backlog.md` reorganized with new "Tauri Capability Extender" section (large images, Adobe UXP, local LLMs, compression, document parsing, two-way sync, multi-whiteboard) and an Icebox for archived bridge architectures.
+
 ## [0.5.0] - 2026-07-11
 
 ### Fixed

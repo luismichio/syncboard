@@ -645,7 +645,7 @@ export default function MiroPluginPage() {
                   <div>
                     <div className="text-xs font-semibold text-text-page">SyncBridge</div>
                     <div className="text-[10px] text-text-muted">
-                      {useTauri ? 'Local HTTPS loopback active' : 'Local desktop companion'}
+                      {useTauri ? 'Local HTTPS loopback active' : 'Disabled (Penpot cloud relay mode)'}
                     </div>
                   </div>
                   {useTauri ? (
@@ -668,29 +668,32 @@ export default function MiroPluginPage() {
                   )}
                 </div>
 
-                {useTauri && (
-                  /* Sync Pairing ID Card */
-                  <div className="p-3 rounded-lg bg-bg-card border border-border-card flex flex-col gap-2 animate-fade-in">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-semibold text-text-page">Miro Pairing ID</span>
-                      <button
-                        onClick={copyPairingId}
-                        className="text-[9px] font-mono font-bold tracking-wider text-accent border border-accent/40 rounded px-1.5 py-0.5 bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer"
-                      >
-                        {copiedPairing ? 'COPIED!' : 'COPY ID'}
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      readOnly
-                      value={pairingId}
-                      className="w-full text-[10px] font-mono bg-bg-page border border-border-card rounded p-1.5 text-text-muted select-all focus:outline-none"
-                    />
-                    <p className="text-[9px] text-text-muted leading-tight mt-0.5">
-                      Paste this pairing ID inside the Penpot Companion Plugin to connect the bridge.
-                    </p>
+                {/* Sync Pairing ID Card */}
+                <div className="p-3 rounded-lg bg-bg-card border border-border-card flex flex-col gap-2 animate-fade-in">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-semibold text-text-page">Miro Pairing ID</span>
+                    <button
+                      onClick={copyPairingId}
+                      className="text-[9px] font-mono font-bold tracking-wider text-accent border border-accent/40 rounded px-1.5 py-0.5 bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer"
+                    >
+                      {copiedPairing ? 'COPIED!' : 'COPY ID'}
+                    </button>
                   </div>
-                )}
+                  <input
+                    type="text"
+                    readOnly
+                    value={pairingId}
+                    className="w-full text-[10px] font-mono bg-bg-page border border-border-card rounded p-1.5 text-text-muted select-all focus:outline-none"
+                  />
+                  <p className="text-[9px] text-text-muted leading-tight mt-0.5">
+                    Paste this pairing ID inside the Penpot Companion Plugin to link Miro and Penpot.
+                  </p>
+                  <p className="text-[9px] text-text-muted leading-tight mt-0.5">
+                    {useTauri
+                      ? 'Transport mode: Local SyncBridge (Tauri).'
+                      : 'Transport mode: Cloud relay (recommended for Penpot web sandbox).'}
+                  </p>
+                </div>
               </div>
             </div>
             <div>
