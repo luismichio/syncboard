@@ -510,11 +510,26 @@ export default function MiroPluginPage() {
                     </div>
                     {figmaNodeInfo && (
                       <div className="p-3 bg-bg-card rounded border border-border-card mt-3">
-                        <div className="text-xs font-bold text-text-page truncate">
-                          {figmaNodeInfo.name}
-                        </div>
-                        <div className="text-[9px] font-mono text-text-muted truncate">
-                          File: {figmaNodeInfo.fileKey}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-bold text-text-page truncate">
+                              {figmaNodeInfo.name || 'Loading...'}
+                            </div>
+                            <div className="text-[9px] font-mono text-text-muted truncate">
+                              File: {figmaNodeInfo.fileKey}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => parseFigmaLink(figmaInput)}
+                            className="shrink-0 flex items-center justify-center w-6 h-6 rounded hover:bg-bg-page transition cursor-pointer text-text-muted hover:text-text-page"
+                            title="Refresh node info from Figma"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="23 4 23 10 17 10" />
+                              <polyline points="1 20 1 14 7 14" />
+                              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                            </svg>
+                          </button>
                         </div>
                         {/* Format and Scale Selectors */}
                         <div className="flex gap-2 mt-2 pt-2 border-t border-border-card/30">
@@ -548,9 +563,9 @@ export default function MiroPluginPage() {
                         <button
                           onClick={() => importFigmaScreen(importFormat, importScale)}
                           disabled={isSyncing}
-                          className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer"
+                          className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          PLACE ON CANVAS
+                          {isSyncing ? 'PLACING...' : 'PLACE ON CANVAS'}
                         </button>
                       </div>
                     )}
@@ -593,11 +608,26 @@ export default function MiroPluginPage() {
                 </div>
                 {penpotNodeInfo && (
                   <div className="p-3 bg-bg-card rounded border border-border-card mt-3">
-                    <div className="text-xs font-bold text-text-page truncate">
-                      {penpotNodeInfo.name}
-                    </div>
-                    <div className="text-[9px] font-mono text-text-muted truncate">
-                      File ID: {penpotNodeInfo.fileId}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-text-page truncate">
+                          {penpotNodeInfo.name || 'Loading...'}
+                        </div>
+                        <div className="text-[9px] font-mono text-text-muted truncate">
+                          File ID: {penpotNodeInfo.fileId}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => parsePenpotLink(penpotInput)}
+                        className="shrink-0 flex items-center justify-center w-6 h-6 rounded hover:bg-bg-page transition cursor-pointer text-text-muted hover:text-text-page"
+                        title="Refresh node info from Penpot"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="23 4 23 10 17 10" />
+                          <polyline points="1 20 1 14 7 14" />
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                        </svg>
+                      </button>
                     </div>
                     {/* Format and Scale Selectors */}
                     <div className="flex gap-2 mt-2 pt-2 border-t border-border-card/30">
@@ -631,9 +661,9 @@ export default function MiroPluginPage() {
                     <button
                       onClick={() => importPenpotScreen(importFormat, importScale)}
                       disabled={isSyncing}
-                      className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer"
+                      className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      PLACE ON CANVAS
+                      {isSyncing ? 'PLACING...' : 'PLACE ON CANVAS'}
                     </button>
                   </div>
                 )}
