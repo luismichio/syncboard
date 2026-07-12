@@ -81,7 +81,7 @@ export function usePenpotImporter(
     }
   };
 
-  const importPenpotScreen = async () => {
+  const importPenpotScreen = async (format: 'png' | 'svg' = 'svg', scale: number = 2) => {
     if (!penpotNodeInfo) return;
     if (typeof window === 'undefined') return;
     const miro = window.miro;
@@ -95,24 +95,30 @@ export function usePenpotImporter(
       const x = viewport.x + viewport.width / 2;
       const y = viewport.y + viewport.height / 2;
 
-      // Fetch shape as SVG string from Companion relay
+      // Fetch shape data from Companion relay
       const mcpResponse = await callPenpotMcpTool('export_shape', {
         shapeId: penpotNodeInfo.objectId,
-        format: 'svg',
+        format,
+        scale,
       });
 
       if (!mcpResponse.content || mcpResponse.content.length === 0) {
         throw new Error('Penpot MCP returned empty export response.');
       }
 
-      const svgText = mcpResponse.content[0].text;
-      if (!svgText) {
-        throw new Error('Penpot MCP returned empty SVG payload.');
+      let dataUrl: string;
+      if (mcpResponse.content[0].type === 'image') {
+        // PNG binary — content is { type: 'image', data: base64Data, mimeType: 'image/png' }
+        dataUrl = `data:${mcpResponse.content[0].mimeType};base64,${mcpResponse.content[0].data}`;
+      } else {
+        // SVG text — content is { type: 'text', text: svgText }
+        const svgText = mcpResponse.content[0].text;
+        if (!svgText) {
+          throw new Error('Penpot MCP returned empty SVG payload.');
+        }
+        const base64 = btoa(unescape(encodeURIComponent(svgText)));
+        dataUrl = `data:image/svg+xml;base64,${base64}`;
       }
-
-      // Convert SVG text to base64 Data URL
-      const base64 = btoa(unescape(encodeURIComponent(svgText)));
-      const dataUrl = `data:image/svg+xml;base64,${base64}`;
 
       const titleTag = `${penpotNodeInfo.name} [PenpotSync|${penpotNodeInfo.fileId}|${penpotNodeInfo.objectId}]`;
       
@@ -133,8 +139,8 @@ export function usePenpotImporter(
         fileKey: penpotNodeInfo.fileId,
         nodeId: penpotNodeInfo.objectId,
         nodeName: penpotNodeInfo.name,
-        format: 'svg',
-        scale: 2,
+        format,
+        scale,
         platform: 'penpot',
       });
       await image.sync();

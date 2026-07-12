@@ -262,8 +262,11 @@
       }
     }
 
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
     async function startPolling(pairingId) {
       while (pollingActive) {
+        if (!pollingActive) break;
         try {
           const res = await fetch(`${RELAY_URL}/api/relay/penpot/poll?pairingId=${pairingId}`, FETCH_OPTIONS);
 
@@ -307,6 +310,7 @@
           }
           break;
         }
+        await sleep(2000);
       }
     }
 

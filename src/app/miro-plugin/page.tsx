@@ -38,6 +38,14 @@ export default function MiroPluginPage() {
 
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
   const [importPlatform, setImportPlatform] = useState<'figma' | 'penpot'>('figma');
+  const [importFormat, setImportFormat] = useState<'png' | 'svg'>('png');
+  const [importScale, setImportScale] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('default_png_scale');
+      return saved ? Number(saved) : 2;
+    }
+    return 2;
+  });
   const [defaultPngScale, setDefaultPngScale] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('default_png_scale');
@@ -508,8 +516,37 @@ export default function MiroPluginPage() {
                         <div className="text-[9px] font-mono text-text-muted truncate">
                           File: {figmaNodeInfo.fileKey}
                         </div>
+                        {/* Format and Scale Selectors */}
+                        <div className="flex gap-2 mt-2 pt-2 border-t border-border-card/30">
+                          <div className="flex-1 flex flex-col gap-0.5">
+                            <span className="text-[8px] font-mono text-text-muted uppercase tracking-wider">Format</span>
+                            <select
+                              value={importFormat}
+                              onChange={(e) => setImportFormat(e.target.value as 'png' | 'svg')}
+                              className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
+                            >
+                              <option value="png">PNG</option>
+                              <option value="svg">SVG</option>
+                            </select>
+                          </div>
+                          {importFormat === 'png' && (
+                            <div className="flex-1 flex flex-col gap-0.5">
+                              <span className="text-[8px] font-mono text-text-muted uppercase tracking-wider">Scale</span>
+                              <select
+                                value={importScale}
+                                onChange={(e) => setImportScale(Number(e.target.value))}
+                                className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
+                              >
+                                <option value="1">1x</option>
+                                <option value="2">2x</option>
+                                <option value="3">3x</option>
+                                <option value="4">4x</option>
+                              </select>
+                            </div>
+                          )}
+                        </div>
                         <button
-                          onClick={importFigmaScreen}
+                          onClick={() => importFigmaScreen(importFormat, importScale)}
                           disabled={isSyncing}
                           className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer"
                         >
@@ -562,8 +599,37 @@ export default function MiroPluginPage() {
                     <div className="text-[9px] font-mono text-text-muted truncate">
                       File ID: {penpotNodeInfo.fileId}
                     </div>
+                    {/* Format and Scale Selectors */}
+                    <div className="flex gap-2 mt-2 pt-2 border-t border-border-card/30">
+                      <div className="flex-1 flex flex-col gap-0.5">
+                        <span className="text-[8px] font-mono text-text-muted uppercase tracking-wider">Format</span>
+                        <select
+                          value={importFormat}
+                          onChange={(e) => setImportFormat(e.target.value as 'png' | 'svg')}
+                          className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
+                        >
+                          <option value="png">PNG</option>
+                          <option value="svg">SVG</option>
+                        </select>
+                      </div>
+                      {importFormat === 'png' && (
+                        <div className="flex-1 flex flex-col gap-0.5">
+                          <span className="text-[8px] font-mono text-text-muted uppercase tracking-wider">Scale</span>
+                          <select
+                            value={importScale}
+                            onChange={(e) => setImportScale(Number(e.target.value))}
+                            className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
+                          >
+                            <option value="1">1x</option>
+                            <option value="2">2x</option>
+                            <option value="3">3x</option>
+                            <option value="4">4x</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
                     <button
-                      onClick={importPenpotScreen}
+                      onClick={() => importPenpotScreen(importFormat, importScale)}
                       disabled={isSyncing}
                       className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer"
                     >

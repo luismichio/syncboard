@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.5.2] - 2026-07-11
+
+### Added
+* **Import Format & Scale Selectors:** Added format (SVG/PNG) and scale (1x–4x, visible when PNG selected) dropdowns to both Figma and Penpot node info cards in the import tab, matching the sync grouped-card UI. `importFigmaScreen` and `importPenpotScreen` now accept `format` and `scale` parameters.
+
+### Fixed
+* **Figma MCP Tool Name (SyncBridge & Browser Fallback):** Updated `get_design_context` → `get_selection` in both `tauri-bridge/src-tauri/src/lib.rs` and `src/app/miro-plugin/useFigmaImporter.ts` to match the current Figma Desktop MCP API.
+* **Penpot Companion Polling Flood:** Added 2-second delay (`await sleep(2000)`) between poll iterations in `public/penpot-companion-ui.html` to prevent ~1,000 Redis commands/second when idle. Tight loop was the cause of unexpectedly high Redis consumption (~2,600 commands for 10–20 syncs).
+
 ## [0.5.1] - 2026-07-11
 
 ### Added

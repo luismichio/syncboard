@@ -438,7 +438,7 @@ async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse
         "jsonrpc": "2.0",
         "method": "tools/call",
         "params": {
-            "name": "get_design_context",
+            "name": "get_selection",
             "arguments": {}
         },
         "id": 1

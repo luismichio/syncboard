@@ -29,7 +29,7 @@ export function useFigmaImporter(
       setFigmaNodeInfo({
         fileKey: parsed.fileKey,
         nodeId: parsed.nodeId,
-        name: 'Loading Node...',
+        name: null as unknown as string,
       });
       if (figmaToken) {
         try {
@@ -98,7 +98,7 @@ export function useFigmaImporter(
           jsonrpc: '2.0',
           method: 'tools/call',
           params: {
-            name: 'get_design_context',
+            name: 'get_selection',
             arguments: {},
           },
           id: 1,
@@ -128,7 +128,7 @@ export function useFigmaImporter(
     }
   };
 
-  const importFigmaScreen = async () => {
+  const importFigmaScreen = async (format: 'png' | 'svg' = 'png', scale?: number) => {
     if (!figmaNodeInfo || !figmaToken) return;
     if (typeof window === 'undefined') return;
     const miro = window.miro;
@@ -141,9 +141,9 @@ export function useFigmaImporter(
       const y = viewport.y + viewport.height / 2;
 
       // Read default scale settings from user's global settings configuration
-      const defaultScale = typeof window !== 'undefined' ? Number(localStorage.getItem('default_png_scale') || '2') : 2;
+      const resolvedScale = scale ?? (typeof window !== 'undefined' ? Number(localStorage.getItem('default_png_scale') || '2') : 2);
 
-      const proxyUrl = `/api/figma/render?fileKey=${figmaNodeInfo.fileKey}&nodeId=${figmaNodeInfo.nodeId}&format=png&scale=${defaultScale}`;
+      const proxyUrl = `/api/figma/render?fileKey=${figmaNodeInfo.fileKey}&nodeId=${figmaNodeInfo.nodeId}&format=${format}&scale=${resolvedScale}`;
       const response = await fetch(proxyUrl, {
         headers: {
           Authorization: `Bearer ${figmaToken}`,
@@ -157,7 +157,8 @@ export function useFigmaImporter(
       const reader = new FileReader();
       reader.onloadend = async () => {
         const dataUrl = reader.result as string;
-        const titleTag = `${figmaNodeInfo.name} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
+        const fallbackName = figmaNodeInfo.name || figmaNodeInfo.nodeId;
+      const titleTag = `${fallbackName} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
         const image = await miro.board.createImage({
           url: dataUrl,
           title: titleTag,
@@ -173,8 +174,8 @@ export function useFigmaImporter(
             fileKey: figmaNodeInfo.fileKey,
             nodeId: figmaNodeInfo.nodeId,
             nodeName: figmaNodeInfo.name,
-            format: 'png',
-            scale: defaultScale,
+            format,
+            scale: resolvedScale,
           });
           await image.sync();
           setSyncStatusParent('Image placed successfully!');

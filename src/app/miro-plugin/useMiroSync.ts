@@ -44,6 +44,33 @@ export function useMiroSync(
         platform?: 'figma' | 'penpot';
       };
 
+      // ── Node name refresh from Figma API ──
+      // Re-fetch names so stale placeholders (e.g. "Loading Node...") are replaced
+      // with the actual Figma node name on every sync.
+      const nameMap = new Map<string, string>();
+      if (figmaToken) {
+        const seen = new Set<string>();
+        for (const s of selectedItems) {
+          if (s.platform === "penpot") continue;
+          const key = s.fileKey + "|" + s.nodeId;
+          if (!seen.has(key)) {
+            seen.add(key);
+            try {
+              const res = await fetch(
+                `/api/figma/node-info?fileKey=${encodeURIComponent(s.fileKey)}&nodeId=${encodeURIComponent(s.nodeId)}`,
+                { headers: { Authorization: `Bearer ${figmaToken}` } }
+              );
+              if (res.ok) {
+                const data = await res.json();
+                if (data.name) nameMap.set(key, data.name);
+              }
+            } catch (err) {
+              console.warn("Failed to refresh node name for", s.nodeId, err);
+            }
+          }
+        }
+      }
+
       let itemsToSync: SyncTarget[] = [];
 
       if (syncAllCopies) {
@@ -84,7 +111,7 @@ export function useMiroSync(
               id: match.id,
               fileKey: selected.fileKey,
               nodeId: selected.nodeId,
-              nodeName: selected.nodeName,
+              nodeName: nameMap.get(selected.fileKey + '|' + selected.nodeId) || selected.nodeName,
               width: match.width,
               format,
               scale,
@@ -97,7 +124,7 @@ export function useMiroSync(
           id: s.id,
           fileKey: s.fileKey,
           nodeId: s.nodeId,
-          nodeName: s.nodeName,
+          nodeName: nameMap.get(s.fileKey + '|' + s.nodeId) || s.nodeName,
           format: s.format,
           scale: s.scale,
           platform: s.platform || 'figma',
