@@ -143,52 +143,59 @@ export function useFigmaImporter(
       // Read default scale settings from user's global settings configuration
       const resolvedScale = scale ?? (typeof window !== 'undefined' ? Number(localStorage.getItem('default_png_scale') || '2') : 2);
 
-      const proxyUrl = `/api/figma/render?fileKey=${figmaNodeInfo.fileKey}&nodeId=${figmaNodeInfo.nodeId}&format=${format}&scale=${resolvedScale}`;
-      console.log('[FigmaImport] proxyUrl:', proxyUrl, '| format:', format, '| scale:', resolvedScale, '| rawParam:', scale);
-      const response = await fetch(proxyUrl, {
-        headers: {
-          Authorization: `Bearer ${figmaToken}`,
-        },
+      // Use the same render-batch endpoint as sync to guarantee identical image data handling
+      const batchRes = await fetch('/api/figma/render-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          figmaToken,
+          fileKey: figmaNodeInfo.fileKey,
+          nodeIds: [figmaNodeInfo.nodeId],
+          format,
+          scale: resolvedScale,
+        }),
       });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Server returned HTTP ${response.status}`);
+      if (!batchRes.ok) {
+        const errData = await batchRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Server returned HTTP ${batchRes.status}`);
       }
-      const blob = await response.blob();
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const dataUrl = reader.result as string;
-        const fallbackName = figmaNodeInfo.name || figmaNodeInfo.nodeId;
+      const { images } = await batchRes.json() as { images: Record<string, string | null> };
+      const dataUrl = images[figmaNodeInfo.nodeId];
+      if (!dataUrl) {
+        throw new Error('Figma batch render returned no image for the specified node.');
+      }
+
+      const fallbackName = figmaNodeInfo.name || figmaNodeInfo.nodeId;
       const titleTag = `${fallbackName} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
-        const image = await miro.board.createImage({
-          url: dataUrl,
-          title: titleTag,
-          x,
-          y,
-          width: 800,
-        });
-        try {
-          if (typeof image.setMetadata !== 'function') {
-            throw new Error("image.setMetadata is not a function on the returned object");
-          }
-          await image.setMetadata('syncboard', {
-            fileKey: figmaNodeInfo.fileKey,
-            nodeId: figmaNodeInfo.nodeId,
-            nodeName: figmaNodeInfo.name,
-            format,
-            scale: resolvedScale,
-          });
-          await image.sync();
-          setSyncStatusParent('Image placed successfully!');
-          setIsSyncingParent(false);
-        } catch (metaErr: unknown) {
-          const metaMsg = metaErr instanceof Error ? metaErr.message : String(metaErr);
-          console.error("Failed to write metadata during image creation:", metaErr);
-          setSyncStatusParent(`Placement warning: Image created, but connection metadata failed to save (${metaMsg})`);
-          setIsSyncingParent(false);
+
+      const image = await miro.board.createImage({
+        url: dataUrl,
+        title: titleTag,
+        x,
+        y,
+        width: 800,
+      });
+
+      try {
+        if (typeof image.setMetadata !== 'function') {
+          throw new Error("image.setMetadata is not a function on the returned object");
         }
-      };
-      reader.readAsDataURL(blob);
+        await image.setMetadata('syncboard', {
+          fileKey: figmaNodeInfo.fileKey,
+          nodeId: figmaNodeInfo.nodeId,
+          nodeName: figmaNodeInfo.name,
+          format,
+          scale: resolvedScale,
+        });
+        await image.sync();
+        setSyncStatusParent('Image placed successfully!');
+        setIsSyncingParent(false);
+      } catch (metaErr: unknown) {
+        const metaMsg = metaErr instanceof Error ? metaErr.message : String(metaErr);
+        console.error("Failed to write metadata during image creation:", metaErr);
+        setSyncStatusParent(`Placement warning: Image created, but connection metadata failed to save (${metaMsg})`);
+        setIsSyncingParent(false);
+      }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setSyncStatusParent(`Import failed: ${errMsg}`);
