@@ -58,19 +58,7 @@ const HTML_HEAD = `
       transition: background-color 0.2s, border-color 0.2s;
     }
     button:hover { background: var(--border-card); }
-    .spinner {
-      display: inline-block;
-      width: 28px;
-      height: 28px;
-      border: 3px solid var(--border-card);
-      border-radius: 50%;
-      border-top-color: var(--accent);
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    
   </style>
 </head>
 `;
@@ -185,13 +173,19 @@ ${HTML_HEAD}
 <body>
   <div class="container">
     <h3>Figma Connected!</h3>
-    <div class="spinner"></div>
+    <div class="success-icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#01C8F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="16 8 10 16 7 13" />
+      </svg>
+    </div>
+    <p>You can safely close this tab.</p>
     <script>
       const tokens = ${JSON.stringify(tokenPayload)};
       const state = ${JSON.stringify(stateParam)};
       // Save locally in client storage
       try {
-        localStorage.setItem('figma_tokens', JSON.stringify(tokens));
+        const fp = (() => { try { const o = window.location.origin; let h = 0; for (let i = 0; i < o.length; i++) { h = ((h << 5) - h) + o.charCodeAt(i); h |= 0; } return '_' + Math.abs(h).toString(36); } catch { return ''; } })(); localStorage.setItem('figma_tokens' + fp, JSON.stringify(tokens));
       } catch (e) {
         console.error("Local storage write failed:", e);
       }
