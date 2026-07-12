@@ -88,6 +88,8 @@ export async function GET(request: Request) {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'no-store, max-age=0',
+        'X-SyncBoard-Scale': String(scaleParam ? Number(scaleParam) : 2),
+        'X-SyncBoard-Format': format,
       },
     });
   } catch (err) {
