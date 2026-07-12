@@ -17,7 +17,8 @@ export function useAuthTokens(isInitMode: boolean | null) {
     let interval: NodeJS.Timeout;
 
     const loadTokens = async () => {
-      // Wait for Miro board storage bridge to initialize before fetching tokens
+      // Wait for Miro board storage bridge to initialize before fetching tokens.
+      // Timeout after 8s so the loading state doesn't get stuck if Miro SDK never init.
       const waitForMiro = (): Promise<boolean> => {
         return new Promise((resolve) => {
           if (window.miro?.board) {
@@ -30,15 +31,23 @@ export function useAuthTokens(isInitMode: boolean | null) {
               resolve(true);
             }
           }, 50);
+          // Timeout: resolve anyway so token loading falls through to localStorage
+          setTimeout(() => {
+            clearInterval(interval);
+            resolve(false);
+          }, 8_000);
         });
       };
 
       await waitForMiro();
+      // If Miro board was unavailable, tokens will be read from localStorage fallback
       if (!active) return;
 
+      let fToken: string | null = null;
+      let mToken: string | null = null;
       try {
-        const fToken = await getValidToken('figma');
-        const mToken = await getValidToken('miro');
+        fToken = await getValidToken('figma');
+        mToken = await getValidToken('miro');
         setFigmaToken(fToken);
         setMiroToken(mToken);
       } catch (err) {
@@ -46,9 +55,15 @@ export function useAuthTokens(isInitMode: boolean | null) {
       } finally {
         setTokensLoading(false);
       }
+      // Retry once after 5s if both tokens are null (Vercel cold start recovery)
+      if (active && !fToken && !mToken) {
+        setTimeout(() => {
+          if (!active) return;
+          setTokensLoading(true);
+          loadTokens();
+        }, 5_000);
+      }
     };
-
-    loadTokens();
 
     return () => {
       active = false;
