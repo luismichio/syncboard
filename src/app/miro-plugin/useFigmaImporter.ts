@@ -173,7 +173,6 @@ export function useFigmaImporter(
         title: titleTag,
         x,
         y,
-        width: 800,
       });
 
       try {
