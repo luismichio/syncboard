@@ -8,6 +8,7 @@ import { getValidToken, clearToken, saveToken, TokenData } from '@/lib/tokens';
 export function useAuthTokens(isInitMode: boolean | null) {
   const [figmaToken, setFigmaToken] = useState<string | null>(null);
   const [miroToken, setMiroToken] = useState<string | null>(null);
+  const [tokensLoading, setTokensLoading] = useState<boolean>(true);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -42,6 +43,8 @@ export function useAuthTokens(isInitMode: boolean | null) {
         setMiroToken(mToken);
       } catch (err) {
         console.error('Failed to load credentials:', err);
+      } finally {
+        setTokensLoading(false);
       }
     };
 
@@ -205,5 +208,6 @@ export function useAuthTokens(isInitMode: boolean | null) {
     disconnectMiro,
     setFigmaToken,
     setMiroToken,
+    tokensLoading,
   };
 }

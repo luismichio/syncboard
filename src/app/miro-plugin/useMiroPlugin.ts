@@ -27,6 +27,7 @@ export function useMiroPlugin() {
     connectMiro,
     disconnectFigma,
     disconnectMiro,
+    tokensLoading,
   } = useAuthTokens(isInitMode);
 
   // 2. Selection Hook
@@ -73,6 +74,7 @@ export function useMiroPlugin() {
     isInitMode,
     figmaToken,
     miroToken,
+    tokensLoading,
     selectedItems,
     setSelectedItems,
     isSyncing,

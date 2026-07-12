@@ -144,7 +144,7 @@ export function useFigmaImporter(
       const resolvedScale = scale ?? (typeof window !== 'undefined' ? Number(localStorage.getItem('default_png_scale') || '2') : 2);
 
       const proxyUrl = `/api/figma/render?fileKey=${figmaNodeInfo.fileKey}&nodeId=${figmaNodeInfo.nodeId}&format=${format}&scale=${resolvedScale}`;
-      console.debug('[FigmaImport] proxyUrl:', proxyUrl, '| format:', format, '| scale:', resolvedScale, '| rawParam:', scale);
+      console.log('[FigmaImport] proxyUrl:', proxyUrl, '| format:', format, '| scale:', resolvedScale, '| rawParam:', scale);
       const response = await fetch(proxyUrl, {
         headers: {
           Authorization: `Bearer ${figmaToken}`,

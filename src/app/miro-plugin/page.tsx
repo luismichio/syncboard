@@ -9,6 +9,7 @@ export default function MiroPluginPage() {
     isInitMode,
     figmaToken,
     miroToken,
+    tokensLoading,
     selectedItems,
     setSelectedItems,
     isSyncing,
@@ -283,8 +284,8 @@ export default function MiroPluginPage() {
         <div className="flex items-center gap-3">
           {/* Figma Status Indicator */}
           <div
-            title={figmaToken ? "Figma Connected" : "Figma Disconnected"}
-            className={`w-3.5 h-5 transition duration-200 ${figmaToken ? 'bg-accent' : 'bg-text-muted/30'}`}
+            title={tokensLoading ? 'Connecting...' : figmaToken ? 'Figma Connected' : 'Figma Disconnected'}
+            className={`w-3.5 h-5 transition duration-200 ${tokensLoading ? 'bg-yellow-500/50' : figmaToken ? 'bg-accent' : 'bg-text-muted/30'}`}
             style={{
               maskImage: 'url(/Figma.svg)',
               WebkitMaskImage: 'url(/Figma.svg)',
@@ -295,8 +296,8 @@ export default function MiroPluginPage() {
           />
           {/* Miro Status Indicator */}
           <div
-            title={miroToken ? "Miro Connected" : "Miro Disconnected"}
-            className={`w-4 h-4 transition duration-200 ${miroToken ? 'bg-accent' : 'bg-text-muted/30'}`}
+            title={tokensLoading ? 'Connecting...' : miroToken ? 'Miro Connected' : 'Miro Disconnected'}
+            className={`w-4 h-4 transition duration-200 ${tokensLoading ? 'bg-yellow-500/50' : miroToken ? 'bg-accent' : 'bg-text-muted/30'}`}
             style={{
               maskImage: 'url(/Miro.svg)',
               WebkitMaskImage: 'url(/Miro.svg)',
@@ -685,10 +686,12 @@ export default function MiroPluginPage() {
                   <div>
                     <div className="text-xs font-semibold text-text-page">Figma Status</div>
                     <div className="text-[10px] text-text-muted">
-                      {figmaToken ? 'Connected securely' : 'Disconnected'}
+                      {tokensLoading ? 'Connecting...' : figmaToken ? 'Connected securely' : 'Disconnected'}
                     </div>
                   </div>
-                  {figmaToken ? (
+                  {tokensLoading ? (
+                    <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                  ) : figmaToken ? (
                     <div className="flex items-center gap-3">
                       <span className="h-2 w-2 rounded-full bg-green-500"></span>
                       <button
@@ -713,10 +716,12 @@ export default function MiroPluginPage() {
                   <div>
                     <div className="text-xs font-semibold text-text-page">Miro REST Status</div>
                     <div className="text-[10px] text-text-muted">
-                      {miroToken ? 'Connected securely' : 'Disconnected'}
+                      {tokensLoading ? 'Connecting...' : miroToken ? 'Connected securely' : 'Disconnected'}
                     </div>
                   </div>
-                  {miroToken ? (
+                  {tokensLoading ? (
+                    <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                  ) : miroToken ? (
                     <div className="flex items-center gap-3">
                       <span className="h-2 w-2 rounded-full bg-green-500"></span>
                       <button
