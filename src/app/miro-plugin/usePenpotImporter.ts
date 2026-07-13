@@ -136,7 +136,6 @@ export function usePenpotImporter(
         title: titleTag,
         x,
         y,
-        width: 800,
       });
 
       if (typeof image.setMetadata !== 'function') {

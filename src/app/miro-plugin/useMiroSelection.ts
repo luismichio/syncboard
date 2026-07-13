@@ -6,6 +6,7 @@ export interface SyncedImage {
   fileKey: string;
   nodeId: string;
   nodeName: string;
+  width?: number;
   format?: 'png' | 'svg';
   scale?: number;
   platform?: 'figma' | 'penpot';
@@ -89,6 +90,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
                       fileKey: figmaMatch[2],
                       nodeId: figmaMatch[3],
                       nodeName: figmaMatch[1].trim() || 'Unnamed Screen',
+                      width: item.width,
                       format,
                       scale,
                       platform: 'figma',
@@ -114,6 +116,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
                       fileKey: penpotMatch[2],
                       nodeId: penpotMatch[3],
                       nodeName: penpotMatch[1].trim() || 'Unnamed Screen',
+                      width: item.width,
                       format,
                       scale,
                       platform: 'penpot',
@@ -144,6 +147,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
                       fileKey: syncData.fileKey,
                       nodeId: syncData.nodeId,
                       nodeName: syncData.nodeName || 'Unnamed Screen',
+                      width: item.width,
                       format: syncData.format || (platform === 'penpot' ? 'svg' : 'png'),
                       scale: syncData.scale || 2,
                       platform,

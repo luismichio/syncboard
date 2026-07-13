@@ -144,6 +144,7 @@ export function useMiroSync(
           fileKey: s.fileKey,
           nodeId: s.nodeId,
           nodeName: nameMap.get(s.fileKey + '|' + s.nodeId) || s.nodeName,
+          width: s.width,
           format: s.format,
           scale: s.scale,
           platform: s.platform || 'figma',
