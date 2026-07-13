@@ -261,7 +261,11 @@
     function disconnectAbly(reason) {
       if (ablyChannel) {
         try { ablyChannel.unsubscribe(); } catch (e) {}
-        try { ablyChannel.presence.leave(); } catch (e) {}
+        try {
+          if (ablyChannel.state !== 'detached') {
+            ablyChannel.presence.leave();
+          }
+        } catch (e) {}
         ablyChannel = null;
       }
       if (ablyClient) {
@@ -293,27 +297,12 @@
       log(`Connecting via Ably (pairingId: ${pairingId})...`);
 
       try {
-        // Fetch Ably token request from SyncBoard
-        const tokenRes = await fetch(`${RELAY_URL}/api/ably/token`, {
-          ...FETCH_OPTIONS,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pairingId })
+        // Connect to Ably via authUrl (handles token refresh automatically)
+        ablyClient = new Ably.Realtime({
+          authUrl: `${RELAY_URL}/api/ably/token`,
+          authMethod: 'GET',
+          authParams: { pairingId }
         });
-
-        if (!tokenRes.ok) {
-          throw new Error(`Token request failed: HTTP ${tokenRes.status}`);
-        }
-
-        const tokenPayload = await tokenRes.json();
-        if (tokenPayload.error) {
-          throw new Error(tokenPayload.error);
-        }
-
-        // Connect to Ably with token auth
-        ablyClient = new Ably.Realtime({ authCallback: (data, callback) => {
-          callback(null, tokenPayload.tokenDetails);
-        }});
 
         // Wait for connection
         await new Promise((resolve, reject) => {
@@ -336,15 +325,16 @@
           // Another client left — not actionable for us.
         });
 
-        // Connection lost handler
+        // Connection lost handlers
         ablyClient.connection.on('disconnected', () => {
           log('Ably connection lost. Reconnecting...');
           updateStatus('connecting', 'Reconnecting');
         });
 
         ablyClient.connection.on('closed', () => {
-          log('Ably connection closed.');
+          log('Ably connection closed permanently.');
           if (currentPairingId) {
+            // Ably's built-in reconnect has exhausted retries; restart manually
             scheduleReconnect();
           }
         });
