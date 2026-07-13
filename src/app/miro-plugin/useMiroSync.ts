@@ -126,12 +126,12 @@ export function useMiroSync(
             const effectiveScale = propagate ? (selected.scale || 2) : scale;
 
             // Calculate new display width.
-            // For Penpot items with stored natural width, always use that (format/scale only affect quality).
-            // For Figma or items without stored width, scale proportionally from the current widget width.
+            // For Penpot items with stored natural width: displayWidth = naturalWidth * effectiveScale.
+            // This makes the widget visually scale with export resolution.
+            // For Figma or items without stored width: scale proportionally from current widget width.
             let effectiveWidth: number | undefined;
-            if (propagate && storedWidth && storedWidth > 0) {
-              // Natural width is the canonical display size; format/scale don't change it.
-              effectiveWidth = storedWidth;
+            if (propagate && storedWidth && storedWidth > 0 && effectiveScale > 0) {
+              effectiveWidth = Math.round(storedWidth * effectiveScale);
             } else if (propagate && effectiveScale !== scale && match.width) {
               effectiveWidth = Math.round(match.width / scale * effectiveScale);
             } else {
@@ -238,7 +238,7 @@ export function useMiroSync(
           for (const nodeId of nodeIds) {
             const dataUrl = images[nodeId];
             if (dataUrl) {
-              renderCache.set(`${fileKey}|${nodeId}`, dataUrl);
+              renderCache.set(`${fileKey}|${nodeId}|${format}|${scale}`, dataUrl);
             }
           }
         }
@@ -255,6 +255,7 @@ export function useMiroSync(
               const mcpResponse = await callPenpotMcpTool('export_shape', {
                 shapeId: target.nodeId,
                 format: format,
+                scale: target.scale || 2,
               });
 
               if (mcpResponse.content && mcpResponse.content.length > 0) {
@@ -266,7 +267,7 @@ export function useMiroSync(
                 }
                 // Include format in render cache key to prevent race conditions
                 // when copies have different formats
-                const renderKey = `${target.fileKey}|${target.nodeId}|${format}`;
+                const renderKey = `${target.fileKey}|${target.nodeId}|${format}|${target.scale || 2}`;
                 if (format === 'svg' && content.text) {
                   const base64 = btoa(unescape(encodeURIComponent(content.text)));
                   const dataUrl = `data:image/svg+xml;base64,${base64}`;
@@ -292,7 +293,11 @@ export function useMiroSync(
         const item = itemsToSync[i];
         // Look up by format-aware cache key (Penpot uses format in key, Figma doesn't)
         const cacheKey = `${item.fileKey}|${item.nodeId}`;
-        let dataUrl = renderCache.get(`${cacheKey}|${item.format || 'png'}`);
+        const cacheFormat = item.format || 'png';
+        const cacheScale = item.scale || 2;
+        // Try format+scale aware key, then format-only fallback, then legacy key
+        let dataUrl = renderCache.get(`${cacheKey}|${cacheFormat}|${cacheScale}`);
+        if (!dataUrl) dataUrl = renderCache.get(`${cacheKey}|${cacheFormat}`);
         if (!dataUrl) dataUrl = renderCache.get(cacheKey); // fallback to legacy key
         if (!dataUrl) {
           console.warn(`No render cached for ${cacheKey}, skipping.`);

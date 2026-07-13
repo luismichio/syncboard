@@ -135,16 +135,27 @@ export function usePenpotImporter(
       const resolvedName = responseName || penpotNodeInfo.name;
       const titleTag = `${resolvedName} [PenpotSync|${penpotNodeInfo.fileId}|${penpotNodeInfo.objectId}]`;
       
-      // Use the natural shape width so the widget displays at correct size
-      // regardless of export scale. The scale only affects the image sharpness,
-      // not the display dimensions.
-      const image = await miro.board.createImage({
+      // Display width = naturalWidth * scale — the widget visually scales with
+      // export resolution (1x=native, 2x=double size, 4x=quadruple).
+      const displayWidth = naturalWidth && naturalWidth > 0 && scale > 0
+        ? Math.round(naturalWidth * scale)
+        : undefined;
+
+      const imageOptions: {
+        url: string;
+        title: string;
+        x: number;
+        y: number;
+        width?: number;
+      } = {
         url: dataUrl,
         title: titleTag,
         x,
         y,
-        ...(naturalWidth && naturalWidth > 0 ? { width: naturalWidth } : {}),
-      });
+      };
+      if (displayWidth) imageOptions.width = displayWidth;
+
+      const image = await miro.board.createImage(imageOptions);
 
       if (typeof image.setMetadata !== 'function') {
         throw new Error('image.setMetadata is not supported.');
