@@ -342,6 +342,9 @@
       }
     }
 
+    // Apply a deterministic startup fallback before Penpot sends the exact theme.
+    applyTheme('os');
+
     window.addEventListener("message", (event) => {
       const response = event.data;
       if (!response || !response.action) return;
@@ -373,6 +376,14 @@
         }
       }
     });
+
+    // Handshake: tell plugin runtime that UI is ready to receive theme updates.
+    function notifyUiReady() {
+      parent.postMessage({ action: 'ui-ready' }, '*');
+    }
+
+    notifyUiReady();
+    setTimeout(notifyUiReady, 300);
 
     connectBtn.addEventListener('click', () => {
       clearTimeout(reconnectTimeout);

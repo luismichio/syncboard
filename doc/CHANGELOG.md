@@ -93,6 +93,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Automated CI/CD Release Pipeline:** Created `.github/workflows/release-tauri.yml` which automatically compiles `.msi`, `.exe`, `.dmg`, `.app`, and `.deb` installers using GitHub actions upon tagging releases.
 * **Bridge Documentation:** Added `doc/tauri-setup.md` detailing prerequisites, Let's Encrypt certificates installation, and GitHub Action releases.
 
+## [0.1.14] - 2026-07-11
+### Fixed
+* **Penpot Export API Regression (`penpot.export is not a function`):** Updated `public/penpot-companion-plugin.js` to use the current Penpot runtime API (`shape.export({ type, scale })` via `penpot.currentPage.getShapeById(...)`) with backward compatibility fallback for older runtimes. This resolves relay import failures that surfaced as `/api/relay/request` HTTP 502.
+* **Penpot Companion Theme Mismatch:** Added an explicit UI-ready handshake (`ui-ready`) between `public/penpot-companion-ui.html` and `public/penpot-companion-plugin.js`, plus theme normalization and startup fallback handling to prevent dark-theme default drift when initial theme message races the iframe load.
+
 ## [0.1.13] - 2026-07-11
 ### Fixed
 * **Miro OAuth Connected-but-Gray Regression:** Normalized OAuth token payload handling in `useAuthTokens.ts` so Miro callbacks/polling no longer reject valid access tokens when `refreshToken` is missing. This fixes Miro staying disconnected (gray) after successful auth while Figma connects normally.

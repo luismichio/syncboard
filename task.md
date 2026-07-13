@@ -64,3 +64,21 @@ Miro callback payloads could omit `refreshToken`; strict guards in `useAuthToken
 ## Verification
 - [x] `yarn test --run`
 - [x] `yarn build`
+
+---
+
+# Hotfix: Penpot Relay Export + Theme Sync
+
+## Root cause
+1. Companion plugin called deprecated/unsupported runtime method `penpot.export(...)`.
+2. Theme sync depended on a one-shot delayed message and could race iframe readiness.
+
+## Applied fix
+- Switched export path to `shape.export({ type, scale })` using `penpot.currentPage.getShapeById(shapeId)` with old-runtime fallback.
+- Added `ui-ready` handshake between companion UI and plugin runtime.
+- Normalized theme values and added startup fallback apply (`os`) in UI.
+
+## Verification
+- [ ] Manual Penpot import smoke test in production
+- [x] `yarn test --run`
+- [x] `yarn build`
