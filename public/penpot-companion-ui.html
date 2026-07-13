@@ -258,14 +258,17 @@
       }
     }
 
-    function disconnectAbly(reason) {
+    async function disconnectAbly(reason) {
       if (ablyChannel) {
         try { ablyChannel.unsubscribe(); } catch (e) {}
         try {
-          if (ablyChannel.state !== 'detached') {
-            ablyChannel.presence.leave();
+          // Check state right before leave() to avoid detached-state race
+          if (ablyChannel && ablyChannel.state !== 'detached' && ablyChannel.state !== 'failed') {
+            await ablyChannel.presence.leave();
           }
-        } catch (e) {}
+        } catch (e) {
+          // swallow detached-state errors
+        }
         ablyChannel = null;
       }
       if (ablyClient) {
@@ -287,11 +290,15 @@
         reconnectAttempts = 0;
       }
 
+      // Prevent old client's 'closed' event from scheduling a reconnect
+      // after disconnectAbly() fires asynchronously.
+      currentPairingId = '';
+      clearReconnectTimer();
+
+      await disconnectAbly();
+
       localStorage.setItem('syncboard_pairing_id', pairingId);
       currentPairingId = pairingId;
-
-      disconnectAbly();
-      clearReconnectTimer();
 
       updateStatus('connecting', 'Connecting');
       log(`Connecting via Ably (pairingId: ${pairingId})...`);
@@ -345,7 +352,7 @@
         fileNameText.textContent = 'Active Connection';
 
       } catch (err) {
-        disconnectAbly();
+        await disconnectAbly();
         const errMsg = err instanceof Error ? err.message : String(err);
         log(`Connection failed: ${errMsg}`);
         updateStatus('disconnected', 'Failed');
