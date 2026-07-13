@@ -1,0 +1,4 @@
+1. Make sure both the Miro plugin and the Penpot Companion use the **exact same Pairing ID**.
+2. Check that your SyncBoard deployment is reachable (the companion polls `/api/relay/penpot/poll` via public HTTPS).
+3. Open the browser DevTools console in the Penpot tab — look for Ably connection errors (CSP blocking the CDN script, or token timeout).
+
