@@ -1,5 +1,5 @@
 import { Rest } from 'ably';
-import type { TokenRequest, TokenParams } from 'ably';
+import type { TokenParams } from 'ably';
 import type { RelayCommand } from './relayRedis';
 
 const CHANNEL_PREFIX = 'penpot';
@@ -49,12 +49,14 @@ export async function isPenpotOnlineAbly(
 }
 
 /**
- * Generate an Ably token request for the companion to authenticate via WebSocket.
+ * Generate an Ably token for the companion to authenticate via WebSocket.
  * The token is restricted to subscribe+presence on the specific pairing channel.
+ * Returns an actual TokenDetails object (not a TokenRequest) for compatibility
+ * with the Ably browser SDK loaded from CDN.
  */
-export async function generateAblyTokenRequest(
+export async function generateAblyToken(
   pairingId: string
-): Promise<TokenRequest> {
+): Promise<Record<string, unknown>> {
   const ably = getAblyRest();
   const tokenParams: TokenParams = {
     capability: JSON.stringify({
@@ -63,6 +65,6 @@ export async function generateAblyTokenRequest(
     ttl: 2 * 60 * 60 * 1000, // 2 hours
     clientId: `companion:${pairingId}`,
   };
-  const tokenRequest = await ably.auth.createTokenRequest(tokenParams);
-  return tokenRequest;
+  const tokenDetails = await ably.auth.requestToken(tokenParams, undefined);
+  return tokenDetails as unknown as Record<string, unknown>;
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { generateAblyTokenRequest } from '@/lib/relayAbly';
+import { generateAblyToken } from '@/lib/relayAbly';
 
 export async function POST(request: Request) {
   try {
@@ -16,9 +16,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const tokenRequest = await generateAblyTokenRequest(pairingId);
+    const tokenDetails = await generateAblyToken(pairingId);
 
-    return NextResponse.json({ error: null, tokenRequest });
+    return NextResponse.json({ error: null, tokenDetails });
   } catch (error) {
     const message =
       error instanceof Error

@@ -312,7 +312,7 @@
 
         // Connect to Ably with token auth
         ablyClient = new Ably.Realtime({ authCallback: (data, callback) => {
-          callback(null, tokenPayload.tokenRequest);
+          callback(null, tokenPayload.tokenDetails);
         }});
 
         // Wait for connection
