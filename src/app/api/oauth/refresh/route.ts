@@ -1,15 +1,40 @@
 import { NextResponse } from 'next/server';
 
+const PROVIDER_TIMEOUT_MS = 8000;
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+type Platform = 'figma' | 'miro';
+
+function parseRefreshRequest(raw: unknown): { platform: Platform; refreshToken: string } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  if ((obj.platform !== 'figma' && obj.platform !== 'miro') || typeof obj.refreshToken !== 'string') {
+    return null;
+  }
+  return { platform: obj.platform, refreshToken: obj.refreshToken };
+}
+
 export async function POST(request: Request) {
   try {
-    const { platform, refreshToken } = await request.json();
-
-    if (!platform || !refreshToken) {
+    const payload = parseRefreshRequest(await request.json());
+    if (!payload) {
       return NextResponse.json(
-        { error: 'Missing platform or refreshToken in request body' },
+        { error: 'Missing or invalid platform/refreshToken in request body' },
         { status: 400 }
       );
     }
+
+    const { platform, refreshToken } = payload;
 
     if (platform === 'figma') {
       const figmaClientId = process.env.FIGMA_CLIENT_ID;
@@ -22,7 +47,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const response = await fetch('https://api.figma.com/v1/oauth/token', {
+      const response = await fetchWithTimeout('https://api.figma.com/v1/oauth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -34,69 +59,92 @@ export async function POST(request: Request) {
           refresh_token: refreshToken,
           grant_type: 'refresh_token',
         }).toString(),
-      });
+      }, PROVIDER_TIMEOUT_MS);
 
-      const data = await response.json();
+      const data: unknown = await response.json();
+      const obj = (data && typeof data === 'object') ? (data as Record<string, unknown>) : {};
 
       if (!response.ok) {
+        const message = typeof obj.message === 'string' ? obj.message : 'Figma token refresh failed';
+        return NextResponse.json({ error: message }, { status: response.status });
+      }
+
+      const accessToken = typeof obj.access_token === 'string' ? obj.access_token : null;
+      const returnedRefreshToken = typeof obj.refresh_token === 'string' ? obj.refresh_token : refreshToken;
+      const expiresIn = typeof obj.expires_in === 'number' ? obj.expires_in : 3600;
+
+      if (!accessToken) {
         return NextResponse.json(
-          { error: data.message || 'Figma token refresh failed' },
-          { status: response.status }
+          { error: 'Figma token refresh response is missing access_token' },
+          { status: 502 }
         );
       }
 
-      const expiresAt = Date.now() + (data.expires_in || 3600) * 1000;
+      const expiresAt = Date.now() + expiresIn * 1000;
       return NextResponse.json({
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token || refreshToken, // fallback to old refresh token if new one isn't sent
+        accessToken,
+        refreshToken: returnedRefreshToken,
         expiresAt,
       });
     }
 
-    if (platform === 'miro') {
-      const miroClientId = process.env.MIRO_CLIENT_ID;
-      const miroClientSecret = process.env.MIRO_CLIENT_SECRET;
+    const miroClientId = process.env.MIRO_CLIENT_ID;
+    const miroClientSecret = process.env.MIRO_CLIENT_SECRET;
 
-      if (!miroClientId || !miroClientSecret) {
-        return NextResponse.json(
-          { error: 'Miro credentials are not configured on the server.' },
-          { status: 500 }
-        );
-      }
-
-      const response = await fetch('https://api.miro.com/v1/oauth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Accept: 'application/json',
-        },
-        body: new URLSearchParams({
-          client_id: miroClientId,
-          client_secret: miroClientSecret,
-          refresh_token: refreshToken,
-          grant_type: 'refresh_token',
-        }).toString(),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return NextResponse.json(
-          { error: data.message || 'Miro token refresh failed' },
-          { status: response.status }
-        );
-      }
-
-      const expiresAt = Date.now() + (data.expires_in || 3600) * 1000;
-      return NextResponse.json({
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token || refreshToken,
-        expiresAt,
-      });
+    if (!miroClientId || !miroClientSecret) {
+      return NextResponse.json(
+        { error: 'Miro credentials are not configured on the server.' },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({ error: 'Unsupported platform' }, { status: 400 });
+    const response = await fetchWithTimeout('https://api.miro.com/v1/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+      },
+      body: new URLSearchParams({
+        client_id: miroClientId,
+        client_secret: miroClientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }).toString(),
+    }, PROVIDER_TIMEOUT_MS);
+
+    const data: unknown = await response.json();
+    const obj = (data && typeof data === 'object') ? (data as Record<string, unknown>) : {};
+
+    if (!response.ok) {
+      const message = typeof obj.message === 'string' ? obj.message : 'Miro token refresh failed';
+      return NextResponse.json({ error: message }, { status: response.status });
+    }
+
+    const accessToken = typeof obj.access_token === 'string' ? obj.access_token : null;
+    const returnedRefreshToken = typeof obj.refresh_token === 'string' ? obj.refresh_token : refreshToken;
+    const expiresIn = typeof obj.expires_in === 'number' ? obj.expires_in : 3600;
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Miro token refresh response is missing access_token' },
+        { status: 502 }
+      );
+    }
+
+    const expiresAt = Date.now() + expiresIn * 1000;
+    return NextResponse.json({
+      accessToken,
+      refreshToken: returnedRefreshToken,
+      expiresAt,
+    });
   } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return NextResponse.json(
+        { error: 'OAuth provider refresh timed out' },
+        { status: 504 }
+      );
+    }
+
     const errorMsg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
       { error: errorMsg },

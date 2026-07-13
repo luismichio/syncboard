@@ -40,27 +40,36 @@ export default function MiroPluginPage() {
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
   const [importPlatform, setImportPlatform] = useState<'figma' | 'penpot'>('figma');
   const [importFormat, setImportFormat] = useState<'png' | 'svg'>('png');
-  const [importScale, setImportScale] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('default_png_scale');
-      return saved ? Number(saved) : 2;
-    }
-    return 2;
-  });
-  const [defaultPngScale, setDefaultPngScale] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('default_png_scale');
-      return saved ? Number(saved) : 2;
-    }
-    return 2;
-  });
+  const [importScale, setImportScale] = useState<number>(2);
+  const [defaultPngScale, setDefaultPngScale] = useState<number>(2);
+  const [useTauri, setUseTauri] = useState<boolean>(false);
+  const [pairingId, setPairingId] = useState<string>('');
+  const [copiedPairing, setCopiedPairing] = useState<boolean>(false);
 
-  const [useTauri, setUseTauri] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('syncboard_use_tauri') === 'true';
-    }
-    return false;
-  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const rafId = window.requestAnimationFrame(() => {
+      const savedScaleRaw = localStorage.getItem('default_png_scale');
+      const parsedScale = savedScaleRaw ? Number(savedScaleRaw) : 2;
+      const safeScale = Number.isFinite(parsedScale) && parsedScale >= 1 && parsedScale <= 4
+        ? parsedScale
+        : 2;
+      setDefaultPngScale(safeScale);
+      setImportScale(safeScale);
+
+      setUseTauri(localStorage.getItem('syncboard_use_tauri') === 'true');
+
+      let id = localStorage.getItem('syncboard_pairing_id');
+      if (!id) {
+        id = 'sb_' + Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
+        localStorage.setItem('syncboard_pairing_id', id);
+      }
+      setPairingId(id);
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
+  }, []);
 
   // Verify SyncBridge is actually reachable on mount and every 30s.
   // If the bridge is closed, flip useTauri to false so the UI reflects reality.
@@ -83,20 +92,6 @@ export default function MiroPluginPage() {
     const interval = setInterval(check, 30_000);
     return () => clearInterval(interval);
   }, [useTauri]);
-
-  const [pairingId] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      let id = localStorage.getItem('syncboard_pairing_id');
-      if (!id) {
-        id = 'sb_' + Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
-        localStorage.setItem('syncboard_pairing_id', id);
-      }
-      return id;
-    }
-    return '';
-  });
-
-  const [copiedPairing, setCopiedPairing] = useState<boolean>(false);
 
   const handleTauriToggle = async (val: boolean) => {
     if (val) {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthTokens } from './useAuthTokens';
 import { useMiroSelection } from './useMiroSelection';
 import { useFigmaImporter } from './useFigmaImporter';
@@ -10,11 +10,18 @@ import { useMiroSync } from './useMiroSync';
  * Integrates single-responsibility sub-hooks (Figma & Penpot) to provide a unified API.
  */
 export function useMiroPlugin() {
-  const [isInitMode] = useState<boolean | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const params = new URLSearchParams(window.location.search);
-    return params.get('init') === 'true';
-  });
+  const [isInitMode, setIsInitMode] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const rafId = window.requestAnimationFrame(() => {
+      const params = new URLSearchParams(window.location.search);
+      setIsInitMode(params.get('init') === 'true');
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
+  }, []);
 
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncStatus, setSyncStatus] = useState<string>('');

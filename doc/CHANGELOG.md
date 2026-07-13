@@ -93,6 +93,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Automated CI/CD Release Pipeline:** Created `.github/workflows/release-tauri.yml` which automatically compiles `.msi`, `.exe`, `.dmg`, `.app`, and `.deb` installers using GitHub actions upon tagging releases.
 * **Bridge Documentation:** Added `doc/tauri-setup.md` detailing prerequisites, Let's Encrypt certificates installation, and GitHub Action releases.
 
+## [0.1.12] - 2026-07-11
+### Fixed
+* **Miro Connection Reliability (Yellow Forever):** Refactored token bootstrap in `useAuthTokens.ts` to prevent perpetual loading states. Added bounded retry scheduling, single-settle Miro SDK wait logic, and ensured loading state settles deterministically even under partial SDK availability.
+* **Miro SDK Storage Proxy Errors:** Hardened `src/lib/tokens.ts` with strict runtime callability checks for `board.storage.get/set` plus short operation timeouts and localStorage fallback. This addresses runtime errors like `Cannot call the method ".get()" at path "board.storage.get"`.
+* **OAuth Refresh Stall Protection:** Added explicit timeout handling in both client refresh calls (`tokens.ts`) and server provider refresh route (`/api/oauth/refresh`) to prevent hanging refresh chains.
+* **React Hydration Error #418:** Removed SSR/client mismatch sources from Miro plugin initialization by moving client-only reads (`window.location`, `localStorage`, random pairing id generation) to mount-time effects in `useMiroPlugin.ts` and `page.tsx`.
+
 ## [0.1.11] - 2026-07-11
 
 ### Added

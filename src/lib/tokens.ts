@@ -28,11 +28,74 @@ function deploymentFingerprint(): string {
 }
 
 const FP = deploymentFingerprint();
-
 const STORAGE_KEYS = {
   figma: `figma_tokens${FP}`,
   miro: `miro_tokens${FP}`,
 };
+
+const MIRO_STORAGE_TIMEOUT_MS = 1500;
+const REFRESH_TIMEOUT_MS = 7000;
+
+type MiroStorageApi = {
+  get: (key: string) => Promise<string | undefined>;
+  set: (key: string, value: string) => Promise<void>;
+};
+
+function getMiroStorageApi(): MiroStorageApi | null {
+  if (typeof window === 'undefined') return null;
+
+  const storageCandidate = window.miro?.board?.storage as unknown;
+  if (!storageCandidate || typeof storageCandidate !== 'object') return null;
+
+  const storageObj = storageCandidate as { get?: unknown; set?: unknown };
+  if (typeof storageObj.get !== 'function' || typeof storageObj.set !== 'function') {
+    return null;
+  }
+
+  return storageObj as MiroStorageApi;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+function parseTokenData(raw: string): TokenData | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    const obj = parsed as Record<string, unknown>;
+    if (
+      typeof obj.accessToken !== 'string' ||
+      typeof obj.refreshToken !== 'string' ||
+      typeof obj.expiresAt !== 'number'
+    ) {
+      return null;
+    }
+
+    return {
+      accessToken: obj.accessToken,
+      refreshToken: obj.refreshToken,
+      expiresAt: obj.expiresAt,
+      teamId: typeof obj.teamId === 'string' ? obj.teamId : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Saves token data to Miro board storage if inside Miro, or falls back to localStorage.
@@ -41,12 +104,17 @@ export async function saveToken(platform: 'figma' | 'miro', data: TokenData): Pr
   if (typeof window === 'undefined') return;
 
   // 1. If running inside Miro board, write to Miro's native App storage to bypass iframe cookie block
-  if (window.miro?.board?.storage) {
+  const miroStorage = getMiroStorageApi();
+  if (miroStorage) {
     try {
-      await window.miro.board.storage.set(STORAGE_KEYS[platform], JSON.stringify(data));
+      await withTimeout(
+        miroStorage.set(STORAGE_KEYS[platform], JSON.stringify(data)),
+        MIRO_STORAGE_TIMEOUT_MS,
+        'Miro board.storage.set'
+      );
       return;
     } catch (err) {
-      console.warn(`Failed to write to Miro board storage, falling back to localStorage:`, err);
+      console.warn('Failed to write to Miro board storage, falling back to localStorage:', err);
     }
   }
 
@@ -64,20 +132,29 @@ export async function saveToken(platform: 'figma' | 'miro', data: TokenData): Pr
 export async function getToken(platform: 'figma' | 'miro'): Promise<TokenData | null> {
   if (typeof window === 'undefined') return null;
 
-  // 1. Read from Miro's native App storage if inside Miro
-  if (window.miro?.board?.storage) {
+  // 1. Read from Miro's native App storage if inside Miro and callable
+  const miroStorage = getMiroStorageApi();
+  if (miroStorage) {
     try {
-      const raw = await window.miro.board.storage.get(STORAGE_KEYS[platform]);
-      if (raw) return JSON.parse(raw);
+      const raw = await withTimeout(
+        miroStorage.get(STORAGE_KEYS[platform]),
+        MIRO_STORAGE_TIMEOUT_MS,
+        'Miro board.storage.get'
+      );
+      if (raw) {
+        const parsed = parseTokenData(raw);
+        if (parsed) return parsed;
+      }
     } catch (err) {
-      console.warn(`Failed to read from Miro board storage:`, err);
+      console.warn('Failed to read from Miro board storage:', err);
     }
   }
 
   // 2. Otherwise, read from standard localStorage
   try {
     const raw = localStorage.getItem(STORAGE_KEYS[platform]);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    return parseTokenData(raw);
   } catch (err) {
     console.error(`Failed to read ${platform} token from localStorage:`, err);
     return null;
@@ -90,12 +167,17 @@ export async function getToken(platform: 'figma' | 'miro'): Promise<TokenData | 
 export async function clearToken(platform: 'figma' | 'miro'): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  if (window.miro?.board?.storage) {
+  const miroStorage = getMiroStorageApi();
+  if (miroStorage) {
     try {
-      await window.miro.board.storage.set(STORAGE_KEYS[platform], '');
+      await withTimeout(
+        miroStorage.set(STORAGE_KEYS[platform], ''),
+        MIRO_STORAGE_TIMEOUT_MS,
+        'Miro board.storage.set'
+      );
       return;
     } catch (err) {
-      console.warn(`Failed to clear Miro board storage:`, err);
+      console.warn('Failed to clear Miro board storage:', err);
     }
   }
 
@@ -111,8 +193,8 @@ export async function clearToken(platform: 'figma' | 'miro'): Promise<void> {
  */
 export function isTokenExpiring(tokenData: TokenData | null): boolean {
   if (!tokenData) return true;
-  const BufferMs = 5 * 60 * 1000;
-  return Date.now() + BufferMs >= tokenData.expiresAt;
+  const bufferMs = 5 * 60 * 1000;
+  return Date.now() + bufferMs >= tokenData.expiresAt;
 }
 
 /**
@@ -127,7 +209,6 @@ export function isTokenExpiring(tokenData: TokenData | null): boolean {
  */
 export async function getValidToken(platform: 'figma' | 'miro'): Promise<string | null> {
   const tokenData = await getToken(platform);
-
   if (!tokenData) {
     return null;
   }
@@ -138,8 +219,11 @@ export async function getValidToken(platform: 'figma' | 'miro'): Promise<string 
   }
 
   // Token is expiring, trigger refresh call
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
   try {
-    // return the old token on network error so the UI can still attempt operations
+    const controller = new AbortController();
+    timeoutId = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+
     const response = await fetch('/api/oauth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -147,27 +231,47 @@ export async function getValidToken(platform: 'figma' | 'miro'): Promise<string 
         platform,
         refreshToken: tokenData.refreshToken,
       }),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
-      // Don't clear — keep the old token for retry on next page load
+      // Don't clear — keep old token for retry on next page load
       console.warn(`${platform} refresh failed (HTTP ${response.status}), keeping old token for retry`);
       return null;
     }
 
-    const newData = await response.json();
+    const rawData: unknown = await response.json();
+    if (!rawData || typeof rawData !== 'object') {
+      console.warn(`${platform} refresh returned invalid payload, keeping old token for retry`);
+      return null;
+    }
+
+    const data = rawData as Record<string, unknown>;
+    if (
+      typeof data.accessToken !== 'string' ||
+      typeof data.refreshToken !== 'string' ||
+      typeof data.expiresAt !== 'number'
+    ) {
+      console.warn(`${platform} refresh payload missing required fields, keeping old token for retry`);
+      return null;
+    }
+
     const updatedTokenData: TokenData = {
-      accessToken: newData.accessToken,
-      refreshToken: newData.refreshToken,
-      expiresAt: newData.expiresAt,
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      expiresAt: data.expiresAt,
       teamId: tokenData.teamId,
     };
 
     await saveToken(platform, updatedTokenData);
     return updatedTokenData.accessToken;
   } catch (err) {
-    // Network error — old token stays, retry on next load
-    console.warn(`Failed to refresh ${platform} token (network error), keeping old token for retry:`, err);
+    // Network error / timeout — old token stays, retry on next load
+    console.warn(`Failed to refresh ${platform} token (network error/timeout), keeping old token for retry:`, err);
     return null;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 }
