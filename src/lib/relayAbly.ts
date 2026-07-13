@@ -41,8 +41,14 @@ export async function isPenpotOnlineAbly(
   const ably = getAblyRest();
   try {
     const channel = ably.channels.get(channelName(pairingId));
-    const presenceMessages = await channel.presence.get();
-    return Array.isArray(presenceMessages) && presenceMessages.length > 0;
+    const result = await channel.presence.get();
+    // REST presence.get() returns PaginatedResult<PresenceMessage>
+    // The items array contains the current presence members.
+    return (
+      result &&
+      Array.isArray(result.items) &&
+      result.items.length > 0
+    );
   } catch {
     return false;
   }
