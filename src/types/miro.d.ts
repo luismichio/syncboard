@@ -21,6 +21,7 @@ interface MiroBoardInfo {
 
 interface MiroBoard {
   get(): Promise<MiroItem[]>;
+  getById(id: string): Promise<MiroItem>;
   getSelection(): Promise<MiroItem[]>;
   viewport: {
     get(): Promise<MiroViewport>;

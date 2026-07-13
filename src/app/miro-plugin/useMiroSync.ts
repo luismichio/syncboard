@@ -121,12 +121,17 @@ export function useMiroSync(
             const effectiveFormat = propagate ? (selected.format || (selected.platform === 'penpot' ? 'svg' : 'png')) : format;
             const effectiveScale = propagate ? (selected.scale || 2) : scale;
 
+            // Calculate new display width when scale changes
+            const effectiveWidth = (propagate && effectiveScale !== scale && match.width)
+              ? Math.round(match.width / scale * effectiveScale)
+              : match.width;
+
             itemsToSync.push({
               id: match.id,
               fileKey: selected.fileKey,
               nodeId: selected.nodeId,
               nodeName: nameMap.get(selected.fileKey + '|' + selected.nodeId) || selected.nodeName,
-              width: match.width,
+              width: effectiveWidth,
               format: effectiveFormat,
               scale: effectiveScale,
               platform,
@@ -309,6 +314,20 @@ export function useMiroSync(
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
           throw new Error(errData.error || 'Failed to update image on Miro board');
+        }
+
+        // Update widget metadata so format/scale dropdown reflects the new values
+        try {
+          const widget = await miro.board.getById(item.id);
+          if (widget && 'setMetadata' in widget && typeof widget.setMetadata === 'function') {
+            await widget.setMetadata('syncboard', {
+              format: item.format || (item.platform === 'penpot' ? 'svg' : 'png'),
+              scale: item.scale || 2,
+              platform: item.platform || 'figma',
+            });
+          }
+        } catch (metaErr) {
+          console.warn('Failed to update widget metadata:', metaErr);
         }
       }
 
