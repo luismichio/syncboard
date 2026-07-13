@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.5.3] - 2026-07-11
+
+### Fixed
+* **Miro Connection Reliability (Yellow Forever):** Refactored token bootstrap in `useAuthTokens.ts` to prevent perpetual loading states with bounded retries and deterministic loading-settle behavior.
+* **Miro SDK Storage Proxy Errors:** Hardened `src/lib/tokens.ts` with strict runtime callability checks for `board.storage.get/set` plus short operation timeouts and localStorage fallback.
+* **OAuth Refresh Stall Protection:** Added timeout handling in both client refresh calls (`tokens.ts`) and provider refresh route (`/api/oauth/refresh`) to prevent hanging refresh chains.
+* **React Hydration Error #418:** Removed SSR/client mismatch sources in Miro plugin initialization by moving client-only reads (`window.location`, `localStorage`, random pairing id generation) to mount-time effects.
+* **Miro OAuth Connected-but-Gray Regression:** Normalized OAuth token payload handling in `useAuthTokens.ts` so Miro callbacks/polling accept valid access tokens even when `refreshToken` is missing.
+* **Miro Callback Token Shape Robustness:** Updated `src/app/api/oauth/miro/callback/route.ts` to always serialize `accessToken`/`refreshToken`/`teamId` as strings for stable popup handoff payloads.
+* **Token Reload Tolerance:** Updated `src/lib/tokens.ts` parsing to tolerate tokens without `refreshToken` (fallback `''`) and keep using valid access tokens until actual expiry when refresh tokens are absent.
+* **Penpot Export API Regression (`penpot.export is not a function`):** Updated `public/penpot-companion-plugin.js` to use `shape.export({ type, scale })` via `penpot.currentPage.getShapeById(...)` with backward compatibility fallback.
+* **Penpot Companion Theme Mismatch:** Added explicit UI-ready handshake (`ui-ready`) between `public/penpot-companion-ui.html` and `public/penpot-companion-plugin.js`, with theme normalization and startup fallback.
+
 ## [0.5.2] - 2026-07-11
 
 ### Added
@@ -92,24 +105,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Figma desktop relay:** Structured automatic local HTTP selection query forwarding to Figma desktop's MCP instance on port `3845`.
 * **Automated CI/CD Release Pipeline:** Created `.github/workflows/release-tauri.yml` which automatically compiles `.msi`, `.exe`, `.dmg`, `.app`, and `.deb` installers using GitHub actions upon tagging releases.
 * **Bridge Documentation:** Added `doc/tauri-setup.md` detailing prerequisites, Let's Encrypt certificates installation, and GitHub Action releases.
-
-## [0.1.14] - 2026-07-11
-### Fixed
-* **Penpot Export API Regression (`penpot.export is not a function`):** Updated `public/penpot-companion-plugin.js` to use the current Penpot runtime API (`shape.export({ type, scale })` via `penpot.currentPage.getShapeById(...)`) with backward compatibility fallback for older runtimes. This resolves relay import failures that surfaced as `/api/relay/request` HTTP 502.
-* **Penpot Companion Theme Mismatch:** Added an explicit UI-ready handshake (`ui-ready`) between `public/penpot-companion-ui.html` and `public/penpot-companion-plugin.js`, plus theme normalization and startup fallback handling to prevent dark-theme default drift when initial theme message races the iframe load.
-
-## [0.1.13] - 2026-07-11
-### Fixed
-* **Miro OAuth Connected-but-Gray Regression:** Normalized OAuth token payload handling in `useAuthTokens.ts` so Miro callbacks/polling no longer reject valid access tokens when `refreshToken` is missing. This fixes Miro staying disconnected (gray) after successful auth while Figma connects normally.
-* **Miro Callback Token Shape Robustness:** Updated `src/app/api/oauth/miro/callback/route.ts` to always serialize `accessToken`/`refreshToken`/`teamId` as strings, preventing undefined fields from being dropped by `JSON.stringify` in popup handoff messages.
-* **Token Reload Tolerance:** Updated `src/lib/tokens.ts` parsing to tolerate tokens without `refreshToken` (fallback `''`) and keep using valid access tokens until actual expiry when refresh tokens are absent.
-
-## [0.1.12] - 2026-07-11
-### Fixed
-* **Miro Connection Reliability (Yellow Forever):** Refactored token bootstrap in `useAuthTokens.ts` to prevent perpetual loading states. Added bounded retry scheduling, single-settle Miro SDK wait logic, and ensured loading state settles deterministically even under partial SDK availability.
-* **Miro SDK Storage Proxy Errors:** Hardened `src/lib/tokens.ts` with strict runtime callability checks for `board.storage.get/set` plus short operation timeouts and localStorage fallback. This addresses runtime errors like `Cannot call the method ".get()" at path "board.storage.get"`.
-* **OAuth Refresh Stall Protection:** Added explicit timeout handling in both client refresh calls (`tokens.ts`) and server provider refresh route (`/api/oauth/refresh`) to prevent hanging refresh chains.
-* **React Hydration Error #418:** Removed SSR/client mismatch sources from Miro plugin initialization by moving client-only reads (`window.location`, `localStorage`, random pairing id generation) to mount-time effects in `useMiroPlugin.ts` and `page.tsx`.
 
 ## [0.1.11] - 2026-07-11
 
