@@ -9,7 +9,7 @@ import { useMiroSync } from './useMiroSync';
  * Main coordinator hook for the Miro sidebar panel app.
  * Integrates single-responsibility sub-hooks (Figma & Penpot) to provide a unified API.
  */
-export function useMiroPlugin() {
+export function useMiroPlugin(propagate: boolean = false) {
   const [isInitMode, setIsInitMode] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -74,7 +74,8 @@ export function useMiroPlugin() {
     selectedItems,
     isSyncing,
     setIsSyncing,
-    setSyncStatus
+    setSyncStatus,
+    propagate
   );
 
   return {

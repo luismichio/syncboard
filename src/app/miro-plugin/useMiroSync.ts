@@ -17,7 +17,8 @@ export function useMiroSync(
   selectedItems: SyncedImage[],
   isSyncing: boolean,
   setIsSyncing: (val: boolean) => void,
-  setSyncStatus: (val: string) => void
+  setSyncStatus: (val: string) => void,
+  propagate: boolean = false
 ) {
   const [syncAllCopies, setSyncAllCopies] = useState<boolean>(false);
 
@@ -107,14 +108,18 @@ export function useMiroSync(
               console.error("Failed to read copy metadata:", match.id, err);
             }
 
+            // When propagate is enabled, override each copy's format/scale with the selected item's values
+            const effectiveFormat = propagate ? (selected.format || (selected.platform === 'penpot' ? 'svg' : 'png')) : format;
+            const effectiveScale = propagate ? (selected.scale || 2) : scale;
+
             itemsToSync.push({
               id: match.id,
               fileKey: selected.fileKey,
               nodeId: selected.nodeId,
               nodeName: nameMap.get(selected.fileKey + '|' + selected.nodeId) || selected.nodeName,
               width: match.width,
-              format,
-              scale,
+              format: effectiveFormat,
+              scale: effectiveScale,
               platform,
             });
           }
@@ -137,7 +142,8 @@ export function useMiroSync(
         return;
       }
 
-      // renderCache: "fileKey|nodeId" -> base64 data URL
+      // renderCache: "fileKey|nodeId|format" -> base64 data URL
+      // Format is included in the key to prevent race conditions when copies have different formats
       const renderCache = new Map<string, string>();
       const nameCache = new Map<string, string>();
 
@@ -231,15 +237,16 @@ export function useMiroSync(
                 if (content.name && typeof content.name === 'string') {
                   nameCache.set(cacheKey, content.name);
                 }
+                // Include format in render cache key to prevent race conditions
+                // when copies have different formats
+                const renderKey = `${target.fileKey}|${target.nodeId}|${format}`;
                 if (format === 'svg' && content.text) {
-                  // Convert SVG string to base64 Data URL to keep Miro updates unified
                   const base64 = btoa(unescape(encodeURIComponent(content.text)));
                   const dataUrl = `data:image/svg+xml;base64,${base64}`;
-                  renderCache.set(cacheKey, dataUrl);
+                  renderCache.set(renderKey, dataUrl);
                 } else if (format === 'png' && content.data) {
-                  // PNG base64 representation
                   const dataUrl = `data:image/png;base64,${content.data}`;
-                  renderCache.set(cacheKey, dataUrl);
+                  renderCache.set(renderKey, dataUrl);
                 }
               } else {
                 throw new Error('Penpot relay returned an empty payload.');
@@ -256,9 +263,13 @@ export function useMiroSync(
       // --- STEP 2: Update each board widget using the cached data URLs ---
       for (let i = 0; i < itemsToSync.length; i++) {
         const item = itemsToSync[i];
-        const dataUrl = renderCache.get(`${item.fileKey}|${item.nodeId}`);
+        // Look up by format-aware cache key (Penpot uses format in key, Figma doesn't)
+        const cacheKey = `${item.fileKey}|${item.nodeId}`;
+        const formats = ['png', 'svg'] as const;
+        let dataUrl = renderCache.get(`${cacheKey}|${item.format || 'png'}`);
+        if (!dataUrl) dataUrl = renderCache.get(cacheKey); // fallback to legacy key
         if (!dataUrl) {
-          console.warn(`No render cached for ${item.fileKey}|${item.nodeId}, skipping.`);
+          console.warn(`No render cached for ${cacheKey}, skipping.`);
           continue;
         }
 

@@ -5,6 +5,8 @@ import { useMiroPlugin } from './useMiroPlugin';
 import ThemeToggle from '@/components/ThemeToggle';
 
 export default function MiroPluginPage() {
+  const [propagate, setPropagate] = useState<boolean>(false);
+
   const {
     isInitMode,
     figmaToken,
@@ -35,8 +37,7 @@ export default function MiroPluginPage() {
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
-  } = useMiroPlugin();
-
+  } = useMiroPlugin(propagate);
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
   const [importPlatform, setImportPlatform] = useState<'figma' | 'penpot'>('figma');
   const [importFormat, setImportFormat] = useState<'png' | 'svg'>('png');
@@ -440,6 +441,19 @@ export default function MiroPluginPage() {
                       Also update all board copies
                     </span>
                   </label>
+                  {syncAllCopies && (
+                    <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={propagate}
+                        onChange={e => setPropagate(e.target.checked)}
+                        className="accent-accent w-3 h-3"
+                      />
+                      <span className="text-[10px] text-text-muted font-mono">
+                        Propagate format &amp; scale to all copies
+                      </span>
+                    </label>
+                  )}
                   <button
                     onClick={syncSelectedScreens}
                     disabled={isSyncing || !miroToken}
