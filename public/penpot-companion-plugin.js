@@ -101,7 +101,23 @@ penpot.ui.onMessage(async (message) => {
       const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
 
       if (format === 'svg') {
-        const svgText = new TextDecoder().decode(bytes);
+        // TextDecoder may not be available in the Penpot plugin sandbox;
+        // use fromCharCode + decodeURIComponent as a portable fallback.
+        let svgText;
+        if (typeof TextDecoder !== 'undefined') {
+          try {
+            svgText = new TextDecoder().decode(bytes);
+          } catch (_) {
+            svgText = null;
+          }
+        }
+        if (!svgText) {
+          let raw = '';
+          for (let i = 0; i < bytes.byteLength; i++) {
+            raw += String.fromCharCode(bytes[i]);
+          }
+          svgText = decodeURIComponent(escape(raw));
+        }
         penpot.ui.sendMessage({
           action: 'export-result',
           requestId: message.requestId,

@@ -139,6 +139,7 @@ export function useMiroSync(
 
       // renderCache: "fileKey|nodeId" -> base64 data URL
       const renderCache = new Map<string, string>();
+      const nameCache = new Map<string, string>();
 
       // Partition into Figma and Penpot targets
       const figmaTargets = itemsToSync.filter(t => t.platform !== 'penpot');
@@ -225,15 +226,20 @@ export function useMiroSync(
 
               if (mcpResponse.content && mcpResponse.content.length > 0) {
                 const content = mcpResponse.content[0];
+                const cacheKey = `${target.fileKey}|${target.nodeId}`;
+                // Update name from export response if present
+                if (content.name && typeof content.name === 'string') {
+                  nameCache.set(cacheKey, content.name);
+                }
                 if (format === 'svg' && content.text) {
                   // Convert SVG string to base64 Data URL to keep Miro updates unified
                   const base64 = btoa(unescape(encodeURIComponent(content.text)));
                   const dataUrl = `data:image/svg+xml;base64,${base64}`;
-                  renderCache.set(`${target.fileKey}|${target.nodeId}`, dataUrl);
+                  renderCache.set(cacheKey, dataUrl);
                 } else if (format === 'png' && content.data) {
                   // PNG base64 representation
                   const dataUrl = `data:image/png;base64,${content.data}`;
-                  renderCache.set(`${target.fileKey}|${target.nodeId}`, dataUrl);
+                  renderCache.set(cacheKey, dataUrl);
                 }
               } else {
                 throw new Error('Penpot relay returned an empty payload.');
@@ -257,18 +263,22 @@ export function useMiroSync(
         }
 
         if (i > 0) await new Promise(resolve => setTimeout(resolve, 500));
-        setSyncStatus(`Updating canvas widget ${i + 1}/${itemsToSync.length}: ${item.nodeName}`);
+        // Use live name from export response if available, fall back to original
+        const liveName = nameCache.get(`${item.fileKey}|${item.nodeId}`) || item.nodeName;
+        setSyncStatus(`Updating canvas widget ${i + 1}/${itemsToSync.length}: ${liveName}`);
 
         const response = await fetch('/api/miro/update-image', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
             miroToken,
             boardId,
             itemId: item.id,
             fileKey: item.fileKey,
             nodeId: item.nodeId,
-            nodeName: item.nodeName,
+            nodeName: liveName,
             width: item.width,
             dataUrl,
             format: item.format || (item.platform === 'penpot' ? 'svg' : 'png'),
