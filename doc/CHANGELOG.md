@@ -1,3 +1,22 @@
+## [0.5.6] - 2026-07-14
+### Added
+* **Penpot Natural Dimensions:** Companion export and selection responses now include shape width/height from selrect. Stored in widget metadata during import and used as canonical display size for sync resize calculations.
+* **Widget Metadata Update After Sync:** After each PATCH succeeds, widget metadata (format, scale, width, height) is refreshed via the Miro Web SDK so the format/scale dropdown shows current values on next selection.
+* getById(id) added to MiroBoard type definition.
+### Fixed
+* **Miro Token Stale-Expiry on Sync:** syncSelectedScreens now calls getValidToken('miro') at the start to auto-refresh the token before syncing, instead of relying on the mount-time token.
+* **Penpot Import Width Hardcode:** Removed width: 800 from createImage() in usePenpotImporter.ts (same fix previously applied to Figma).
+* **Missing Width in Selection State:** SyncedImage now includes width from the Miro widget. The sync selected-items path passes width to the PATCH endpoint, enabling resize.
+* **No Scale Passed to Penpot Export in Sync:** The export_shape call was missing the scale parameter — always defaulted to 2 during propagate. Now passes target.scale so the selected scale takes effect.
+* **Render Cache Key Collisions:** Cache keys now include scale (fileKey|nodeId|format|scale) for both Figma and Penpot, preventing collisions when copies have different scales.
+* **Companion Plugin Status Stuck on Unknown:** Handshake waited for a ui-ready message that is never received by the UI. Now sets plugin status to Connected on theme-change (the plugin's actual handshake response).
+* **SVG Widget 0-Width Resize Fail:** Miro SDK returns width: 0 for SVG image widgets. Width calculation now handles 0-width gracefully — uses stored natural width when available, otherwise skips geometry (lets Miro auto-size).
+* **Miro PATCH Geometry Override by Async Image Processing:** Miro's image-specific PATCH overrides geometry.width with the new image's pixel dimensions after async processing. Fixed by splitting into two steps: (1) upload image via image endpoint (no geometry), (2) apply geometry via generic item endpoint (JSON body) which updates the widget data model directly without triggering image reprocessing.
+### Changed
+* **Penpot Import Display Width:** Display width now calculated as naturalWidth x exportScale (not fixed at natural width). Widgets visually scale with export resolution: 1x=400px, 2x=800px, 4x=1600px.
+* **Sync Resize Uses Natural Width:** For Penpot items with stored natural width, display width = naturalWidth x effectiveScale. Propagate changes now resize the widget proportionally.
+* **Export Filename in Miro PATCH:** Image filename sent to Miro uses the actual nodeName instead of hardcoded screenshot.png. Sanitizes invalid filename characters.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
