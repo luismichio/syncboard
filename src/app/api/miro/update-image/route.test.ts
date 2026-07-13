@@ -46,17 +46,13 @@ describe('POST /api/miro/update-image', () => {
 
   it('updates image via Miro PATCH using pre-fetched dataUrl (fast path)', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
-    // Single PATCH: resource + geometry + title
+    // Image PATCH (resource + title)
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
     );
-    // Retry loop attempt 1: re-apply geometry
+    // Item PATCH (geometry only)
     fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
-    );
-    // Retry loop attempt 1: GET verify — confirmed width
-    fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify({ id: 'image-123', width: 400 }), { status: 200 })
+      new Response(JSON.stringify({ id: 'image-123', data: { geometry: { width: 400 } } }), { status: 200 })
     );
 
     const { POST } = await import('./route');
@@ -90,7 +86,7 @@ describe('POST /api/miro/update-image', () => {
       )
       // S3 download
       .mockResolvedValueOnce(new Response(Buffer.from('png-data'), { status: 200 }))
-      // Miro PATCH
+      // Image PATCH
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ id: 'item-1' }), { status: 200 })
       );
@@ -116,6 +112,7 @@ describe('POST /api/miro/update-image', () => {
 
   it('tags Penpot items with [PenpotSync] marker and succeeds', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
+    // Image PATCH (no geometry — Penpot test doesn't set width)
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: 'item-p' }), { status: 200 })
     );

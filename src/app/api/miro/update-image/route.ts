@@ -82,10 +82,9 @@ export async function POST(request: Request) {
       arrayBuffer = await imageResponse.arrayBuffer();
     }
 
-    // Build multipart form data for Miro PATCH
+    // Build multipart form data for Miro image PATCH
     const formData = new FormData();
     
-    // Choose correct content type and file name for the payload
     const mimeType = format === 'svg' ? 'image/svg+xml' : 'image/png';
     const safeName = nodeName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'screenshot';
     const fileName = format === 'svg' ? `${safeName}.svg` : `${safeName}.png`;
@@ -96,63 +95,53 @@ export async function POST(request: Request) {
     const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
     const titleTag = `${nodeName} [${tag}|${fileKey}|${nodeId}]`;
 
-    const miroApiUrl = `https://api.miro.com/v2/boards/${boardId}/images/${itemId}`;
     const authHeaders = { Authorization: `Bearer ${miroToken}` };
 
-    // Single PATCH: upload resource, title, AND geometry in one call.
-    // This works for most cases (Figma PNG). When Miro overrides geometry
-    // (Penpot SVG), the supplementary retry loop below catches it.
-    const dataPayload: { title: string; geometry?: { width: number } } = { title: titleTag };
-    if (width) {
-      dataPayload.geometry = { width: Math.round(Number(width)) };
-    }
-    formData.append('data', JSON.stringify(dataPayload));
+    // Step 1: Upload the image via the image-specific multipart endpoint.
+    // Title is included here; geometry is NOT sent because Miro's image
+    // processing overrides geometry.width when a new resource is supplied.
+    const imageForm = new FormData();
+    imageForm.append('resource', file);
+    imageForm.append('data', JSON.stringify({ title: titleTag }));
 
-    const uploadResponse = await fetch(miroApiUrl, {
+    const imageUrl_ = `https://api.miro.com/v2/boards/${boardId}/images/${itemId}`;
+    const imageRes = await fetch(imageUrl_, {
       method: 'PATCH',
       headers: authHeaders,
-      body: formData,
+      body: imageForm,
     });
 
-    if (!uploadResponse.ok) {
-      const errData = await uploadResponse.json().catch(() => ({}));
+    if (!imageRes.ok) {
+      const errData = await imageRes.json().catch(() => ({}));
       return NextResponse.json(
-        { error: errData.message || 'Miro image update failed' },
-        { status: uploadResponse.status }
+        { error: errData.message || 'Miro image upload failed' },
+        { status: imageRes.status }
       );
     }
 
-    // Supplementary geometry retry: if width was requested, verify it stuck.
-    // Miro's async image processing can override geometry even when sent in
-    // the same PATCH (especially for SVG items).
+    // Step 2: Apply geometry via the generic item update endpoint (JSON body).
+    // This endpoint handles geometry differently from the image-specific one —
+    // it updates the widget's data model directly without triggering image processing.
     if (width) {
       const targetWidth = Math.round(Number(width));
-      const MAX_RETRIES = 5;
-      const RETRY_DELAY_MS = 800;
+      const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
 
-      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      const geometryRes = await fetch(itemUrl, {
+        method: 'PATCH',
+        headers: {
+          ...authHeaders,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            geometry: { width: targetWidth },
+          },
+        }),
+      });
 
-        // Re-apply geometry
-        const geoForm = new FormData();
-        geoForm.append('data', JSON.stringify({
-          geometry: { width: targetWidth },
-        }));
-
-        await fetch(miroApiUrl, {
-          method: 'PATCH',
-          headers: authHeaders,
-          body: geoForm,
-        }).catch(() => {});
-
-        // Verify
-        const verifyRes = await fetch(miroApiUrl, { headers: authHeaders }).catch(() => null);
-        if (verifyRes && verifyRes.ok) {
-          const widget = await verifyRes.json().catch(() => ({})) as { width?: number };
-          if (widget && typeof widget.width === 'number' && Math.round(widget.width) === targetWidth) {
-            break; // Confirmed
-          }
-        }
+      if (!geometryRes.ok) {
+        const errData = await geometryRes.json().catch(() => ({}));
+        console.warn('Miro item geometry update failed (image already uploaded):', errData.message);
       }
     }
 
