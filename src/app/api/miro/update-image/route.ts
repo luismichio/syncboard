@@ -95,30 +95,52 @@ export async function POST(request: Request) {
 
     const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
     const titleTag = `${nodeName} [${tag}|${fileKey}|${nodeId}]`;
-    const dataPayload: { title: string; geometry?: { width: number } } = { title: titleTag };
-    
-    if (width) {
-      dataPayload.geometry = { width: Math.round(Number(width)) };
-    }
-    formData.append('data', JSON.stringify(dataPayload));
 
     const miroApiUrl = `https://api.miro.com/v2/boards/${boardId}/images/${itemId}`;
-    const miroResponse = await fetch(miroApiUrl, {
+    const authHeaders = { Authorization: `Bearer ${miroToken}` };
+
+    // Step 1: Update the image resource (and title) without geometry.
+    // When resource + geometry are sent together, Miro ignores geometry and
+    // recalculates dimensions from the new image's pixel size.
+    const uploadForm = new FormData();
+    uploadForm.append('resource', file);
+    uploadForm.append('data', JSON.stringify({ title: titleTag }));
+
+    const uploadResponse = await fetch(miroApiUrl, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${miroToken}` },
-      body: formData,
+      headers: authHeaders,
+      body: uploadForm,
     });
 
-    const miroData = await miroResponse.json();
-
-    if (!miroResponse.ok) {
+    if (!uploadResponse.ok) {
+      const errData = await uploadResponse.json().catch(() => ({}));
       return NextResponse.json(
-        { error: miroData.message || 'Miro image update failed' },
-        { status: miroResponse.status }
+        { error: errData.message || 'Miro image upload failed' },
+        { status: uploadResponse.status }
       );
     }
 
-    return NextResponse.json({ success: true, item: miroData });
+    // Step 2: If a target width was specified, apply geometry in a separate PATCH
+    // so Miro doesn't override it with the new image's pixel dimensions.
+    if (width) {
+      const geometryForm = new FormData();
+      geometryForm.append('data', JSON.stringify({
+        geometry: { width: Math.round(Number(width)) },
+      }));
+
+      const geometryResponse = await fetch(miroApiUrl, {
+        method: 'PATCH',
+        headers: authHeaders,
+        body: geometryForm,
+      });
+
+      if (!geometryResponse.ok) {
+        const errData = await geometryResponse.json().catch(() => ({}));
+        console.warn('Miro geometry update failed (image content already updated):', errData.message);
+      }
+    }
+
+    return NextResponse.json({ success: true });
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: errorMsg }, { status: 500 });

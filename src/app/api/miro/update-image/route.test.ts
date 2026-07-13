@@ -46,6 +46,11 @@ describe('POST /api/miro/update-image', () => {
 
   it('updates image via Miro PATCH using pre-fetched dataUrl (fast path)', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
+    // Resource upload PATCH
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
+    );
+    // Geometry PATCH
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
     );
@@ -67,7 +72,6 @@ describe('POST /api/miro/update-image', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
-    expect(body.item.id).toBe('image-123');
   });
 
   it('uses fallback Figma render path when dataUrl is not provided', async () => {
