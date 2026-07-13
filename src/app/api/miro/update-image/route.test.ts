@@ -46,15 +46,15 @@ describe('POST /api/miro/update-image', () => {
 
   it('updates image via Miro PATCH using pre-fetched dataUrl (fast path)', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
-    // Resource upload PATCH
+    // Single PATCH: resource + geometry + title
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
     );
-    // Geometry PATCH (first attempt)
+    // Retry loop attempt 1: re-apply geometry
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
     );
-    // GET verification — return confirmed width, so retry loop exits
+    // Retry loop attempt 1: GET verify — confirmed width
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: 'image-123', width: 400 }), { status: 200 })
     );

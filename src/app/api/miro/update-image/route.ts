@@ -99,67 +99,59 @@ export async function POST(request: Request) {
     const miroApiUrl = `https://api.miro.com/v2/boards/${boardId}/images/${itemId}`;
     const authHeaders = { Authorization: `Bearer ${miroToken}` };
 
-    // Step 1: Update the image resource (and title) without geometry.
-    // When resource + geometry are sent together, Miro ignores geometry and
-    // recalculates dimensions from the new image's pixel size.
-    const uploadForm = new FormData();
-    uploadForm.append('resource', file);
-    uploadForm.append('data', JSON.stringify({ title: titleTag }));
+    // Single PATCH: upload resource, title, AND geometry in one call.
+    // This works for most cases (Figma PNG). When Miro overrides geometry
+    // (Penpot SVG), the supplementary retry loop below catches it.
+    const dataPayload: { title: string; geometry?: { width: number } } = { title: titleTag };
+    if (width) {
+      dataPayload.geometry = { width: Math.round(Number(width)) };
+    }
+    formData.append('data', JSON.stringify(dataPayload));
 
     const uploadResponse = await fetch(miroApiUrl, {
       method: 'PATCH',
       headers: authHeaders,
-      body: uploadForm,
+      body: formData,
     });
 
     if (!uploadResponse.ok) {
       const errData = await uploadResponse.json().catch(() => ({}));
       return NextResponse.json(
-        { error: errData.message || 'Miro image upload failed' },
+        { error: errData.message || 'Miro image update failed' },
         { status: uploadResponse.status }
       );
     }
 
-    // Step 2: Apply geometry with retry loop.
-    // Miro's async image processing overrides geometry.width even when sent in
-    // a separate PATCH. We keep retrying until a GET confirms the widget has
-    // the correct width, or until max attempts are exhausted.
+    // Supplementary geometry retry: if width was requested, verify it stuck.
+    // Miro's async image processing can override geometry even when sent in
+    // the same PATCH (especially for SVG items).
     if (width) {
       const targetWidth = Math.round(Number(width));
-      const MAX_RETRIES = 8;
-      const RETRY_DELAY_MS = 1000;
+      const MAX_RETRIES = 5;
+      const RETRY_DELAY_MS = 800;
 
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        // Wait before each attempt (first attempt waits too, letting Miro settle)
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
 
-        // Apply geometry
+        // Re-apply geometry
         const geoForm = new FormData();
         geoForm.append('data', JSON.stringify({
           geometry: { width: targetWidth },
         }));
 
-        const geoRes = await fetch(miroApiUrl, {
+        await fetch(miroApiUrl, {
           method: 'PATCH',
           headers: authHeaders,
           body: geoForm,
-        });
+        }).catch(() => {});
 
-        if (!geoRes.ok) {
-          const errData = await geoRes.json().catch(() => ({}));
-          console.warn(`Miro geometry PATCH #${attempt} failed:`, errData.message);
-          continue;
-        }
-
-        // Verify by fetching the widget and checking its width
-        const verifyRes = await fetch(miroApiUrl, { headers: authHeaders });
-        if (verifyRes.ok) {
-          const widget = await verifyRes.json() as { width?: number };
+        // Verify
+        const verifyRes = await fetch(miroApiUrl, { headers: authHeaders }).catch(() => null);
+        if (verifyRes && verifyRes.ok) {
+          const widget = await verifyRes.json().catch(() => ({})) as { width?: number };
           if (widget && typeof widget.width === 'number' && Math.round(widget.width) === targetWidth) {
-            // Width confirmed — done
-            break;
+            break; // Confirmed
           }
-          console.warn(`Miro geometry #${attempt}: widget.width=${widget?.width} !== target=${targetWidth}, retrying...`);
         }
       }
     }
