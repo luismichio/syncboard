@@ -23,13 +23,17 @@ function getOrCreatePairingId(): string {
   if (typeof window === 'undefined') return '';
   let id = localStorage.getItem('syncboard_pairing_id');
   if (!id) {
-    id =
-      'sb_' +
-      Math.random().toString(36).substring(2, 11) +
-      Math.random().toString(36).substring(2, 11);
-    localStorage.setItem('syncboard_pairing_id', id);
+    // Generate a new ID only if one doesn't exist at all.
+    // An empty string means the user explicitly cleared it — don't override.
+    if (id === null) {
+      id =
+        'sb_' +
+        Math.random().toString(36).substring(2, 11) +
+        Math.random().toString(36).substring(2, 11);
+      localStorage.setItem('syncboard_pairing_id', id);
+    }
   }
-  return id;
+  return id || '';
 }
 
 function isTauriEnabled(): boolean {

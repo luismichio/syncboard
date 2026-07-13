@@ -167,6 +167,10 @@
         <span id="status-badge" class="badge badge-disconnected">Disconnected</span>
       </div>
       <div class="status-row" style="margin-top: 4px;">
+        <span>Plugin Status:</span>
+        <span id="plugin-badge" class="badge badge-disconnected">Unknown</span>
+      </div>
+      <div class="status-row" style="margin-top: 4px;">
         <span>Active Connection:</span>
         <span id="file-name" style="color: var(--text-muted)">Stand-alone mode</span>
       </div>
@@ -192,6 +196,7 @@
     const pairingInput = document.getElementById('pairing-id');
     const connectBtn = document.getElementById('connect-btn');
     const statusBadge = document.getElementById('status-badge');
+    const pluginBadge = document.getElementById('plugin-badge');
     const fileNameText = document.getElementById('file-name');
     const logBox = document.getElementById('log');
 
@@ -204,6 +209,16 @@
       const time = new Date().toLocaleTimeString();
       logBox.innerHTML += `<div>[${time}] ${message}</div>`;
       logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function updatePluginStatus(connected) {
+      pluginBadge.textContent = connected ? 'Connected' : 'Disconnected';
+      pluginBadge.className = 'badge';
+      if (connected) {
+        pluginBadge.classList.add('badge-connected');
+      } else {
+        pluginBadge.classList.add('badge-disconnected');
+      }
     }
 
     function updateStatus(state, labelText) {
@@ -276,6 +291,7 @@
         ablyClient = null;
       }
       updateStatus('disconnected', reason || 'Disconnected');
+      updatePluginStatus(false);
       fileNameText.textContent = 'Stand-alone mode';
     }
 
@@ -394,6 +410,10 @@
     window.addEventListener("message", (event) => {
       const response = event.data;
       if (!response || !response.action) return;
+
+      if (response.action === "ui-ready") {
+        updatePluginStatus(true);
+      }
 
       if (response.action === "theme-change") {
         applyTheme(response.theme);

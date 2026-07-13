@@ -60,12 +60,14 @@ export default function MiroPluginPage() {
 
       setUseTauri(localStorage.getItem('syncboard_use_tauri') === 'true');
 
-      let id = localStorage.getItem('syncboard_pairing_id');
-      if (!id) {
-        id = 'sb_' + Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
-        localStorage.setItem('syncboard_pairing_id', id);
+      const storedId = localStorage.getItem('syncboard_pairing_id');
+      if (storedId === null) {
+        const newId = 'sb_' + Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
+        localStorage.setItem('syncboard_pairing_id', newId);
+        setPairingId(newId);
+      } else {
+        setPairingId(storedId);
       }
-      setPairingId(id);
     });
 
     return () => window.cancelAnimationFrame(rafId);
@@ -120,6 +122,18 @@ export default function MiroPluginPage() {
     } else {
       setUseTauri(false);
       localStorage.setItem('syncboard_use_tauri', 'false');
+    }
+  };
+
+  const handlePairingIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newId = e.target.value.trim();
+    setPairingId(newId);
+    if (typeof window !== 'undefined') {
+      if (newId) {
+        localStorage.setItem('syncboard_pairing_id', newId);
+      } else {
+        localStorage.removeItem('syncboard_pairing_id');
+      }
     }
   };
 
@@ -777,9 +791,10 @@ export default function MiroPluginPage() {
                   </div>
                   <input
                     type="text"
-                    readOnly
                     value={pairingId}
-                    className="w-full text-[10px] font-mono bg-bg-page border border-border-card rounded p-1.5 text-text-muted select-all focus:outline-none"
+                    onChange={handlePairingIdChange}
+                    placeholder="sb_xxxxx"
+                    className="w-full text-[10px] font-mono bg-bg-page border border-border-card rounded p-1.5 text-text-page select-all focus:outline-none focus:border-accent"
                   />
                   <p className="text-[9px] text-text-muted leading-tight mt-0.5">
                     Paste this pairing ID inside the Penpot Companion Plugin to link Miro and Penpot.
