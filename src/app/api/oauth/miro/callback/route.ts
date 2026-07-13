@@ -160,10 +160,10 @@ ${HTML_HEAD}
 
     // Securely serialize the token structure to avoid string escaping injection vulnerabilities
     const tokenPayload = {
-      accessToken: access_token,
-      refreshToken: refresh_token,
+      accessToken: typeof access_token === 'string' ? access_token : '',
+      refreshToken: typeof refresh_token === 'string' ? refresh_token : '',
       expiresAt,
-      teamId: team_id || '',
+      teamId: typeof team_id === 'string' ? team_id : '',
     };
 
     // Return the HTML payload that passes tokens to the browser client securely and statelessly

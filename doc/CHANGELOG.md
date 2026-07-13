@@ -93,6 +93,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Automated CI/CD Release Pipeline:** Created `.github/workflows/release-tauri.yml` which automatically compiles `.msi`, `.exe`, `.dmg`, `.app`, and `.deb` installers using GitHub actions upon tagging releases.
 * **Bridge Documentation:** Added `doc/tauri-setup.md` detailing prerequisites, Let's Encrypt certificates installation, and GitHub Action releases.
 
+## [0.1.13] - 2026-07-11
+### Fixed
+* **Miro OAuth Connected-but-Gray Regression:** Normalized OAuth token payload handling in `useAuthTokens.ts` so Miro callbacks/polling no longer reject valid access tokens when `refreshToken` is missing. This fixes Miro staying disconnected (gray) after successful auth while Figma connects normally.
+* **Miro Callback Token Shape Robustness:** Updated `src/app/api/oauth/miro/callback/route.ts` to always serialize `accessToken`/`refreshToken`/`teamId` as strings, preventing undefined fields from being dropped by `JSON.stringify` in popup handoff messages.
+* **Token Reload Tolerance:** Updated `src/lib/tokens.ts` parsing to tolerate tokens without `refreshToken` (fallback `''`) and keep using valid access tokens until actual expiry when refresh tokens are absent.
+
 ## [0.1.12] - 2026-07-11
 ### Fixed
 * **Miro Connection Reliability (Yellow Forever):** Refactored token bootstrap in `useAuthTokens.ts` to prevent perpetual loading states. Added bounded retry scheduling, single-settle Miro SDK wait logic, and ensured loading state settles deterministically even under partial SDK availability.

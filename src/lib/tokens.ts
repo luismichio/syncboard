@@ -80,7 +80,6 @@ function parseTokenData(raw: string): TokenData | null {
     const obj = parsed as Record<string, unknown>;
     if (
       typeof obj.accessToken !== 'string' ||
-      typeof obj.refreshToken !== 'string' ||
       typeof obj.expiresAt !== 'number'
     ) {
       return null;
@@ -88,7 +87,7 @@ function parseTokenData(raw: string): TokenData | null {
 
     return {
       accessToken: obj.accessToken,
-      refreshToken: obj.refreshToken,
+      refreshToken: typeof obj.refreshToken === 'string' ? obj.refreshToken : '',
       expiresAt: obj.expiresAt,
       teamId: typeof obj.teamId === 'string' ? obj.teamId : undefined,
     };
@@ -216,6 +215,12 @@ export async function getValidToken(platform: 'figma' | 'miro'): Promise<string 
   // If token is still fresh, return it
   if (!isTokenExpiring(tokenData)) {
     return tokenData.accessToken;
+  }
+
+  // If we don't have a refresh token (provider omitted it), keep using access token
+  // until real expiry instead of disconnecting early at the buffer window.
+  if (!tokenData.refreshToken) {
+    return Date.now() < tokenData.expiresAt ? tokenData.accessToken : null;
   }
 
   // Token is expiring, trigger refresh call

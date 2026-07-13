@@ -6,14 +6,25 @@ const MIRO_BOOT_POLL_MS = 50;
 const BOOT_RETRY_DELAY_MS = 5000;
 const MAX_BOOT_RETRIES = 3;
 
-function isTokenData(value: unknown): value is TokenData {
-  if (!value || typeof value !== 'object') return false;
+function normalizeTokenData(value: unknown): TokenData | null {
+  if (!value || typeof value !== 'object') return null;
   const obj = value as Record<string, unknown>;
-  return (
-    typeof obj.accessToken === 'string' &&
-    typeof obj.refreshToken === 'string' &&
-    typeof obj.expiresAt === 'number'
-  );
+
+  if (typeof obj.accessToken !== 'string' || !obj.accessToken) {
+    return null;
+  }
+
+  const refreshToken = typeof obj.refreshToken === 'string' ? obj.refreshToken : '';
+  const expiresAt = typeof obj.expiresAt === 'number' && Number.isFinite(obj.expiresAt)
+    ? obj.expiresAt
+    : (Date.now() + 3600 * 1000);
+
+  return {
+    accessToken: obj.accessToken,
+    refreshToken,
+    expiresAt,
+    teamId: typeof obj.teamId === 'string' ? obj.teamId : undefined,
+  };
 }
 
 /**
@@ -159,14 +170,17 @@ export function useAuthTokens(isInitMode: boolean | null) {
     };
 
     const applyAuthSuccess = async (platform: 'figma' | 'miro', rawTokens: unknown) => {
-      if (!isTokenData(rawTokens)) return;
+      const normalized = normalizeTokenData(rawTokens);
+      if (!normalized) return;
+
       if (platform === 'figma') {
-        setFigmaToken(rawTokens.accessToken);
-        await saveToken('figma', rawTokens);
+        setFigmaToken(normalized.accessToken);
+        await saveToken('figma', normalized);
       } else {
-        setMiroToken(rawTokens.accessToken);
-        await saveToken('miro', rawTokens);
+        setMiroToken(normalized.accessToken);
+        await saveToken('miro', normalized);
       }
+
       setTokensLoading(false);
     };
 
@@ -232,16 +246,17 @@ export function useAuthTokens(isInitMode: boolean | null) {
         const data = rawData as Record<string, unknown>;
         const status = typeof data.status === 'string' ? data.status : '';
         if (status !== 'success') return;
-        if (!isTokenData(data.tokens)) return;
+        const normalizedTokens = normalizeTokenData(data.tokens);
+        if (!normalizedTokens) return;
 
         clearInterval(interval);
 
         if (platform === 'figma') {
-          setFigmaToken(data.tokens.accessToken);
-          await saveToken('figma', data.tokens);
+          setFigmaToken(normalizedTokens.accessToken);
+          await saveToken('figma', normalizedTokens);
         } else {
-          setMiroToken(data.tokens.accessToken);
-          await saveToken('miro', data.tokens);
+          setMiroToken(normalizedTokens.accessToken);
+          await saveToken('miro', normalizedTokens);
         }
 
         setTokensLoading(false);

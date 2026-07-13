@@ -48,3 +48,19 @@ Resolve unreliable connection status in Miro plugin (yellow forever / stale stat
 - [x] Phase 3 implemented
 - [x] Changelog updated
 - [x] Build verified
+
+---
+
+# Hotfix: Miro OAuth Connects but Stays Gray
+
+## Root cause
+Miro callback payloads could omit `refreshToken`; strict guards in `useAuthTokens.ts` rejected these payloads entirely, so `setMiroToken(...)` never ran even after successful OAuth popup completion.
+
+## Applied fix
+- Normalized callback/poll token payloads in `useAuthTokens.ts` (accept valid `accessToken`, default missing `refreshToken`/`expiresAt`).
+- Normalized Miro callback token serialization in `src/app/api/oauth/miro/callback/route.ts` to always output string fields.
+- Relaxed token parsing in `src/lib/tokens.ts` to accept missing `refreshToken` and continue using access token until real expiry.
+
+## Verification
+- [x] `yarn test --run`
+- [x] `yarn build`
