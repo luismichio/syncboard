@@ -84,6 +84,20 @@ penpot.ui.onMessage(async (message) => {
       const scale = typeof message.scale === 'number' && Number.isFinite(message.scale) ? message.scale : 2;
       const buffer = await exportShapeBuffer(message.shapeId, format, scale);
 
+      // Get the shape name so the Miro plugin can display it
+      let shapeName = 'Selected Frame';
+      try {
+        const shapeFromPage =
+          penpot.currentPage && typeof penpot.currentPage.getShapeById === 'function'
+            ? penpot.currentPage.getShapeById(message.shapeId)
+            : null;
+        if (shapeFromPage && shapeFromPage.name) {
+          shapeName = shapeFromPage.name;
+        }
+      } catch (e) {
+        // Silently fall back to default name
+      }
+
       const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
 
       if (format === 'svg') {
@@ -91,7 +105,7 @@ penpot.ui.onMessage(async (message) => {
         penpot.ui.sendMessage({
           action: 'export-result',
           requestId: message.requestId,
-          data: { svg: svgText },
+          data: { svg: svgText, name: shapeName },
         });
       } else {
         // Base64 encode PNG binary
@@ -103,7 +117,7 @@ penpot.ui.onMessage(async (message) => {
         penpot.ui.sendMessage({
           action: 'export-result',
           requestId: message.requestId,
-          data: { base64 },
+          data: { base64, name: shapeName },
         });
       }
     } catch (err) {

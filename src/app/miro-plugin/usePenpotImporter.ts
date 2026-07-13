@@ -38,7 +38,7 @@ export function usePenpotImporter(
 
   const detectLocalPenpotSelection = async () => {
     setIsDetectingLocal(true);
-    setSyncStatusParent('Detecting selection from local Penpot MCP...');
+    setSyncStatusParent('Detecting selection from Penpot companion...');
     
     try {
       // Query active design selection and fileId from Companion relay
@@ -66,7 +66,7 @@ export function usePenpotImporter(
               objectId: info.id,
               name: info.name || 'Penpot Frame',
             });
-            setSyncStatusParent(`Detected local Penpot frame: "${info.name || 'Unnamed'}"`);
+            setSyncStatusParent(`Detected Penpot frame: "${info.name || 'Unnamed'}"`);
             return;
           }
         }
@@ -88,8 +88,8 @@ export function usePenpotImporter(
     if (!miro) return;
 
     setIsSyncingParent(true);
-    setSyncStatusParent('Requesting vector asset from local Penpot MCP...');
-    
+    setSyncStatusParent('Requesting from Penpot companion...');
+
     try {
       const viewport = await miro.board.viewport.get();
       const x = viewport.x + viewport.width / 2;
@@ -103,7 +103,15 @@ export function usePenpotImporter(
       });
 
       if (!mcpResponse.content || mcpResponse.content.length === 0) {
-        throw new Error('Penpot MCP returned empty export response.');
+        throw new Error('Penpot relay returned empty export response.');
+      }
+
+      // Update the node name from the relay response if available
+      const responseName = mcpResponse.content[0]?.name;
+      if (responseName && typeof responseName === 'string') {
+        setPenpotNodeInfo((prev) =>
+          prev ? { ...prev, name: responseName } : prev
+        );
       }
 
       let dataUrl: string;
@@ -114,13 +122,14 @@ export function usePenpotImporter(
         // SVG text — content is { type: 'text', text: svgText }
         const svgText = mcpResponse.content[0].text;
         if (!svgText) {
-          throw new Error('Penpot MCP returned empty SVG payload.');
+          throw new Error('Penpot relay returned empty SVG payload.');
         }
         const base64 = btoa(unescape(encodeURIComponent(svgText)));
         dataUrl = `data:image/svg+xml;base64,${base64}`;
       }
 
-      const titleTag = `${penpotNodeInfo.name} [PenpotSync|${penpotNodeInfo.fileId}|${penpotNodeInfo.objectId}]`;
+      const resolvedName = responseName || penpotNodeInfo.name;
+      const titleTag = `${resolvedName} [PenpotSync|${penpotNodeInfo.fileId}|${penpotNodeInfo.objectId}]`;
       
       const image = await miro.board.createImage({
         url: dataUrl,

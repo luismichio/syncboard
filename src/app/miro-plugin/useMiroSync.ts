@@ -9,7 +9,7 @@ import { callPenpotMcpTool } from './penpotMcpClient';
  *
  * Syncing strategy:
  * - Figma: batch rendered via the /api/figma/render-batch cloud endpoint.
- * - Penpot: fetched locally in parallel via the local Penpot MCP server.
+ * - Penpot: fetched via the Ably relay (companion plugin executes the export).
  */
 export function useMiroSync(
   figmaToken: string | null,
@@ -233,7 +233,7 @@ export function useMiroSync(
                   renderCache.set(`${target.fileKey}|${target.nodeId}`, dataUrl);
                 }
               } else {
-                throw new Error('Penpot MCP returned an empty payload.');
+                throw new Error('Penpot relay returned an empty payload.');
               }
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err);
