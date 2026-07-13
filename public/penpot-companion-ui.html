@@ -180,9 +180,16 @@
     const RELAY_URL = window.location.origin;
     const FETCH_OPTIONS = { mode: 'cors' };
 
+    const LONG_POLL_TIMEOUT_MS = 50000;
+    const HEARTBEAT_INTERVAL_MS = 60000;
+    const RECONNECT_DELAY_MS = 5000;
+
     let pollingActive = false;
+    let pollingSession = 0;
     let reconnectTimeout = null;
     let reconnectAttempts = 0;
+    let heartbeatInterval = null;
+
     const pendingRequests = new Map();
     const pairingInput = document.getElementById('pairing-id');
     const connectBtn = document.getElementById('connect-btn');
@@ -213,10 +220,59 @@
       }
     }
 
+    function clearReconnectTimer() {
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
+    }
+
+    function clearHeartbeat() {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+      }
+    }
+
+    async function sendHeartbeat(pairingId) {
+      const res = await fetch(`${RELAY_URL}/api/relay/penpot/register`, {
+        ...FETCH_OPTIONS,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pairingId })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Heartbeat failed: HTTP ${res.status}`);
+      }
+    }
+
+    function scheduleReconnect() {
+      if (reconnectAttempts >= 5) {
+        log('Connection failed after 5 attempts. Please click Connect to retry.');
+        return;
+      }
+
+      reconnectAttempts++;
+      clearReconnectTimer();
+      reconnectTimeout = setTimeout(() => connectBridge(true), RECONNECT_DELAY_MS);
+    }
+
+    function startHeartbeat(pairingId) {
+      clearHeartbeat();
+      heartbeatInterval = setInterval(async () => {
+        try {
+          await sendHeartbeat(pairingId);
+        } catch (err) {
+          // Polling path will handle reconnect; keep heartbeat noise minimal.
+        }
+      }, HEARTBEAT_INTERVAL_MS);
+    }
+
     async function connectBridge(isAuto = false) {
       const pairingId = pairingInput.value.trim();
       if (!pairingId) {
-        log("Error: Pairing ID cannot be empty.");
+        log('Error: Pairing ID cannot be empty.');
         return;
       }
 
@@ -225,53 +281,51 @@
       }
 
       localStorage.setItem('syncboard_pairing_id', pairingId);
+
       pollingActive = false;
+      pollingSession += 1;
+      clearHeartbeat();
+      clearReconnectTimer();
 
       updateStatus('connecting', 'Connecting');
-      log(`Registering with bridge (pairingId: ${pairingId})...`);
+      log(`Registering with relay (pairingId: ${pairingId})...`);
 
       try {
-        const res = await fetch(`${RELAY_URL}/api/relay/penpot/register`, {
-          ...FETCH_OPTIONS,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pairingId })
-        });
-
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
+        await sendHeartbeat(pairingId);
 
         reconnectAttempts = 0;
         updateStatus('connected', 'Connected');
-        log("Companion connected to SyncBoard relay.");
+        log('Companion connected to SyncBoard relay.');
         fileNameText.textContent = 'Active Connection';
 
         pollingActive = true;
-        startPolling(pairingId);
+        const currentSession = pollingSession;
+        startHeartbeat(pairingId);
+        startPolling(pairingId, currentSession);
       } catch (err) {
-        log(`Connection failed: ${err.message}`);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        log(`Connection failed: ${errMsg}`);
         updateStatus('disconnected', 'Failed');
-
-        if (reconnectAttempts < 5) {
-          reconnectAttempts++;
-          reconnectTimeout = setTimeout(() => connectBridge(true), 5000);
-        } else {
-          log("Connection failed after 5 attempts. Ensure SyncBridge is running and click Connect to retry.");
-        }
+        scheduleReconnect();
       }
     }
 
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-    async function startPolling(pairingId) {
-      while (pollingActive) {
-        if (!pollingActive) break;
+    async function startPolling(pairingId, sessionId) {
+      while (pollingActive && sessionId === pollingSession) {
         try {
-          const res = await fetch(`${RELAY_URL}/api/relay/penpot/poll?pairingId=${pairingId}`, FETCH_OPTIONS);
+          const requestInit = { ...FETCH_OPTIONS };
+          if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+            requestInit.signal = AbortSignal.timeout(LONG_POLL_TIMEOUT_MS);
+          }
+
+          const res = await fetch(`${RELAY_URL}/api/relay/penpot/poll?pairingId=${pairingId}`, requestInit);
 
           if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
+          }
+
+          if (!pollingActive || sessionId !== pollingSession) {
+            break;
           }
 
           const payload = await res.json();
@@ -300,17 +354,18 @@
             }
           }
         } catch (err) {
-          log(`Polling error: ${err.message}`);
+          if (!pollingActive || sessionId !== pollingSession) {
+            break;
+          }
+
+          const errMsg = err instanceof Error ? err.message : String(err);
+          log(`Polling error: ${errMsg}`);
           updateStatus('disconnected', 'Error');
           pollingActive = false;
-
-          if (reconnectAttempts < 5) {
-            reconnectAttempts++;
-            reconnectTimeout = setTimeout(() => connectBridge(true), 5000);
-          }
+          clearHeartbeat();
+          scheduleReconnect();
           break;
         }
-        await sleep(2000);
       }
     }
 
@@ -386,7 +441,7 @@
     setTimeout(notifyUiReady, 300);
 
     connectBtn.addEventListener('click', () => {
-      clearTimeout(reconnectTimeout);
+      clearReconnectTimer();
       connectBridge(false);
     });
 

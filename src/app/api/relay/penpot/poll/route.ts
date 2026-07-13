@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { dequeuePenpotCommand, markPenpotPresence } from '@/lib/relayRedis';
+import { blockingDequeuePenpotCommand } from '@/lib/relayRedis';
+
+const LONG_POLL_TIMEOUT_SECONDS = 45;
 
 export async function GET(request: Request) {
   try {
@@ -10,8 +12,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'pairingId is required.' }, { status: 400 });
     }
 
-    await markPenpotPresence(pairingId);
-    const command = await dequeuePenpotCommand(pairingId);
+    const command = await blockingDequeuePenpotCommand(pairingId, LONG_POLL_TIMEOUT_SECONDS);
 
     return NextResponse.json({
       error: null,

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.5.4] - 2026-07-11
+
+### Changed
+* **Penpot Relay Transport:** Switched companion command retrieval from short polling to long-polling. `/api/relay/penpot/poll` now blocks up to 45s waiting for queued commands (BRPOP), then responds immediately when work arrives.
+* **Companion Poll Loop:** Updated `public/penpot-companion-ui.html` to use persistent long-poll cycles (no 2s idle spin loop), reducing relay command churn while keeping near-real-time command pickup.
+* **Presence Heartbeat Strategy:** Removed per-poll presence writes. Companion now sends explicit heartbeat registration at connect and every 60s, preventing extra Redis writes on every empty poll cycle.
+
 ## [0.5.3] - 2026-07-11
 
 ### Fixed

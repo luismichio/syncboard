@@ -82,3 +82,29 @@ Miro callback payloads could omit `refreshToken`; strict guards in `useAuthToken
 - [ ] Manual Penpot import smoke test in production
 - [x] `yarn test --run`
 - [x] `yarn build`
+
+---
+
+# Optimization: Penpot Relay Long-Poll + Quota Reduction
+
+## Goal
+Cut idle relay command usage while preserving fast command pickup for burst imports from Miro.
+
+## Changes
+- `src/lib/relayRedis.ts`
+  - Added blocking queue read via `BRPOP` (`blockingDequeuePenpotCommand`).
+- `src/app/api/relay/penpot/poll/route.ts`
+  - Migrated poll endpoint to long-poll mode (45s window) using blocking dequeue.
+- `public/penpot-companion-ui.html`
+  - Replaced 2s spin polling with continuous long-poll reconnect loop.
+  - Added single-session guard (`pollingSession`) to prevent overlapping poll loops.
+  - Added periodic heartbeat registration (60s) instead of per-poll presence writes.
+
+## Expected impact
+- Lower idle Redis command usage.
+- Near-real-time command pickup under burst command sequences.
+- Fewer duplicate reconnect loops in transient network failures.
+
+## Verification
+- [ ] Manual burst import test (3–5 imports quickly)
+- [ ] Confirm Upstash command-rate drop in idle mode

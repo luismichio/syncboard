@@ -104,15 +104,8 @@ export async function enqueuePenpotCommand(pairingId: string, command: RelayComm
   await runRedisCommand<number>(['EXPIRE', key, '300']);
 }
 
-export async function dequeuePenpotCommand(pairingId: string): Promise<RelayCommand | null> {
-  const key = commandQueueKey(pairingId);
-  const result = await runRedisCommand<string | null>(['RPOP', key]);
-
-  if (!result) {
-    return null;
-  }
-
-  const parsed: unknown = JSON.parse(result);
+function parseRelayCommand(raw: string): RelayCommand | null {
+  const parsed: unknown = JSON.parse(raw);
   if (!isRecord(parsed)) {
     return null;
   }
@@ -138,6 +131,32 @@ export async function dequeuePenpotCommand(pairingId: string): Promise<RelayComm
   }
 
   return command;
+}
+
+export async function dequeuePenpotCommand(pairingId: string): Promise<RelayCommand | null> {
+  const key = commandQueueKey(pairingId);
+  const result = await runRedisCommand<string | null>(['RPOP', key]);
+
+  if (!result) {
+    return null;
+  }
+
+  return parseRelayCommand(result);
+}
+
+export async function blockingDequeuePenpotCommand(
+  pairingId: string,
+  timeoutSeconds: number
+): Promise<RelayCommand | null> {
+  const key = commandQueueKey(pairingId);
+  const clampedTimeout = Math.max(1, Math.min(55, Math.floor(timeoutSeconds)));
+  const result = await runRedisCommand<[string, string] | null>(['BRPOP', key, String(clampedTimeout)]);
+
+  if (!result || !Array.isArray(result) || typeof result[1] !== 'string') {
+    return null;
+  }
+
+  return parseRelayCommand(result[1]);
 }
 
 export async function storeRelayResponse(requestId: string, response: RelayStoredResponse): Promise<void> {
