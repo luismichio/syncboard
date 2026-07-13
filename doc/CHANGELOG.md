@@ -1,3 +1,11 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
 ## [0.5.6] - 2026-07-14
 ### Added
 * **Penpot Natural Dimensions:** Companion export and selection responses now include shape width/height from selrect. Stored in widget metadata during import and used as canonical display size for sync resize calculations.
@@ -24,6 +32,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+
 
 ## [0.5.5] - 2026-07-11
 
