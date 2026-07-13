@@ -146,9 +146,11 @@ export function useFigmaImporter(
       // Use the same render-batch endpoint as sync to guarantee identical image data handling
       const batchRes = await fetch('/api/figma/render-batch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${figmaToken}`,
+        },
         body: JSON.stringify({
-          figmaToken,
           fileKey: figmaNodeInfo.fileKey,
           nodeIds: [figmaNodeInfo.nodeId],
           format,

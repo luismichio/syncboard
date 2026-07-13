@@ -175,8 +175,11 @@ export function useMiroSync(
 
           const batchRes = await fetch('/api/figma/render-batch', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ figmaToken, fileKey, nodeIds, format, scale }),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${figmaToken}`,
+            },
+            body: JSON.stringify({ fileKey, nodeIds, format, scale }),
           });
 
           if (!batchRes.ok) {

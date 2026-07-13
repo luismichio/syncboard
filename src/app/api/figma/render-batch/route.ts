@@ -7,16 +7,21 @@ import { NextResponse } from 'next/server';
  * in a SINGLE Figma API call, dramatically reducing quota consumption.
  * Supports dynamic format and scale selection per batch group.
  *
- * Body: { figmaToken, fileKey, nodeIds: string[], format?: string, scale?: number }
+ * Body: { fileKey, nodeIds: string[], format?: string, scale?: number }
+ * Auth: token via Authorization: Bearer <figmaToken> (not in body)
  * Returns: { images: { [nodeId]: dataUrl } }
  */
 export async function POST(request: Request) {
   try {
-    const { figmaToken, fileKey, nodeIds, format = 'png', scale = 2 } = await request.json();
+    // Read token from Authorization header instead of body (security)
+    const authHeader = request.headers.get('Authorization') || '';
+    const figmaToken = authHeader.replace(/^Bearer\s+/i, '');
+    const body = await request.json();
+    const { fileKey, nodeIds, format = 'png', scale = 2 } = body;
 
     if (!figmaToken || !fileKey || !Array.isArray(nodeIds) || nodeIds.length === 0) {
       return NextResponse.json(
-        { error: 'Missing required parameters: figmaToken, fileKey, nodeIds[]' },
+        { error: 'Missing required parameters: figmaToken (Bearer), fileKey, nodeIds[]' },
         { status: 400 }
       );
     }
