@@ -120,9 +120,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 2: If a target width was specified, apply geometry in a separate PATCH
-    // so Miro doesn't override it with the new image's pixel dimensions.
+    // Step 2: Wait for Miro to finish processing the image, then apply geometry
+    // in a separate PATCH. Without the delay, Miro's async image processing
+    // recalculates dimensions from pixel size and overrides our geometry.
     if (width) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       const geometryForm = new FormData();
       geometryForm.append('data', JSON.stringify({
         geometry: { width: Math.round(Number(width)) },
