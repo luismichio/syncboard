@@ -4,7 +4,7 @@ SyncBoard is a stateless, open-source integration tool that lets product and des
 
 Unlike official live embeds which require browser logins and degrade board performance, SyncBoard places fast-loading, flat images that stakeholders can annotate, draw on, and reference instantly.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,ABLY_API_KEY)
 
 ---
 
@@ -80,8 +80,9 @@ SyncBoard uses Upstash Redis as a lightweight relay to coordinate commands betwe
    | `FIGMA_CLIENT_SECRET` | `...` | From Figma Portal |
    | `MIRO_CLIENT_ID` | `...` | From Miro Portal |
    | `MIRO_CLIENT_SECRET` | `...` | From Miro Portal |
-   | `UPSTASH_REDIS_REST_URL` | `https://...upstash.io` | Required for Penpot relay queue/presence keys |
-   | `UPSTASH_REDIS_REST_TOKEN` | `...` | Required for Penpot relay queue/presence keys |
+   | `UPSTASH_REDIS_REST_URL` | `https://...upstash.io` | Required for Penpot relay result storage |
+   | `UPSTASH_REDIS_REST_TOKEN` | `...` | Required for Penpot relay result storage |
+   | `ABLY_API_KEY` | `...` | Required for Penpot command delivery (WebSocket transport). [Get a free Ably account](https://ably.com/signup). |
 2. Click **Deploy**.
 
 ---

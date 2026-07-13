@@ -92,17 +92,8 @@ export async function markPenpotPresence(pairingId: string): Promise<void> {
   await runRedisCommand<string>(['SETEX', key, '120', Date.now().toString()]);
 }
 
-export async function isPenpotOnline(pairingId: string): Promise<boolean> {
-  const key = presenceKey(pairingId);
-  const exists = await runRedisCommand<number>(['EXISTS', key]);
-  return exists === 1;
-}
-
-export async function enqueuePenpotCommand(pairingId: string, command: RelayCommand): Promise<void> {
-  const key = commandQueueKey(pairingId);
-  await runRedisCommand<number>(['LPUSH', key, JSON.stringify(command)]);
-  await runRedisCommand<number>(['EXPIRE', key, '300']);
-}
+// Command delivery now uses Ably WebSocket (relayAbly.ts).
+// The poll/blocking dequeue is preserved as a fallback for non-Ably clients.
 
 function parseRelayCommand(raw: string): RelayCommand | null {
   const parsed: unknown = JSON.parse(raw);
@@ -131,17 +122,6 @@ function parseRelayCommand(raw: string): RelayCommand | null {
   }
 
   return command;
-}
-
-export async function dequeuePenpotCommand(pairingId: string): Promise<RelayCommand | null> {
-  const key = commandQueueKey(pairingId);
-  const result = await runRedisCommand<string | null>(['RPOP', key]);
-
-  if (!result) {
-    return null;
-  }
-
-  return parseRelayCommand(result);
 }
 
 export async function blockingDequeuePenpotCommand(

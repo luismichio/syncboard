@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import {
   deleteRelayResponse,
-  enqueuePenpotCommand,
   getRelayResponse,
-  isPenpotOnline,
   RelayCommand,
 } from '@/lib/relayRedis';
+import {
+  publishPenpotCommand,
+  isPenpotOnlineAbly,
+} from '@/lib/relayAbly';
 
 interface RelayRequestBody {
   pairingId?: string;
@@ -68,7 +70,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'action is required and must be select or export.' }, { status: 400 });
     }
 
-    const online = await isPenpotOnline(pairingId);
+    const online = await isPenpotOnlineAbly(pairingId);
     if (!online) {
       return NextResponse.json(
         { error: 'Penpot companion is offline. Open the companion UI and connect using this pairing ID.' },
@@ -78,7 +80,7 @@ export async function POST(request: Request) {
 
     const requestId = `req_${crypto.randomUUID().replace(/-/g, '')}`;
     const command = buildCommand(body, requestId);
-    await enqueuePenpotCommand(pairingId, command);
+    await publishPenpotCommand(pairingId, command);
 
     const timeoutMs = clampTimeout(body.timeoutMs, commandAction);
     const deadline = Date.now() + timeoutMs;

@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.5.5] - 2026-07-11
+
+### Added
+* **Ably WebSocket Transport for Penpot Commands:** Replaced Redis polling for command delivery with Ably pub/sub. Companion now subscribes to an Ably channel via WebSocket for near-instant command delivery with zero idle Redis cost.
+  * Added `src/lib/relayAbly.ts` — Ably REST helpers for publishing commands and token generation.
+  * Added `POST /api/ably/token` endpoint — generates scoped subscribe-only tokens for companion authentication.
+  * Updated `POST /api/relay/request` — publishes commands via Ably instead of Redis LPUSH.
+  * Updated `public/penpot-companion-ui.html` — replaced polling loop with Ably Realtime WebSocket subscription.
+* **Presence via Ably:** Companion enters Ably channel presence on connect; `/api/relay/request` checks Ably presence REST API (instead of Redis SETEX) to determine if companion is online.
+
+### Removed
+* Redis-based `enqueuePenpotCommand`, `dequeuePenpotCommand`, `isPenpotOnline` functions (command delivery fully migrated to Ably).
+* Period heartbeat to `/api/relay/penpot/register` (no longer needed — Ably presence replaces it).
+
+### Notes
+* **Result storage remains on Redis** (`storeRelayResponse`/`getRelayResponse`/`deleteRelayResponse`) — these are only used during active imports, with negligible idle cost.
+* **Fallback endpoints preserved:** `/api/relay/penpot/poll` (BRPOP) and `/api/relay/penpot/register` remain operational for non-Ably clients.
+* Requires `ABLY_API_KEY` environment variable. Free tier (200k messages/month) is sufficient.
+
 ## [0.5.4] - 2026-07-11
 
 ### Changed

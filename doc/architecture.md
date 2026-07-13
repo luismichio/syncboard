@@ -38,7 +38,9 @@ Figma provides a robust, public web API that renders design frames to images in 
 ### B. Penpot Sync (Cloud Relay & Browser Plugin Render)
 Unlike Figma, Penpot does **not** provide a public REST API that can render design frames into PNG/SVG in the cloud. Syncing Penpot designs uses a cloud relay to coordinate a local browser plugin:
 * **The Cloud Limitation:** To render Penpot designs in the cloud, a server must boot a headless browser instance (Puppeteer/Playwright), load the Penpot editor client, authenticate the user, load the heavy WebAssembly editor assets, and take screenshots. This would require hosting expensive rendering nodes.
-* **The Relay Solution:** SyncBoard uses the designer's **active Penpot browser tab** as the renderer, coordinated via an Upstash Redis relay. The Penpot Companion plugin polls `/api/relay/penpot/poll` for pending commands, executes them using Penpot's native plugin APIs (`penpot.export`), and posts results back to `/api/relay/penpot/result`. The Miro plugin sends requests through `/api/relay/request` and waits for the response synchronously.
+* **The Relay Solution:** SyncBoard uses the designer's **active Penpot browser tab** as the renderer, coordinated via an **Ably WebSocket** for command delivery and an **Upstash Redis** relay for result storage.
+  * **Command Delivery (Ably):** The Miro plugin publishes commands to an Ably channel; the Penpot Companion subscribes via WebSocket and executes them instantly using Penpot's native plugin APIs (`penpot.export`). This eliminates idle polling costs completely.
+  * **Result Storage (Redis):** Results are posted to `/api/relay/penpot/result` (Redis SETEX), and the Miro plugin polls `/api/relay/request` (Redis GET/DEL) synchronously waiting for the response. Redis is only used during active imports, so idle cost is negligible.
 * **Flow:** All communication travels over public HTTPS — no localhost calls required. The Penpot Companion plugin stays connected via a presence heartbeat, and the relay handles timeouts, retries, and pairing.
 * **Benefits:** Bypasses Chrome PNA blocks entirely, works in any modern browser, and requires no local server or desktop app. 100% free of cloud rendering costs.
 
@@ -102,6 +104,8 @@ Figma limits the `GET /v1/images` endpoint based on user plan tiers:
 * **Paid Plans (Professional/Enterprise):** 10 to 20 requests per minute.
 * **SyncBoard Optimization:** SyncBoard batches all requested frames from the same file into a single HTTP request to minimize quota consumption.
 
+[Figma Rate Limits](https://developers.figma.com/docs/rest-api/rate-limits/#rate-limits-tier-table)
+
 ### B. Penpot API Quotas
 Unlike Figma, Penpot does not enforce API rate limits or monthly quotas for exports. Rendering happens locally in the Penpot browser tab; only the command coordination and result transport pass through cloud infrastructure.
 * **No Cloud Rendering Costs:** The actual SVG/PNG rendering runs on the user's GPU/CPU inside the Penpot browser tab — no cloud rendering servers needed. Image data does flow through Vercel and Redis ephemerally during transport (see §8.B), but this is lightweight passthrough, not cloud compute.
@@ -111,6 +115,8 @@ Unlike Figma, Penpot does not enforce API rate limits or monthly quotas for expo
 ### C. Miro API Quotas
 Miro limits heavyset widget operations (like uploading and PATCHing images) to **50 requests per minute** per user token.
 * **SyncBoard Optimization:** Includes a **500ms delay** between consecutive widget updates to prevent hitting Miro's limit.
+
+[Miro Rate Limits](https://developers.miro.com/reference/rate-limiting)
 
 ---
 

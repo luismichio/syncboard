@@ -176,18 +176,13 @@
       <div id="log" class="log-box">Initialized. Ready to pair.</div>
     </div>
   </div>
-  <script src="https://cdn.ably.com/lib/ably.min.js"></script>
   <script>
     const RELAY_URL = window.location.origin;
     const FETCH_OPTIONS = { mode: 'cors' };
-    const RECONNECT_DELAY_MS = 5000;
 
-    let ablyClient = null;
-    let ablyChannel = null;
+    let pollingActive = false;
     let reconnectTimeout = null;
     let reconnectAttempts = 0;
-    let currentPairingId = '';
-
     const pendingRequests = new Map();
     const pairingInput = document.getElementById('pairing-id');
     const connectBtn = document.getElementById('connect-btn');
@@ -218,64 +213,10 @@
       }
     }
 
-    function clearReconnectTimer() {
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-        reconnectTimeout = null;
-      }
-    }
-
-    function scheduleReconnect() {
-      if (reconnectAttempts >= 5) {
-        log('Connection failed after 5 attempts. Please click Connect to retry.');
-        return;
-      }
-      reconnectAttempts++;
-      clearReconnectTimer();
-      reconnectTimeout = setTimeout(() => connectBridge(true), RECONNECT_DELAY_MS);
-    }
-
-    function handleCommand(request) {
-      log(`Received command: "${request.action}"`);
-
-      if (request.action === 'select') {
-        pendingRequests.set(request.id, request);
-        parent.postMessage({
-          action: 'get-selection',
-          requestId: request.id
-        }, '*');
-      }
-
-      if (request.action === 'export') {
-        pendingRequests.set(request.id, request);
-        parent.postMessage({
-          action: 'export-shape',
-          requestId: request.id,
-          shapeId: request.shapeId,
-          format: request.format || 'svg',
-          scale: request.scale || 2
-        }, '*');
-      }
-    }
-
-    function disconnectAbly(reason) {
-      if (ablyChannel) {
-        try { ablyChannel.unsubscribe(); } catch (e) {}
-        try { ablyChannel.presence.leave(); } catch (e) {}
-        ablyChannel = null;
-      }
-      if (ablyClient) {
-        try { ablyClient.close(); } catch (e) {}
-        ablyClient = null;
-      }
-      updateStatus('disconnected', reason || 'Disconnected');
-      fileNameText.textContent = 'Stand-alone mode';
-    }
-
     async function connectBridge(isAuto = false) {
       const pairingId = pairingInput.value.trim();
       if (!pairingId) {
-        log('Error: Pairing ID cannot be empty.');
+        log("Error: Pairing ID cannot be empty.");
         return;
       }
 
@@ -284,82 +225,88 @@
       }
 
       localStorage.setItem('syncboard_pairing_id', pairingId);
-      currentPairingId = pairingId;
-
-      disconnectAbly();
-      clearReconnectTimer();
+      pollingActive = false;
 
       updateStatus('connecting', 'Connecting');
-      log(`Connecting via Ably (pairingId: ${pairingId})...`);
+      log(`Registering with bridge (pairingId: ${pairingId})...`);
 
       try {
-        // Fetch Ably token request from SyncBoard
-        const tokenRes = await fetch(`${RELAY_URL}/api/ably/token`, {
+        const res = await fetch(`${RELAY_URL}/api/relay/penpot/register`, {
           ...FETCH_OPTIONS,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pairingId })
         });
 
-        if (!tokenRes.ok) {
-          throw new Error(`Token request failed: HTTP ${tokenRes.status}`);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
         }
-
-        const tokenPayload = await tokenRes.json();
-        if (tokenPayload.error) {
-          throw new Error(tokenPayload.error);
-        }
-
-        // Connect to Ably with token auth
-        ablyClient = new Ably.Realtime({ authCallback: (data, callback) => {
-          callback(null, tokenPayload.tokenRequest);
-        }});
-
-        // Wait for connection
-        await new Promise((resolve, reject) => {
-          ablyClient.connection.once('connected', resolve);
-          ablyClient.connection.once('failed', (err) => reject(new Error(err.message || 'Ably connection failed')));
-          // Timeout after 10s
-          setTimeout(() => reject(new Error('Ably connection timed out')), 10000);
-        });
-
-        // Subscribe to the pairing channel
-        ablyChannel = ablyClient.channels.get(`penpot:${pairingId}`);
-
-        await ablyChannel.presence.enter();
-
-        ablyChannel.subscribe('command', (message) => {
-          handleCommand(message.data);
-        });
-
-        ablyChannel.presence.subscribe('leave', () => {
-          // Another client left — not actionable for us.
-        });
-
-        // Connection lost handler
-        ablyClient.connection.on('disconnected', () => {
-          log('Ably connection lost. Reconnecting...');
-          updateStatus('connecting', 'Reconnecting');
-        });
-
-        ablyClient.connection.on('closed', () => {
-          log('Ably connection closed.');
-          if (currentPairingId) {
-            scheduleReconnect();
-          }
-        });
 
         reconnectAttempts = 0;
         updateStatus('connected', 'Connected');
-        log('Companion connected via Ably WebSocket.');
+        log("Companion connected to SyncBoard relay.");
         fileNameText.textContent = 'Active Connection';
 
+        pollingActive = true;
+        startPolling(pairingId);
       } catch (err) {
-        disconnectAbly();
-        const errMsg = err instanceof Error ? err.message : String(err);
-        log(`Connection failed: ${errMsg}`);
+        log(`Connection failed: ${err.message}`);
         updateStatus('disconnected', 'Failed');
-        scheduleReconnect();
+
+        if (reconnectAttempts < 5) {
+          reconnectAttempts++;
+          reconnectTimeout = setTimeout(() => connectBridge(true), 5000);
+        } else {
+          log("Connection failed after 5 attempts. Ensure SyncBridge is running and click Connect to retry.");
+        }
+      }
+    }
+
+    async function startPolling(pairingId) {
+      while (pollingActive) {
+        try {
+          const res = await fetch(`${RELAY_URL}/api/relay/penpot/poll?pairingId=${pairingId}`, FETCH_OPTIONS);
+
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+
+          const payload = await res.json();
+
+          if (payload.data) {
+            const request = payload.data;
+            log(`Received command: "${request.action}"`);
+
+            if (request.action === 'select') {
+              pendingRequests.set(request.id, request);
+              parent.postMessage({
+                action: 'get-selection',
+                requestId: request.id
+              }, '*');
+            }
+
+            if (request.action === 'export') {
+              pendingRequests.set(request.id, request);
+              parent.postMessage({
+                action: 'export-shape',
+                requestId: request.id,
+                shapeId: request.shapeId,
+                format: request.format || 'svg',
+                scale: request.scale || 2
+              }, '*');
+            }
+          }
+        } catch (err) {
+          log(`Polling error: ${err.message}`);
+          updateStatus('disconnected', 'Error');
+          pollingActive = false;
+
+          if (reconnectAttempts < 5) {
+            reconnectAttempts++;
+            reconnectTimeout = setTimeout(() => connectBridge(true), 5000);
+          }
+          break;
+        }
       }
     }
 
@@ -390,9 +337,6 @@
         }
       }
     }
-
-    // Apply a deterministic startup fallback before Penpot sends the exact theme.
-    applyTheme('os');
 
     window.addEventListener("message", (event) => {
       const response = event.data;
@@ -426,16 +370,8 @@
       }
     });
 
-    // Handshake: tell plugin runtime that UI is ready to receive theme updates.
-    function notifyUiReady() {
-      parent.postMessage({ action: 'ui-ready' }, '*');
-    }
-
-    notifyUiReady();
-    setTimeout(notifyUiReady, 300);
-
     connectBtn.addEventListener('click', () => {
-      clearReconnectTimer();
+      clearTimeout(reconnectTimeout);
       connectBridge(false);
     });
 
