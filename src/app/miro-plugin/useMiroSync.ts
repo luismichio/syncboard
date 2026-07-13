@@ -129,14 +129,16 @@ export function useMiroSync(
             // For Penpot items with stored natural width: displayWidth = naturalWidth * effectiveScale.
             // This makes the widget visually scale with export resolution.
             // For Figma or items without stored width: scale proportionally from current widget width.
+            // If match.width is 0 (common for SVG widgets in Miro), skip geometry and let Miro auto-size.
             let effectiveWidth: number | undefined;
-            if (propagate && storedWidth && storedWidth > 0 && effectiveScale > 0) {
+            if (storedWidth && storedWidth > 0 && effectiveScale > 0) {
               effectiveWidth = Math.round(storedWidth * effectiveScale);
-            } else if (propagate && effectiveScale !== scale && match.width) {
+            } else if (propagate && effectiveScale !== scale && match.width && match.width > 0) {
               effectiveWidth = Math.round(match.width / scale * effectiveScale);
-            } else {
+            } else if (match.width && match.width > 0) {
               effectiveWidth = match.width;
             }
+            // If effectiveWidth is 0 or undefined, don't send geometry — let Miro auto-size.
 
             itemsToSync.push({
               id: match.id,

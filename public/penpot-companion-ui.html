@@ -417,6 +417,8 @@
 
       if (response.action === "theme-change") {
         applyTheme(response.theme);
+        // The plugin sends theme-change in response to ui-ready; mark plugin as connected.
+        updatePluginStatus(true);
       }
 
       if (response.action === "selection-result") {
