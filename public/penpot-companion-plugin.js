@@ -65,6 +65,13 @@ penpot.ui.onMessage(async (message) => {
     const selection = penpot.selection[0];
     const file = penpot.currentFile;
 
+    let selWidth = 0;
+    let selHeight = 0;
+    if (selection && selection.selrect) {
+      selWidth = Math.round(selection.selrect.width);
+      selHeight = Math.round(selection.selrect.height);
+    }
+
     penpot.ui.sendMessage({
       action: 'selection-result',
       requestId: message.requestId,
@@ -73,6 +80,8 @@ penpot.ui.onMessage(async (message) => {
             id: selection.id,
             name: selection.name,
             fileId: file ? file.id : 'unknown',
+            width: selWidth,
+            height: selHeight,
           }
         : null,
     });
@@ -84,15 +93,23 @@ penpot.ui.onMessage(async (message) => {
       const scale = typeof message.scale === 'number' && Number.isFinite(message.scale) ? message.scale : 2;
       const buffer = await exportShapeBuffer(message.shapeId, format, scale);
 
-      // Get the shape name so the Miro plugin can display it
+      // Get the shape name and natural dimensions so the Miro plugin can
+      // create the widget at the correct display size regardless of scale.
       let shapeName = 'Selected Frame';
+      let shapeWidth = 0;
+      let shapeHeight = 0;
       try {
         const shapeFromPage =
           penpot.currentPage && typeof penpot.currentPage.getShapeById === 'function'
             ? penpot.currentPage.getShapeById(message.shapeId)
             : null;
-        if (shapeFromPage && shapeFromPage.name) {
-          shapeName = shapeFromPage.name;
+        if (shapeFromPage) {
+          if (shapeFromPage.name) shapeName = shapeFromPage.name;
+          // selrect gives the shape's natural dimensions (before scale multiplication)
+          if (shapeFromPage.selrect && typeof shapeFromPage.selrect.width === 'number') {
+            shapeWidth = Math.round(shapeFromPage.selrect.width);
+            shapeHeight = Math.round(shapeFromPage.selrect.height);
+          }
         }
       } catch (e) {
         // Silently fall back to default name
@@ -121,7 +138,7 @@ penpot.ui.onMessage(async (message) => {
         penpot.ui.sendMessage({
           action: 'export-result',
           requestId: message.requestId,
-          data: { svg: svgText, name: shapeName },
+          data: { svg: svgText, name: shapeName, width: shapeWidth, height: shapeHeight },
         });
       } else {
         // Base64 encode PNG binary
@@ -133,7 +150,7 @@ penpot.ui.onMessage(async (message) => {
         penpot.ui.sendMessage({
           action: 'export-result',
           requestId: message.requestId,
-          data: { base64, name: shapeName },
+          data: { base64, name: shapeName, width: shapeWidth, height: shapeHeight },
         });
       }
     } catch (err) {

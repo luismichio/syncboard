@@ -1,5 +1,5 @@
 export interface PenpotMcpResponse {
-  content: { type: string; text?: string; data?: string; mimeType?: string; name?: string }[];
+  content: { type: string; text?: string; data?: string; mimeType?: string; name?: string; width?: number; height?: number }[];
   isError?: boolean;
 }
 
@@ -182,14 +182,14 @@ export async function callPenpotMcpTool(
       timeoutMs: 18_000,
     });
 
-    const payload = data as { svg?: string; base64?: string; name?: string } | null;
+    const payload = data as { svg?: string; base64?: string; name?: string; width?: number; height?: number } | null;
 
     if (format === 'svg') {
       const svgText = payload?.svg;
       if (!svgText) {
         throw new Error('Penpot relay returned empty SVG export data.');
       }
-      return { content: [{ type: 'text', text: svgText, name: payload?.name }] };
+      return { content: [{ type: 'text', text: svgText, name: payload?.name, width: payload?.width, height: payload?.height }] };
     }
 
     const base64Data = payload?.base64;
@@ -197,7 +197,7 @@ export async function callPenpotMcpTool(
       throw new Error('Penpot relay returned empty PNG export data.');
     }
     return {
-      content: [{ type: 'image', data: base64Data, mimeType: 'image/png', name: payload?.name }],
+      content: [{ type: 'image', data: base64Data, mimeType: 'image/png', name: payload?.name, width: payload?.width, height: payload?.height }],
     };
   }
 

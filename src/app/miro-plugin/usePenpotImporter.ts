@@ -128,14 +128,22 @@ export function usePenpotImporter(
         dataUrl = `data:image/svg+xml;base64,${base64}`;
       }
 
+      // Extract natural dimensions from the export response
+      const naturalWidth = mcpResponse.content[0]?.width;
+      const naturalHeight = mcpResponse.content[0]?.height;
+
       const resolvedName = responseName || penpotNodeInfo.name;
       const titleTag = `${resolvedName} [PenpotSync|${penpotNodeInfo.fileId}|${penpotNodeInfo.objectId}]`;
       
+      // Use the natural shape width so the widget displays at correct size
+      // regardless of export scale. The scale only affects the image sharpness,
+      // not the display dimensions.
       const image = await miro.board.createImage({
         url: dataUrl,
         title: titleTag,
         x,
         y,
+        ...(naturalWidth && naturalWidth > 0 ? { width: naturalWidth } : {}),
       });
 
       if (typeof image.setMetadata !== 'function') {
@@ -150,6 +158,8 @@ export function usePenpotImporter(
         format,
         scale,
         platform: 'penpot',
+        width: naturalWidth,
+        height: naturalHeight,
       });
       await image.sync();
 

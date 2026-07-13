@@ -101,17 +101,21 @@ export function useMiroSync(
             let scale = selected.scale || 2;
             let platform = selected.platform || 'figma';
 
+            let storedWidth: number | undefined;
             try {
               const metadata = (await match.getMetadata()) as Record<string, unknown> | undefined;
               const syncData = metadata?.syncboard as { 
                 format?: 'png' | 'svg'; 
                 scale?: number;
                 platform?: 'figma' | 'penpot';
+                width?: number;
+                height?: number;
               } | undefined;
               if (syncData) {
                 format = syncData.format || (syncData.platform === 'penpot' ? 'svg' : 'png');
                 scale = syncData.scale || 2;
                 platform = syncData.platform || 'figma';
+                if (typeof syncData.width === 'number' && syncData.width > 0) storedWidth = syncData.width;
               }
             } catch (err) {
               console.error("Failed to read copy metadata:", match.id, err);
@@ -121,10 +125,18 @@ export function useMiroSync(
             const effectiveFormat = propagate ? (selected.format || (selected.platform === 'penpot' ? 'svg' : 'png')) : format;
             const effectiveScale = propagate ? (selected.scale || 2) : scale;
 
-            // Calculate new display width when scale changes
-            const effectiveWidth = (propagate && effectiveScale !== scale && match.width)
-              ? Math.round(match.width / scale * effectiveScale)
-              : match.width;
+            // Calculate new display width.
+            // For Penpot items with stored natural width, always use that (format/scale only affect quality).
+            // For Figma or items without stored width, scale proportionally from the current widget width.
+            let effectiveWidth: number | undefined;
+            if (propagate && storedWidth && storedWidth > 0) {
+              // Natural width is the canonical display size; format/scale don't change it.
+              effectiveWidth = storedWidth;
+            } else if (propagate && effectiveScale !== scale && match.width) {
+              effectiveWidth = Math.round(match.width / scale * effectiveScale);
+            } else {
+              effectiveWidth = match.width;
+            }
 
             itemsToSync.push({
               id: match.id,
@@ -318,13 +330,19 @@ export function useMiroSync(
         }
 
         // Update widget metadata so format/scale dropdown reflects the new values
+        // (preserve natural width/height from Penpot import if present)
         try {
           const widget = await miro.board.getById(item.id);
           if (widget && 'setMetadata' in widget && typeof widget.setMetadata === 'function') {
+            const existingMeta = await widget.getMetadata().catch(() => ({})) as Record<string, unknown>;
+            const existingSyncboard = existingMeta?.syncboard as Record<string, unknown> | undefined;
             await widget.setMetadata('syncboard', {
               format: item.format || (item.platform === 'penpot' ? 'svg' : 'png'),
               scale: item.scale || 2,
               platform: item.platform || 'figma',
+              // Preserve natural dimensions from the original import if they exist
+              ...(existingSyncboard?.width ? { width: existingSyncboard.width } : {}),
+              ...(existingSyncboard?.height ? { height: existingSyncboard.height } : {}),
             });
           }
         } catch (metaErr) {
