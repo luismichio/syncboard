@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "tauri-bridge/**",
+    // Bundled third-party SDK:
+    "public/ably-bundle.js",
   ]),
 ]);
 
