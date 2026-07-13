@@ -87,7 +87,8 @@ export async function POST(request: Request) {
     
     // Choose correct content type and file name for the payload
     const mimeType = format === 'svg' ? 'image/svg+xml' : 'image/png';
-    const fileName = format === 'svg' ? 'screenshot.svg' : 'screenshot.png';
+    const safeName = nodeName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'screenshot';
+    const fileName = format === 'svg' ? `${safeName}.svg` : `${safeName}.png`;
     
     const file = new File([arrayBuffer], fileName, { type: mimeType });
     formData.append('resource', file);
