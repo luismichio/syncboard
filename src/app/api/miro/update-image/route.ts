@@ -120,26 +120,47 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 2: Wait for Miro to finish processing the image, then apply geometry
-    // in a separate PATCH. Without the delay, Miro's async image processing
-    // recalculates dimensions from pixel size and overrides our geometry.
+    // Step 2: Apply geometry with retry loop.
+    // Miro's async image processing overrides geometry.width even when sent in
+    // a separate PATCH. We keep retrying until a GET confirms the widget has
+    // the correct width, or until max attempts are exhausted.
     if (width) {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const targetWidth = Math.round(Number(width));
+      const MAX_RETRIES = 8;
+      const RETRY_DELAY_MS = 1000;
 
-      const geometryForm = new FormData();
-      geometryForm.append('data', JSON.stringify({
-        geometry: { width: Math.round(Number(width)) },
-      }));
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        // Wait before each attempt (first attempt waits too, letting Miro settle)
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
 
-      const geometryResponse = await fetch(miroApiUrl, {
-        method: 'PATCH',
-        headers: authHeaders,
-        body: geometryForm,
-      });
+        // Apply geometry
+        const geoForm = new FormData();
+        geoForm.append('data', JSON.stringify({
+          geometry: { width: targetWidth },
+        }));
 
-      if (!geometryResponse.ok) {
-        const errData = await geometryResponse.json().catch(() => ({}));
-        console.warn('Miro geometry update failed (image content already updated):', errData.message);
+        const geoRes = await fetch(miroApiUrl, {
+          method: 'PATCH',
+          headers: authHeaders,
+          body: geoForm,
+        });
+
+        if (!geoRes.ok) {
+          const errData = await geoRes.json().catch(() => ({}));
+          console.warn(`Miro geometry PATCH #${attempt} failed:`, errData.message);
+          continue;
+        }
+
+        // Verify by fetching the widget and checking its width
+        const verifyRes = await fetch(miroApiUrl, { headers: authHeaders });
+        if (verifyRes.ok) {
+          const widget = await verifyRes.json() as { width?: number };
+          if (widget && typeof widget.width === 'number' && Math.round(widget.width) === targetWidth) {
+            // Width confirmed — done
+            break;
+          }
+          console.warn(`Miro geometry #${attempt}: widget.width=${widget?.width} !== target=${targetWidth}, retrying...`);
+        }
       }
     }
 

@@ -50,9 +50,13 @@ describe('POST /api/miro/update-image', () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
     );
-    // Geometry PATCH
+    // Geometry PATCH (first attempt)
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
+    );
+    // GET verification — return confirmed width, so retry loop exits
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: 'image-123', width: 400 }), { status: 200 })
     );
 
     const { POST } = await import('./route');
