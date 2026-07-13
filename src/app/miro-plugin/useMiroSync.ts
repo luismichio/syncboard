@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { SyncedImage } from './useMiroSelection';
 import { callPenpotMcpTool } from './penpotMcpClient';
+import { getValidToken } from '@/lib/tokens';
 
 /**
  * Handles board sync with support for both Figma and Penpot:
@@ -24,10 +25,18 @@ export function useMiroSync(
 
   const syncSelectedScreens = async () => {
     if (isSyncing) return;
-    if (selectedItems.length === 0 || !miroToken) return;
+    if (selectedItems.length === 0) return;
     if (typeof window === 'undefined') return;
     const miro = window.miro;
     if (!miro) return;
+
+    // Get a fresh Miro token right before syncing — the one from mount may have expired
+    const freshMiroToken = miroToken || await getValidToken('miro');
+    if (!freshMiroToken) {
+      setIsSyncing(false);
+      setSyncStatus('Miro token unavailable. Please reconnect Miro.');
+      return;
+    }
 
     setIsSyncing(true);
     try {
@@ -265,7 +274,6 @@ export function useMiroSync(
         const item = itemsToSync[i];
         // Look up by format-aware cache key (Penpot uses format in key, Figma doesn't)
         const cacheKey = `${item.fileKey}|${item.nodeId}`;
-        const formats = ['png', 'svg'] as const;
         let dataUrl = renderCache.get(`${cacheKey}|${item.format || 'png'}`);
         if (!dataUrl) dataUrl = renderCache.get(cacheKey); // fallback to legacy key
         if (!dataUrl) {
@@ -284,7 +292,7 @@ export function useMiroSync(
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            miroToken,
+            miroToken: freshMiroToken,
             boardId,
             itemId: item.id,
             fileKey: item.fileKey,
