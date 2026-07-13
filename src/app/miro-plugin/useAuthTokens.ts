@@ -65,6 +65,8 @@ export function useAuthTokens(isInitMode: boolean | null) {
       }
     };
 
+    loadTokens();
+
     return () => {
       active = false;
       if (interval) clearInterval(interval);
