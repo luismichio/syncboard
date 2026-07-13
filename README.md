@@ -121,8 +121,8 @@ When running the development server locally:
 ### Troubleshooting: Companion Plugin Not Connecting
 If the Penpot Companion plugin shows "offline" in the Miro plugin:
 1. Make sure both the Miro plugin and the Penpot Companion use the **exact same Pairing ID**.
-2. Check that your SyncBoard deployment is reachable (the companion polls `/api/relay/penpot/poll` via public HTTPS).
-3. The presence heartbeat expires after **120 seconds** of inactivity — the companion should poll at least every 30 seconds.
+2. Check that your SyncBoard deployment is reachable and `ABLY_API_KEY` is configured correctly.
+3. Open the browser DevTools console in the Penpot tab — look for Ably connection errors (CSP blocking the CDN script, or token timeout).
 
 ---
 

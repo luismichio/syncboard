@@ -52,12 +52,12 @@ Selection detection sources vary by platform and evolve toward a uniform relay p
 
 | Platform | Current Method | Future Direction |
 | :--- | :--- | :--- |
-| **Penpot** | Companion plugin polls relay for commands | Stable — relay-first |
+| **Penpot** | Companion receives commands via Ably WebSocket | Stable — relay-first |
 | **Figma** | (Planned) Figma plugin → relay | Figma plugin + relay (mirror Penpot pattern) |
 | **Adobe** | (Planned) UXP plugin → Tauri local socket | Tauri capability extender |
 
 ### Current Implementation
-- **Penpot:** The Penpot Companion plugin (`penpot-companion-ui.html`) connects via the relay, polls for `select` or `export` commands, executes them using Penpot's native plugin API, and returns results through the relay.
+- **Penpot:** The Penpot Companion plugin (`penpot-companion-ui.html`) connects via WebSocket (Ably), subscribes to the pairing channel for `select` or `export` commands, executes them using Penpot's native plugin API, and returns results through the relay.
 - **Figma (SyncBridge fallback):** When Tauri is installed, it can query the Figma Desktop MCP port (`127.0.0.1:3845/mcp`) locally via native HTTP on the Rust side — this is the only remaining Tauri dependency and will be replaced by the Figma plugin + relay.
 
 ### Why Not Tauri for Transport?
@@ -110,7 +110,7 @@ Figma limits the `GET /v1/images` endpoint based on user plan tiers:
 Unlike Figma, Penpot does not enforce API rate limits or monthly quotas for exports. Rendering happens locally in the Penpot browser tab; only the command coordination and result transport pass through cloud infrastructure.
 * **No Cloud Rendering Costs:** The actual SVG/PNG rendering runs on the user's GPU/CPU inside the Penpot browser tab — no cloud rendering servers needed. Image data does flow through Vercel and Redis ephemerally during transport (see §8.B), but this is lightweight passthrough, not cloud compute.
 * **No API Quotas:** Penpot does not rate-limit plugin API calls. You can sync unlimited frames with no pricing tiers or usage caps.
-* **Relay overhead per sync:** Each Penpot export generates ~10–20 Redis commands (poll loop + result store) and 2 Vercel function invocations (relay request + Miro update). See §8.C for size constraints.
+* **Relay overhead per sync:** Each Penpot export generates ~2–4 Redis commands (result store only) and 2 Vercel function invocations (relay request + Miro update). See §8.C for size constraints.
 
 ### C. Miro API Quotas
 Miro limits heavyset widget operations (like uploading and PATCHing images) to **50 requests per minute** per user token.
@@ -163,7 +163,7 @@ Chrome's Private Network Access (PNA) blocks both `fetch()` and `WebSocket` from
 
 | Layer | Before (Tauri Transport) | After (Cloud Relay) |
 | :--- | :--- | :--- |
-| Penpot transport | Tauri WebSocket ↔ localhost | Upstash Redis relay ↔ public HTTPS |
+| Penpot transport | Tauri WebSocket ↔ localhost | Ably WebSocket + Upstash Redis relay |
 | Figma selection | Tauri MCP ↔ Figma Desktop port | (Future) Figma plugin → relay |
 | Penpot selection | Tauri WebSocket → Companion plugin | Companion plugin → relay |
 | Selection source | Tauri acts as producer/consumer | Plugin acts as producer, relay as transport |
@@ -242,14 +242,18 @@ Miro Plugin ──POST──► SyncBoard API ──GET──► Figma API
 ### B. Penpot Relay Path (Cloud-Relay)
 
 ```
-Miro Plugin ──POST──► /api/relay/request ──LPUSH──► Redis
-    (request)       (Vercel enqueues        (command queue)
-                     command, waits)
+Miro Plugin ──POST──► /api/relay/request
+    (request)       (Vercel publishes to
+                     Ably channel)
                         │
-                        │  ◄──── RPoll ── Penpot Companion Plugin
-                        │         polls /api/relay/penpot/poll
-                        │         renders shape locally
-                        │         POSTs result to /api/relay/penpot/result
+                        │  Ably WebSocket
+                        │  (instant delivery)
+                        ▼
+                  Penpot Companion Plugin
+                  (subscribed to Ably channel)
+                  (renders shape locally)
+                        │
+                        │  POSTs result to /api/relay/penpot/result
                         ▼
                    Redis SETEX ──► /api/relay/request
                    (result stored   (response returned to Miro plugin)
@@ -284,7 +288,7 @@ Image bytes pass through **Redis ephemerally** (step 1–2) and **Vercel twice**
 | Vercel outbound bandwidth | **100 GB/mo** (Hobby), **1 TB/mo** (Pro) | Figma path downloads image; all paths upload to Miro | SVG format uses ~10× less bandwidth than PNG; Tauri direct upload bypasses Vercel entirely |
 | Vercel function invocations | **100k/mo** (Hobby), **10M/mo** (Pro) | Each sync operation = 1 relay request + 1 update-image call | Batch exports reduce calls; see §4 |
 | Redis value size | **~512 MB** (Upstash max) | Relay result payload returned to Miro plugin | Practical limit is Vercel's 4.5 MB response size, not Redis |
-| Redis commands/mo | **10k/day** (Upstash Free), **100k/day** (Pay-as-you-go ~$0.15/1k) | Each poll, register, and result = 1 command | Each sync run = ~10–20 Redis commands (register, poll loop, result, delete) |
+| Redis commands/mo | **10k/day** (Upstash Free), **100k/day** (Pay-as-you-go ~$0.15/1k) | Each result store/retrieve/delete = 1 command | Each sync run = ~2–4 Redis commands (result store, poll, delete). Zero idle cost — Ably handles delivery. |
 | Redis storage | **50 MB** (Upstash Free), **1 GB** ($0.15/GB) | Ephemeral command queue + result cache (45s TTL) | Negligible — data auto-expires; no persistent growth |
 
 ### D. Cost Estimates for Self-Hosters
@@ -293,7 +297,7 @@ Image bytes pass through **Redis ephemerally** (step 1–2) and **Vercel twice**
 | :--- | :--- | :--- | :--- | :--- |
 | Personal use, light sync | Hobby (free) | Free (10k cmd/day) | **$0** | Stay under 4.5MB per image, under 100k invocations |
 | Team, regular Figma sync | Pro ($20/mo) | Free (10k cmd/day) | **$20/mo** | 1TB bandwidth, 60s timeout handles larger images |
-| Heavy Penpot sync, large SVGs | Pro ($20/mo) | Pay-as-you-go (~$1–3/mo) | **$21–23/mo** | ~5–20k Redis commands/day for active usage |
+| Heavy Penpot sync, large SVGs | Pro ($20/mo) | Free (~$0) | **$20/mo** | Redis used only for result storage (~2–4 commands per sync). Ably free tier (200k msg/mo) covers delivery. |
 | Large images needing >4.5MB | Pro + Tauri extender | Free ($0) | **$20/mo** | Tauri handles direct Miro upload, bypassing Vercel body limit |
 
 ### E. Why This Architecture Is Cost-Efficient
@@ -331,10 +335,10 @@ Miro Plugin ──POST──► Tauri Bridge ──WS──► Penpot Companion 
 
 | Step | Relay Path | Tauri Transport Path |
 | :--- | :--- | :--- |
-| Command delivery | Redis queue (LPUSH/RPOP) | Local WebSocket (direct) |
-| Result delivery | Redis SETEX → Vercel response | Local HTTP response (direct) |
-| Image data to Vercel? | Yes — twice (relay response + Miro update) | Yes — once (Miro update only) |
-| Redis cost | ~5–10 commands per sync run | $0 (no Redis used) |
+| Command delivery | Ably WebSocket (publish/subscribe) | Local WebSocket (direct) |
+| Result delivery | Redis SETEX → Vercel response (only during active import) | Local HTTP response (direct) |
+| Image data to Vercel? | Yes — once (relay result, not command delivery) | Yes — once (Miro update only) |
+| Redis cost | ~2–4 commands per sync run (result only) | $0 (no Redis used) |
 | Vercel invocations per sync | 2 (relay request + Miro update) | 1 (Miro update only) |
 | Browser compatibility | All modern browsers (public HTTPS) | **Miro Desktop / Electron only** (Chrome PNA blocks browser→localhost) |
 
