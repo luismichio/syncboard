@@ -54,22 +54,29 @@ Unlike official live embeds which require browser logins and degrade board perfo
    * `boards:write`
 5. Click **Create App** and copy your **Client ID** and **Client Secret**.
 
-### 3. Set Up Upstash Redis (for Penpot Relay)
+### 3. Set Up Cloud Services (for Penpot Relay)
 
-SyncBoard uses Upstash Redis as a lightweight relay to coordinate commands between the Miro plugin and the Penpot Companion plugin. The free tier is sufficient for personal use.
+SyncBoard uses two cloud services for the Penpot relay:
 
+**Ably** (command delivery via WebSocket):
+1. Go to **[Ably Console](https://ably.com/signup)** and create a free account.
+2. In the dashboard, go to **API Keys** and click **Create new API key**.
+3. Set the capability to:
+   ```json
+   {"penpot:*": ["publish", "presence", "subscribe"]}
+   ```
+4. Copy the key — you'll use it as `ABLY_API_KEY` in the next step.
+> The free tier includes **200,000 messages/month** — more than enough for personal use. Companion subscriptions do not count toward the message limit.
+
+**Upstash Redis** (result storage — temporary, only during active imports):
 1. Go to **[Upstash Console](https://console.upstash.com/)** and create a free account.
 2. Click **Create Database**:
    * Select **Redis** as the database type.
    * Choose a name (e.g., `syncboard-relay`).
    * Select the region closest to your Vercel deployment (e.g., `us-east-1` or `eu-west-1`).
    * **TLS** should be enabled by default (required).
-3. After creation, copy two values from the **REST API** section:
-   * **REST URL** — looks like `https://your-endpoint.upstash.io`
-   * **REST Token** — a base64-encoded string starting with `AYV...`
-4. You will use these as `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in the next step.
-
-> **Pricing note:** The free tier includes 10,000 commands per day and 50 MB storage — enough for hundreds of sync operations. A single sync run uses ~10–20 Redis commands (register, poll loop, result store, cleanup).
+3. After creation, copy the **REST URL** and **REST Token**.
+> The free tier includes 10,000 commands per day — only used during active imports, not idle polling.
 
 ### 4. Deploy to Vercel
 1. Go to your Vercel Dashboard, import your `syncboard` repository, and configure these environment variables:
