@@ -72,7 +72,9 @@ export async function GET(request: NextRequest) {
 
   const figmaClientId = process.env.FIGMA_CLIENT_ID;
   const figmaClientSecret = process.env.FIGMA_CLIENT_SECRET;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const host = request.headers.get('host') || 'localhost:3000';
+  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+  const appUrl = `${protocol}://${host}`;
   const redirectUri = `${appUrl}/api/oauth/figma/callback`;
 
   // 1. Verify CSRF State

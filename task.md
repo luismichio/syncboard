@@ -1,3 +1,16 @@
+# Task: Sprint 1.5 — OAuth Preview Domain Portability Fix
+
+## Phase 1 — Dynamic App URL Extraction
+- [x] Refactor `redirectUri` generation in `src/app/api/oauth/figma/auth/route.ts` to compute the base host protocol dynamically from request headers.
+- [x] Refactor `redirectUri` generation in `src/app/api/oauth/figma/callback/route.ts` similarly.
+- [x] Refactor `redirectUri` generation in `src/app/api/oauth/miro/auth/route.ts` similarly.
+- [x] Refactor `redirectUri` generation in `src/app/api/oauth/miro/callback/route.ts` similarly.
+
+## Phase 2 — Verification
+- [x] Verify that Next.js production build completes successfully (`yarn build`).
+- [x] Verify that all unit tests pass (`yarn test`).
+
+---
 # Task: Sprint 1 — Security Hardening & Dead Code Cleanup
 
 ## Phase 1 — Secure ID & State Generation

@@ -3,7 +3,9 @@ import crypto from 'crypto';
 
 export async function GET(request: NextRequest) {
   const figmaClientId = process.env.FIGMA_CLIENT_ID;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const host = request.headers.get('host') || 'localhost:3000';
+  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+  const appUrl = `${protocol}://${host}`;
   const redirectUri = `${appUrl}/api/oauth/figma/callback`;
 
   if (!figmaClientId) {

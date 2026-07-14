@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Secure Key Generation:** Migrated pairing ID and OAuth state generation to cryptographically secure random generators using `window.crypto.getRandomValues`.
 * **Redis OAuth Token Cache:** Replaced the vulnerable global in-memory OAuth state cache with Upstash Redis storage featuring a 300-second TTL and automatic deletion on consumption.
 * **CORS Origin Whitelisting:** Configured Tauri's local Axum bridge server to validate CORS `Origin` headers against a whitelist of trusted domains (`https://syncboard.luiskobayashi.com`, `http://localhost:3000`, `http://localhost:1420`).
+* **Dynamic OAuth Host Detection:** Configured OAuth endpoints to dynamically parse request headers (`host` and `x-forwarded-proto`) to compute redirect URIs, resolving state/cookie CSRF errors on Vercel preview environments and custom subdomains.
 
 ### Changed
 * **Read-Only Pairing IDs:** Restricted the pairing ID input field in the Miro companion sidebar to be read-only (`readOnly={true}`) so users can only copy their generated keys, preventing weak/custom key injection.
