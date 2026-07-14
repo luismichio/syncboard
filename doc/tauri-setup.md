@@ -29,7 +29,7 @@ To run the Tauri application locally on your computer:
 
 ## 🔑 2. Secure Local Loopback Certificate Setup (mkcert)
 
-Penpot runs on `https://design.penpot.app`. Browsers block insecure connections (`ws://`, `http://`) from HTTPS pages as **mixed content**. To allow SyncBridge to serve a trusted secure WebSocket (`wss://`) on localhost without browser warnings, you must generate a locally-trusted TLS certificate.
+Miro runs on `https://miro.com`. Browsers block insecure connections (`http://`) from HTTPS pages as **mixed content**. To allow SyncBridge to serve a trusted secure HTTPS endpoint on localhost without browser warnings, you must generate a locally-trusted TLS certificate.
 
 SyncBoard uses `mkcert` — a zero-configuration tool that creates certificates signed by a local Certificate Authority (CA) that it installs into your system's trust store. No manual certificate authority setup is required.
 
