@@ -78,7 +78,12 @@ export async function GET(request: NextRequest) {
   const redirectUri = `${appUrl}/api/oauth/miro/callback`;
 
   // 1. Verify CSRF State
-  if (!stateCookie || !stateParam || stateCookie !== stateParam) {
+  // Note: Miro's developer dashboard "Install app" button bypasses our auth endpoint,
+  // resulting in an empty state parameter. We permit an empty state only if no state cookie
+  // was set (indicating a direct installation flow from the developer console).
+  const isDirectInstall = !stateCookie && !stateParam;
+
+  if (!isDirectInstall && stateCookie !== stateParam) {
     const csrfResponse = new NextResponse(
       `<!DOCTYPE html>
 <html>
