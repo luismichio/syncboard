@@ -26,20 +26,28 @@ function getOrCreatePairingId(): string {
     // Generate a new ID only if one doesn't exist at all.
     // An empty string means the user explicitly cleared it — don't override.
     if (id === null) {
-      id =
-        'sb_' +
-        Math.random().toString(36).substring(2, 11) +
-        Math.random().toString(36).substring(2, 11);
+      try {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        const array = new Uint8Array(16);
+        window.crypto.getRandomValues(array);
+        let secureId = 'sb_';
+        for (let i = 0; i < 16; i++) {
+          secureId += chars[array[i] % chars.length];
+        }
+        id = secureId;
+      } catch {
+        id =
+          'sb_' +
+          Math.random().toString(36).substring(2, 10) +
+          Math.random().toString(36).substring(2, 10);
+      }
       localStorage.setItem('syncboard_pairing_id', id);
     }
   }
   return id || '';
 }
 
-function isTauriEnabled(): boolean {
-  if (typeof window === 'undefined') return false;
-  return localStorage.getItem('syncboard_use_tauri') === 'true';
-}
+
 
 async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
   const res = await fetch('/api/relay/request', {
@@ -57,78 +65,7 @@ async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
   return payload.data ?? null;
 }
 
-async function callTauri(toolName: string, toolArgs: Record<string, unknown>, pairingId: string): Promise<PenpotMcpResponse> {
-  const tauriHost = 'https://local-syncboard.luiskobayashi.com:4401';
 
-  if (toolName === 'execute_code') {
-    const res = await fetch(`${tauriHost}/detect-penpot`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pairingId }),
-      targetAddressSpace: 'loopback',
-    } as unknown as RequestInit);
-
-    if (!res.ok) {
-      throw new Error(`SyncBridge connection failed: HTTP ${res.status}`);
-    }
-
-    const payload = (await res.json()) as {
-      error?: string;
-      data?: { id: string; name: string; fileId?: string } | null;
-    };
-
-    if (payload.error) {
-      throw new Error(payload.error);
-    }
-
-    return {
-      content: [{
-        type: 'text',
-        text: payload.data ? JSON.stringify(payload.data) : 'null',
-      }],
-    };
-  }
-
-  if (toolName === 'export_shape') {
-    const shapeId = toolArgs.shapeId as string;
-    const format = (toolArgs.format as string) || 'svg';
-    const scale = (toolArgs.scale as number) || 2;
-
-    const res = await fetch(`${tauriHost}/export-penpot`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pairingId, shapeId, format, scale }),
-      targetAddressSpace: 'loopback',
-    } as unknown as RequestInit);
-
-    if (!res.ok) {
-      throw new Error(`SyncBridge export failed: HTTP ${res.status}`);
-    }
-
-    const payload = (await res.json()) as {
-      error?: string;
-      data?: { svg?: string; base64?: string };
-    };
-
-    if (payload.error) {
-      throw new Error(payload.error);
-    }
-
-    if (format === 'svg') {
-      const svgText = payload.data?.svg;
-      if (!svgText) throw new Error('SyncBridge returned empty SVG vector data.');
-      return { content: [{ type: 'text', text: svgText }] };
-    }
-
-    const base64Data = payload.data?.base64;
-    if (!base64Data) throw new Error('SyncBridge returned empty PNG render data.');
-    return {
-      content: [{ type: 'image', data: base64Data, mimeType: 'image/png' }],
-    };
-  }
-
-  throw new Error(`Tool "${toolName}" is not supported in SyncBridge mode.`);
-}
 
 /**
  * Penpot bridge abstraction:
@@ -145,9 +82,7 @@ export async function callPenpotMcpTool(
 
   const pairingId = getOrCreatePairingId();
 
-  if (isTauriEnabled()) {
-    return callTauri(toolName, toolArgs, pairingId);
-  }
+
 
   if (toolName === 'execute_code') {
     const data = await callRelay({
@@ -208,7 +143,9 @@ export async function callPenpotMcpTool(
  * Queries local selection inside the active Figma Desktop App via SyncBridge.
  */
 export async function callFigmaSelectionTauri(): Promise<{ id: string; name: string; fileKey: string } | null> {
-  if (!isTauriEnabled()) return null;
+  if (typeof window === 'undefined' || localStorage.getItem('syncboard_use_tauri') !== 'true') {
+    return null;
+  }
 
   try {
     const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/detect-figma', {

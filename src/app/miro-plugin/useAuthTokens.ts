@@ -6,6 +6,21 @@ const MIRO_BOOT_POLL_MS = 50;
 const BOOT_RETRY_DELAY_MS = 5000;
 const MAX_BOOT_RETRIES = 3;
 
+function generateSecureState(prefix: string): string {
+  try {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const array = new Uint8Array(16);
+    window.crypto.getRandomValues(array);
+    let securePart = '';
+    for (let i = 0; i < 16; i++) {
+      securePart += chars[array[i] % chars.length];
+    }
+    return `${prefix}_${securePart}`;
+  } catch {
+    return prefix + '_' + Math.random().toString(36).substring(2, 15);
+  }
+}
+
 function normalizeTokenData(value: unknown): TokenData | null {
   if (!value || typeof value !== 'object') return null;
   const obj = value as Record<string, unknown>;
@@ -278,7 +293,7 @@ export function useAuthTokens(isInitMode: boolean | null) {
   };
 
   const connectFigma = () => {
-    const state = 'fig_' + Math.random().toString(36).substring(2, 15);
+    const state = generateSecureState('fig');
     const width = 600;
     const height = 700;
     const left = window.screen.width / 2 - width / 2;
@@ -294,7 +309,7 @@ export function useAuthTokens(isInitMode: boolean | null) {
   };
 
   const connectMiro = () => {
-    const state = 'mir_' + Math.random().toString(36).substring(2, 15);
+    const state = generateSecureState('mir');
     const width = 600;
     const height = 700;
     const left = window.screen.width / 2 - width / 2;

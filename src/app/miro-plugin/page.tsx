@@ -63,7 +63,19 @@ export default function MiroPluginPage() {
 
       const storedId = localStorage.getItem('syncboard_pairing_id');
       if (storedId === null) {
-        const newId = 'sb_' + Math.random().toString(36).substring(2, 11) + Math.random().toString(36).substring(2, 11);
+        let newId = '';
+        try {
+          const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+          const array = new Uint8Array(16);
+          window.crypto.getRandomValues(array);
+          let secureId = 'sb_';
+          for (let i = 0; i < 16; i++) {
+            secureId += chars[array[i] % chars.length];
+          }
+          newId = secureId;
+        } catch {
+          newId = 'sb_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+        }
         localStorage.setItem('syncboard_pairing_id', newId);
         setPairingId(newId);
       } else {
@@ -126,17 +138,7 @@ export default function MiroPluginPage() {
     }
   };
 
-  const handlePairingIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newId = e.target.value.trim();
-    setPairingId(newId);
-    if (typeof window !== 'undefined') {
-      if (newId) {
-        localStorage.setItem('syncboard_pairing_id', newId);
-      } else {
-        localStorage.removeItem('syncboard_pairing_id');
-      }
-    }
-  };
+
 
   const copyPairingId = () => {
     const text = pairingId;
@@ -806,7 +808,7 @@ export default function MiroPluginPage() {
                   <input
                     type="text"
                     value={pairingId}
-                    onChange={handlePairingIdChange}
+                    readOnly={true}
                     placeholder="sb_xxxxx"
                     className="w-full text-[10px] font-mono bg-bg-page border border-border-card rounded p-1.5 text-text-page select-all focus:outline-none focus:border-accent"
                   />

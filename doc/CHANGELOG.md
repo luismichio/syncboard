@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.5.7] - 2026-07-14
+### Added
+* **Secure Key Generation:** Migrated pairing ID and OAuth state generation to cryptographically secure random generators using `window.crypto.getRandomValues`.
+* **Redis OAuth Token Cache:** Replaced the vulnerable global in-memory OAuth state cache with Upstash Redis storage featuring a 300-second TTL and automatic deletion on consumption.
+* **CORS Origin Whitelisting:** Configured Tauri's local Axum bridge server to validate CORS `Origin` headers against a whitelist of trusted domains (`https://syncboard.luiskobayashi.com`, `http://localhost:3000`, `http://localhost:1420`).
+
+### Changed
+* **Read-Only Pairing IDs:** Restricted the pairing ID input field in the Miro companion sidebar to be read-only (`readOnly={true}`) so users can only copy their generated keys, preventing weak/custom key injection.
+* **Unified Penpot Cloud Transport:** Removed local Tauri bridge routes for Penpot communication, unifying all Penpot select and export commands over the secure cloud relay pathway (Ably + Redis).
+
+### Removed
+* **Orphan API Routes:** Cleaned up unused endpoints `GET /api/relay/penpot/poll` and `POST /api/relay/penpot/register`.
+* **Orphan Tauri Bridge Route handlers:** Pruned legacy local WS (`/ws`), local polling (`/penpot/poll`), register (`/penpot/register`), result (`/penpot/result`), and local command triggers (`/detect-penpot`, `/export-penpot`) from the Tauri desktop app's Axum server.
+* **Obsolete Temp Files:** Deleted scratch files `._temp_comp.html` and `_temp_section.txt`.
+
+### Fixed
+* **API Error Leakage Sanitization:** Sanitized output exceptions in OAuth refresh and Miro image update endpoints to return generic error messages instead of raw system stack traces.
+
 ## [0.5.6] - 2026-07-14
 ### Added
 * **Penpot Natural Dimensions:** Companion export and selection responses now include shape width/height from selrect. Stored in widget metadata during import and used as canonical display size for sync resize calculations.

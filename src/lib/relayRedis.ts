@@ -75,68 +75,9 @@ function sanitizePairingId(pairingId: string): string {
   return sanitized;
 }
 
-function commandQueueKey(pairingId: string): string {
-  return `relay:penpot:${sanitizePairingId(pairingId)}:cmd`;
-}
-
-function presenceKey(pairingId: string): string {
-  return `relay:penpot:${sanitizePairingId(pairingId)}:presence`;
-}
 
 function responseKey(requestId: string): string {
   return `relay:response:${requestId}`;
-}
-
-export async function markPenpotPresence(pairingId: string): Promise<void> {
-  const key = presenceKey(pairingId);
-  await runRedisCommand<string>(['SETEX', key, '120', Date.now().toString()]);
-}
-
-// Command delivery now uses Ably WebSocket (relayAbly.ts).
-// The poll/blocking dequeue is preserved as a fallback for non-Ably clients.
-
-function parseRelayCommand(raw: string): RelayCommand | null {
-  const parsed: unknown = JSON.parse(raw);
-  if (!isRecord(parsed)) {
-    return null;
-  }
-
-  if (typeof parsed.id !== 'string' || (parsed.action !== 'select' && parsed.action !== 'export')) {
-    return null;
-  }
-
-  const command: RelayCommand = {
-    id: parsed.id,
-    action: parsed.action,
-    createdAt: typeof parsed.createdAt === 'number' ? parsed.createdAt : Date.now(),
-  };
-
-  if (typeof parsed.shapeId === 'string') {
-    command.shapeId = parsed.shapeId;
-  }
-  if (parsed.format === 'svg' || parsed.format === 'png') {
-    command.format = parsed.format;
-  }
-  if (typeof parsed.scale === 'number') {
-    command.scale = parsed.scale;
-  }
-
-  return command;
-}
-
-export async function blockingDequeuePenpotCommand(
-  pairingId: string,
-  timeoutSeconds: number
-): Promise<RelayCommand | null> {
-  const key = commandQueueKey(pairingId);
-  const clampedTimeout = Math.max(1, Math.min(55, Math.floor(timeoutSeconds)));
-  const result = await runRedisCommand<[string, string] | null>(['BRPOP', key, String(clampedTimeout)]);
-
-  if (!result || !Array.isArray(result) || typeof result[1] !== 'string') {
-    return null;
-  }
-
-  return parseRelayCommand(result[1]);
 }
 
 export async function storeRelayResponse(requestId: string, response: RelayStoredResponse): Promise<void> {
@@ -166,4 +107,28 @@ export async function getRelayResponse(requestId: string): Promise<RelayStoredRe
 
 export async function deleteRelayResponse(requestId: string): Promise<void> {
   await runRedisCommand<number>(['DEL', responseKey(requestId)]);
+}
+
+function oauthStoreKey(state: string): string {
+  return `oauth:state:${state.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+}
+
+export async function storeOauthToken(state: string, tokens: unknown): Promise<void> {
+  const key = oauthStoreKey(state);
+  await runRedisCommand<string>(['SETEX', key, '300', JSON.stringify(tokens)]);
+}
+
+export async function getOauthToken(state: string): Promise<unknown | null> {
+  const key = oauthStoreKey(state);
+  const result = await runRedisCommand<string | null>(['GET', key]);
+  if (!result) return null;
+
+  // Consume token once read
+  await runRedisCommand<number>(['DEL', key]);
+
+  try {
+    return JSON.parse(result);
+  } catch {
+    return null;
+  }
 }

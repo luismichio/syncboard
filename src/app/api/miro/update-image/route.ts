@@ -147,7 +147,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: errorMsg }, { status: 500 });
+    console.error('Error during Miro image update:', err);
+    return NextResponse.json({ error: 'Internal Server Error during Miro image update' }, { status: 500 });
   }
 }

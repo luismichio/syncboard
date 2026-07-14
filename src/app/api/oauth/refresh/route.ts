@@ -138,6 +138,7 @@ export async function POST(request: Request) {
       expiresAt,
     });
   } catch (err) {
+    console.error('Error during token refresh:', err);
     if (err instanceof Error && err.name === 'AbortError') {
       return NextResponse.json(
         { error: 'OAuth provider refresh timed out' },
@@ -145,9 +146,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const errorMsg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: errorMsg },
+      { error: 'Internal Server Error during token refresh' },
       { status: 500 }
     );
   }

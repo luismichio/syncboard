@@ -1,19 +1,15 @@
 use axum::{
-    extract::{
-        ws::{Message as AxumMessage, WebSocket, WebSocketUpgrade},
-        State, Query,
-    },
+    extract::State,
     http::{HeaderName, HeaderValue, StatusCode},
-    response::{IntoResponse, Response},
+    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
 use axum::middleware;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex, oneshot, Notify};
-use futures_util::{sink::SinkExt, stream::StreamExt};
+use tokio::sync::Mutex;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
@@ -22,11 +18,7 @@ use tauri::Emitter;
 #[derive(Clone)]
 struct AppState {
     // WebSocket connections (legacy)
-    connections: Arc<Mutex<HashMap<String, mpsc::UnboundedSender<AxumMessage>>>>,
-    pending: Arc<Mutex<HashMap<String, oneshot::Sender<serde_json::Value>>>>,
-    // HTTP polling: command queue per pairingId
-    penpot_commands: Arc<Mutex<HashMap<String, Vec<serde_json::Value>>>>,
-    penpot_notify: Arc<Notify>,
+    connections: Arc<Mutex<HashMap<String, ()>>>,
     app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
 }
 
@@ -47,35 +39,13 @@ impl AppState {
     }
 }
 
-#[derive(Deserialize)]
-struct PairingPayload {
-    #[serde(rename = "pairingId")]
-    pairing_id: String,
-}
 
-#[derive(Deserialize)]
-struct ExportPayload {
-    #[serde(rename = "pairingId")]
-    pairing_id: String,
-    #[serde(rename = "shapeId")]
-    shape_id: String,
-    format: String,
-    scale: f64,
-}
 
-#[derive(Deserialize)]
-struct PollQuery {
-    #[serde(rename = "pairingId")]
-    pairing_id: String,
-}
 
-#[derive(Deserialize)]
-struct ResultPayload {
-    #[serde(rename = "requestId")]
-    request_id: String,
-    data: Option<serde_json::Value>,
-    error: Option<String>,
-}
+
+
+
+
 
 #[derive(Serialize)]
 struct ApiResponse<T> {
@@ -89,9 +59,6 @@ struct ApiResponse<T> {
 pub fn run() {
     let state = AppState {
         connections: Arc::new(Mutex::new(HashMap::new())),
-        pending: Arc::new(Mutex::new(HashMap::new())),
-        penpot_commands: Arc::new(Mutex::new(HashMap::new())),
-        penpot_notify: Arc::new(Notify::new()),
         app_handle: Arc::new(Mutex::new(None)),
     };
 
@@ -174,8 +141,31 @@ async fn add_cors_and_pna(
         .headers()
         .get("origin")
         .and_then(|v| v.to_str().ok())
-        .unwrap_or("*")
+        .unwrap_or("")
         .to_string();
+
+    let allowed_origins = [
+        "https://syncboard.luiskobayashi.com",
+        "http://localhost:3000",
+        "http://localhost:1420",
+    ];
+
+    let is_allowed = origin.is_empty() || allowed_origins.contains(&origin.as_str());
+
+    if !is_allowed {
+        eprintln!("[CORS+PNA] Forbidden Origin blocked: {origin}");
+        return (
+            StatusCode::FORBIDDEN,
+            [(HeaderName::from_static("content-type"), HeaderValue::from_static("text/plain"))],
+            "Forbidden Origin",
+        ).into_response();
+    }
+
+    let ac_origin = if origin.is_empty() {
+        HeaderValue::from_static("*")
+    } else {
+        HeaderValue::from_str(&origin).unwrap_or(HeaderValue::from_static("*"))
+    };
 
     eprintln!("[CORS+PNA] {method} {uri} (origin: {origin})");
 
@@ -183,7 +173,7 @@ async fn add_cors_and_pna(
     if method == axum::http::Method::OPTIONS {
         eprintln!("[CORS+PNA] Returning OPTIONS preflight (204)");
         let headers = [
-            (HeaderName::from_static("access-control-allow-origin"), HeaderValue::from_str(&origin).unwrap_or(HeaderValue::from_static("*"))),
+            (HeaderName::from_static("access-control-allow-origin"), ac_origin),
             (HeaderName::from_static("access-control-allow-methods"), HeaderValue::from_static("GET, POST, OPTIONS")),
             (HeaderName::from_static("access-control-allow-headers"), HeaderValue::from_static("*")),
             (HeaderName::from_static("access-control-allow-private-network"), HeaderValue::from_static("true")),
@@ -198,7 +188,7 @@ async fn add_cors_and_pna(
     // Reflect origin or allow all
     response.headers_mut().insert(
         HeaderName::from_static("access-control-allow-origin"),
-        HeaderValue::from_str(&origin).unwrap_or(HeaderValue::from_static("*")),
+        ac_origin,
     );
 
     // PNA: required for Chrome when public sites access local/private network
@@ -214,15 +204,8 @@ async fn add_cors_and_pna(
 async fn start_https_server(state: AppState) {
     let app = Router::new()
         .route("/health", get(handle_health))
-        .route("/ws", get(ws_handler))
         .route("/miro/connect", post(handle_miro_connect))
-        // Penpot HTTP polling (fetch supports targetAddressSpace: loopback)
-        .route("/penpot/register", post(handle_penpot_register))
-        .route("/penpot/poll", get(handle_penpot_poll))
-        .route("/penpot/result", post(handle_penpot_result))
         .route("/detect-figma", post(handle_detect_figma))
-        .route("/detect-penpot", post(handle_detect_penpot))
-        .route("/export-penpot", post(handle_export_penpot))
         .route_layer(middleware::from_fn(add_cors_and_pna))
         .with_state(state.clone());
 
@@ -252,181 +235,17 @@ async fn start_https_server(state: AppState) {
 }
 
 // \u{2500}\u{2500} WebSocket handler \u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}
-async fn ws_handler(
-    ws: WebSocketUpgrade,
-    Query(params): Query<HashMap<String, String>>,
-    State(state): State<AppState>,
-) -> Response {
-    let pairing_id = params.get("pairingId").cloned().unwrap_or_default();
-    let pid = pairing_id.clone();
-    let mut response = ws
-        .on_upgrade(move |socket| handle_socket(socket, pairing_id, state))
-        .into_response();
 
-    eprintln!("[WS-HANDLER] Adding PNA header to 101 response (pairingId: {pid})");
-    response.headers_mut().insert(
-        HeaderName::from_static("access-control-allow-private-network"),
-        HeaderValue::from_static("true"),
-    );
-    response
-}
 
-async fn handle_socket(socket: WebSocket, pairing_id: String, state: AppState) {
-    if pairing_id.is_empty() {
-        state.log("Bridge", "Rejected WebSocket with empty pairingId.").await;
-        return;
-    }
 
-    let (mut sender, mut receiver) = socket.split();
-    let (tx, mut rx) = mpsc::unbounded_channel::<AxumMessage>();
-
-    let sessions = {
-        let mut conns = state.connections.lock().await;
-        conns.insert(pairing_id.clone(), tx);
-        conns.len()
-    };
-    eprintln!("[WS-SOCKET] Penpot plugin connected via WS (pairingId: {pairing_id}, sessions: {sessions})");
-    state.log("Penpot", format!("Plugin connected (pairingId: {}, {} active session{})",
-        pairing_id, sessions, if sessions == 1 { "" } else { "s" })).await;
-
-    let mut write_task = tokio::spawn(async move {
-        while let Some(msg) = rx.recv().await {
-            if sender.send(msg).await.is_err() {
-                break;
-            }
-        }
-    });
-
-    let state_clone = state.clone();
-    let pairing_id_clone = pairing_id.clone();
-    let mut read_task = tokio::spawn(async move {
-        while let Some(Ok(msg)) = receiver.next().await {
-            if let AxumMessage::Text(text) = msg {
-                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
-                    if let Some(action) = val.get("action").and_then(|v| v.as_str()) {
-                        let name = val.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
-                        state_clone.log("Penpot", format!("Plugin responded to '{}' \u{2014} {}", action, name)).await;
-                    }
-                    if let Some(req_id) = val.get("id").and_then(|v| v.as_str()) {
-                        let mut pending = state_clone.pending.lock().await;
-                        if let Some(tx) = pending.remove(req_id) {
-                            let data = val.get("data").cloned().unwrap_or(serde_json::Value::Null);
-                            let _ = tx.send(data);
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    tokio::select! {
-        _ = (&mut write_task) => {}
-        _ = (&mut read_task) => {}
-    }
-
-    let sessions = {
-        let mut conns = state.connections.lock().await;
-        conns.remove(&pairing_id_clone);
-        conns.len()
-    };
-    state.log("Penpot", format!("Plugin disconnected (pairingId: {}, {} active session{})",
-        pairing_id_clone, sessions, if sessions == 1 { "" } else { "s" })).await;
-}
 
 // ══ Penpot HTTP polling handlers ════════════════════════════════════════════
 
-async fn handle_penpot_register(
-    State(state): State<AppState>,
-    Json(payload): Json<PairingPayload>,
-) -> impl IntoResponse {
-    if payload.pairing_id.is_empty() {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse {
-            error: Some("pairingId required".to_string()),
-            data: None::<serde_json::Value>,
-        }));
-    }
 
-    {
-        let mut cmds = state.penpot_commands.lock().await;
-        if !cmds.contains_key(&payload.pairing_id) {
-            cmds.insert(payload.pairing_id.clone(), Vec::new());
-        }
-    }
-    state.log("Penpot", format!("HTTP poll registered (pairingId: {})", payload.pairing_id)).await;
-    (StatusCode::OK, Json(ApiResponse {
-        error: None,
-        data: Some(serde_json::json!({ "status": "registered" })),
-    }))
-}
 
-async fn handle_penpot_poll(
-    State(state): State<AppState>,
-    Query(payload): Query<PollQuery>,
-) -> impl IntoResponse {
-    if payload.pairing_id.is_empty() {
-        return (StatusCode::BAD_REQUEST, Json(ApiResponse {
-            error: Some("pairingId required".to_string()),
-            data: None::<serde_json::Value>,
-        }));
-    }
 
-    for _ in 0..30 {
-        let cmd = {
-            let mut cmds = state.penpot_commands.lock().await;
-            if let Some(queue) = cmds.get_mut(&payload.pairing_id) {
-                if !queue.is_empty() {
-                    Some(queue.remove(0))
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        };
 
-        if let Some(cmd) = cmd {
-            return (StatusCode::OK, Json(ApiResponse {
-                error: None,
-                data: Some(cmd),
-            }));
-        }
 
-        tokio::select! {
-            _ = state.penpot_notify.notified() => {}
-            _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {}
-        }
-    }
-
-    (StatusCode::OK, Json(ApiResponse {
-        error: None,
-        data: None::<serde_json::Value>,
-    }))
-}
-
-async fn handle_penpot_result(
-    State(state): State<AppState>,
-    Json(payload): Json<ResultPayload>,
-) -> impl IntoResponse {
-    let mut pending = state.pending.lock().await;
-    if let Some(tx) = pending.remove(&payload.request_id) {
-        if let Some(err) = payload.error {
-            let _ = tx.send(serde_json::json!({ "error": err }));
-        } else {
-            let _ = tx.send(payload.data.unwrap_or(serde_json::Value::Null));
-        }
-        drop(pending);
-        state.log("Penpot", "Command result received and forwarded.").await;
-        (StatusCode::OK, Json(ApiResponse {
-            error: None,
-            data: Some(serde_json::json!({ "status": "ok" })),
-        }))
-    } else {
-        (StatusCode::NOT_FOUND, Json(ApiResponse {
-            error: Some("No pending request with this ID".to_string()),
-            data: None::<serde_json::Value>,
-        }))
-    }
-}
 
 // \u{2500}\u{2500} Figma detection \u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}
 async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse {
@@ -524,137 +343,12 @@ fn regex_capture(text: &str, pattern: &str) -> Option<String> {
 }
 
 // \u{2500}\u{2500} Penpot selection detection (WSS relay) \u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}
-async fn handle_detect_penpot(
-    State(state): State<AppState>,
-    Json(payload): Json<PairingPayload>,
-) -> impl IntoResponse {
-    if payload.pairing_id.is_empty() {
-        return (
-            StatusCode::OK,
-            Json(ApiResponse {
-                error: None,
-                data: Some(serde_json::json!({ "status": "ok" })),
-            }),
-        );
-    }
 
-    state.log("Miro", format!(" Requested Penpot selection detection (pairingId: {})", payload.pairing_id)).await;
-    state.log("Penpot", format!("Selection query for pairingId: {}", payload.pairing_id)).await;
-
-    let req_id = format!("req_{}", rand_id());
-    let (reply_tx, reply_rx) = oneshot::channel::<serde_json::Value>();
-
-    state.pending.lock().await.insert(req_id.clone(), reply_tx);
-
-    let cmd = serde_json::json!({
-        "id": req_id,
-        "action": "select"
-    });
-
-    {
-        let mut cmds = state.penpot_commands.lock().await;
-        cmds.entry(payload.pairing_id.clone()).or_insert_with(Vec::new).push(cmd);
-    }
-    state.penpot_notify.notify_one();
-
-    let log_id = payload.pairing_id.clone();
-    match tokio::time::timeout(std::time::Duration::from_secs(5), reply_rx).await {
-        Ok(Ok(val)) => {
-            if val.is_null() {
-                state.log("Penpot", "Selection: empty (nothing selected in Penpot)").await;
-                (
-                    StatusCode::OK,
-                    Json(ApiResponse {
-                        error: None,
-                        data: None,
-                    }),
-                )
-            } else {
-                let name = val.get("name").and_then(|v| v.as_str()).unwrap_or("Penpot Screen");
-                let shape_id = val.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
-                state.log("Penpot", format!("Selected: {} (shapeId: {})", name, shape_id)).await;
-                (
-                    StatusCode::OK,
-                    Json(ApiResponse {
-                        error: None,
-                        data: Some(val),
-                    }),
-                )
-            }
-        }
-        _ => {
-            state.pending.lock().await.remove(&req_id);
-            state.log("Penpot", format!("Selection query timed out (pairingId: {})", log_id)).await;
-            (
-                StatusCode::GATEWAY_TIMEOUT,
-                Json(ApiResponse {
-                    error: Some("Penpot plugin timed out responding to selection query.".to_string()),
-                    data: None,
-                }),
-            )
-        }
-    }
-}
 
 // \u{2500}\u{2500} Penpot frame export (WSS relay) \u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}
-async fn handle_export_penpot(
-    State(state): State<AppState>,
-    Json(payload): Json<ExportPayload>,
-) -> impl IntoResponse {
-    state.log("Miro", format!("→ Requested Penpot shape export (shapeId: {})", payload.shape_id)).await;
-    state.log("Penpot", format!("Export request: shapeId={}, format={}, scale={}", payload.shape_id, payload.format, payload.scale)).await;
 
-    let req_id = format!("req_{}", rand_id());
-    let (reply_tx, reply_rx) = oneshot::channel::<serde_json::Value>();
 
-    state.pending.lock().await.insert(req_id.clone(), reply_tx);
 
-    let cmd = serde_json::json!({
-        "id": req_id,
-        "action": "export",
-        "shapeId": payload.shape_id,
-        "format": payload.format,
-        "scale": payload.scale
-    });
-
-    {
-        let mut cmds = state.penpot_commands.lock().await;
-        cmds.entry(payload.pairing_id.clone()).or_insert_with(Vec::new).push(cmd);
-    }
-    state.penpot_notify.notify_one();
-
-    let shape_id_log = payload.shape_id.clone();
-    match tokio::time::timeout(std::time::Duration::from_secs(15), reply_rx).await {
-        Ok(Ok(val)) => {
-            let svg_size = val.get("svg").and_then(|v| v.as_str()).map(|s| s.len()).unwrap_or(0);
-            let b64_size = val.get("base64").and_then(|v| v.as_str()).map(|s| s.len()).unwrap_or(0);
-            state.log("Penpot", format!("Export complete: shapeId={}, svg={}B, base64={}B", shape_id_log, svg_size, b64_size)).await;
-            (
-                StatusCode::OK,
-                Json(ApiResponse {
-                    error: None,
-                    data: Some(val),
-                }),
-            )
-        }
-        _ => {
-            state.pending.lock().await.remove(&req_id);
-            state.log("Penpot", format!("Export timed out (shapeId: {})", shape_id_log)).await;
-            (
-                StatusCode::GATEWAY_TIMEOUT,
-                Json(ApiResponse {
-                    error: Some("Penpot plugin timed out responding to render query.".to_string()),
-                    data: None,
-                }),
-            )
-        }
-    }
-}
-
-fn rand_id() -> String {
-    let r: u32 = rand::random();
-    format!("{:x}", r)
-}
 
 // Silent health check \u{2014} called by Miro plugin every 30s. No logging to avoid flooding.
 async fn handle_health() -> impl IntoResponse {
