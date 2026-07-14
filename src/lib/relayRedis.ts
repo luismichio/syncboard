@@ -67,13 +67,7 @@ async function runRedisCommand<T>(parts: string[]): Promise<T> {
   return payloadUnknown.result as T;
 }
 
-function sanitizePairingId(pairingId: string): string {
-  const sanitized = pairingId.trim().replace(/[^a-zA-Z0-9_-]/g, '');
-  if (!sanitized) {
-    throw new Error('Invalid pairingId.');
-  }
-  return sanitized;
-}
+
 
 
 function responseKey(requestId: string): string {
