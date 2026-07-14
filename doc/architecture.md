@@ -317,31 +317,13 @@ Image bytes pass through **Redis ephemerally** (step 1–2) and **Vercel twice**
 
 In short: the cloud relay path handles **small-to-medium payloads** efficiently at near-zero cost. Tauri is only needed when you hit the 4.5MB ceiling or want to eliminate Vercel bandwidth entirely.
 
-### G. When Tauri IS Used for Transport (Legacy Mode)
+### G. Deprecation of Local Tauri Transport for Penpot
 
-If the user explicitly enables SyncBridge in settings (`syncboard\_use\_tauri = true`), Tauri acts as a local loopback bridge for **selection detection only** — it does **not** replace the image upload path through Vercel. This mode is a legacy fallback for Miro Desktop (Electron) users who already have Tauri installed.
+Following structural security audits, the local Tauri transport pathway for Penpot (where commands were routed locally via WebSocket port `4401` to the companion plugin) was **deprecated and removed**. 
 
-```
-Miro Plugin ──POST──► Tauri Bridge ──WS──► Penpot Companion Plugin
-    (request)       (localhost:4401)    (renders shape locally)
-                         │
-                         │  ◄── SVG/base64 ──┘
-                         ▼
-                   Miro Plugin  ──POST──► /api/miro/update-image ──► Miro API
-                   (data URL)          (Vercel, still subject to 4.5MB limit)
-```
+All Penpot commands are now routed exclusively through the secure **Cloud Relay Path (Section B)** using Ably and Redis. This change:
+* Eliminates browser-level Mixed Content and Private Network Access (PNA) blockages inside Penpot.
+* Simplifies client-side transport logic in the Miro plugin.
+* Standardizes security validation across all browsers and desktop clients.
 
-**What Tauri replaces vs the relay path:**
-
-| Step | Relay Path | Tauri Transport Path |
-| :--- | :--- | :--- |
-| Command delivery | Ably WebSocket (publish/subscribe) | Local WebSocket (direct) |
-| Result delivery | Redis SETEX → Vercel response (only during active import) | Local HTTP response (direct) |
-| Image data to Vercel? | Yes — once (relay result, not command delivery) | Yes — once (Miro update only) |
-| Redis cost | ~2–4 commands per sync run (result only) | $0 (no Redis used) |
-| Vercel invocations per sync | 2 (relay request + Miro update) | 1 (Miro update only) |
-| Browser compatibility | All modern browsers (public HTTPS) | **Miro Desktop / Electron only** (Chrome PNA blocks browser→localhost) |
-
-**Tauri transport eliminates one Vercel hop** (the relay response — step 2 in the Penpot relay path), but the image still passes through Vercel via `/api/miro/update-image`. The 4.5MB limit still applies unless Tauri also handles the Miro API upload directly (see item #5 in the Tauri Capability Extender backlog — **Large Image Transport >4.5MB**).
-
-**Important caveat for self-hosters:** Tauri transport only works from **Miro Desktop (Electron)** because Chrome blocks all browser→localhost requests from public origins with PNA. It does not work from miro.com in a regular browser. If your users primarily use Miro in a browser, the relay path is the only option regardless of whether Tauri is installed.
+Tauri remains active strictly as a local capability extender (e.g. Figma Desktop local selection querying on port `3845` and future Adobe UXP integrations).
