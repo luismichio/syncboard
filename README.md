@@ -30,7 +30,7 @@ Unlike official live embeds which require browser logins and degrade board perfo
 | **Figma / Miro Login (OAuth)** | Any browser | Browser or Desktop | **No** (Stateless OAuth polling) |
 
 > **📖 Full setup & deployment guide → [/docs/setup](/docs/setup)**  
-> **🔧 Tauri/SyncBridge setup → [/docs/setup#8-tauri-desktop-app-syncbridge](/docs/setup)**  
+> **🔧 Tauri/SyncBridge setup → [/docs/setup#7-tauri-desktop-app-syncbridge-optional](/docs/setup)**  
 > **📐 Architecture reference → [/docs/architecture](/docs/architecture)**
 
 ---
