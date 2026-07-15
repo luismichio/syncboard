@@ -8,32 +8,32 @@ Unlike official live embeds which require browser logins and degrade board perfo
 
 ---
 
-## ✨ Features
+## Features
 
 * **In-Place Updates:** SyncBoard utilizes a custom `PATCH` update mechanism that replaces the binary image file of the Miro widget while keeping its position, dimensions, rotation, and parent frames intact.
 * **Consolidated Selection & Copies Counter:** Group duplicates of the same frame inside the sidebar under a single card, displaying a count badge (e.g., `x3`) in the top-right. Updating scale or format updates all copies simultaneously.
 * **Dual-Platform Sync:** Supports **Figma** (cloud-native sync) and **Penpot** (relay-first sync for browser sandbox compatibility) side-by-side.
 * **Zero-Setup Figma Sync:** Connects to Figma's public API to render and update screens in the cloud with no local servers or databases required.
-* **Cloud Relay Transport (Penpot):** Public HTTPS relay (Upstash Redis + Vercel) coordinates between the Penpot Companion plugin and the Miro plugin — no localhost calls, no PNA blocks, works in any browser.
-* **SyncBridge Companion (Optional Desktop Extender):** Tauri-powered desktop app for advanced capabilities — large images (>4.5MB), Adobe UXP bridge, local LLMs, two-way sync. Not required for day-to-day sync.
+* **Cloud Relay Transport (Penpot):** Public HTTPS relay (Upstash Redis + Vercel) coordinates between the Penpot Companion plugin and the Miro plugin --- no localhost calls, no PNA blocks, works in any browser.
+* **SyncBridge Companion (Optional Desktop Extender):** Tauri-powered desktop app for advanced capabilities --- large images (>4.5MB), Adobe UXP bridge, local LLMs, two-way sync. Not required for day-to-day sync.
 
-### 📐 Integration & Compatibility Matrix
+### Integration & Compatibility Matrix
 
 | Feature | Design Tool Context | Miro Client | SyncBridge / Tauri Required? |
 | :--- | :--- | :--- | :--- |
 | **Figma URL Import / Sync** | Browser or Desktop | Browser or Desktop | **No** (Cloud API sync) |
 | **Figma Auto-Detect Selection** | Figma Desktop or Browser | Any | **No with Figma plugin** (planned) / **Yes with SyncBridge** (current fallback) |
-| **Penpot URL Import & Selection** | Penpot Browser | Any | **No** (Cloud relay — works in any browser via Companion plugin) |
+| **Penpot URL Import & Selection** | Penpot Browser | Any | **No** (Cloud relay --- works in any browser via Companion plugin) |
 | **Penpot Export & Render** | Penpot Browser | Any | **No** (Companion plugin renders locally, relay handles transport) |
 | **Large Images (>4.5MB)** | Any | Any | **Optional** (SyncBridge bypasses Vercel body limit) |
 | **Adobe UXP / Local LLMs / Two-Way Sync** | Desktop apps | Any | **Optional** (SyncBridge capability extender) |
 | **Figma / Miro Login (OAuth)** | Any browser | Browser or Desktop | **No** (Stateless OAuth polling) |
 
-> **📖 Full setup & deployment guide → [/docs/setup](/docs/setup)**  
-> **🔧 Tauri/SyncBridge setup → [/docs/setup#7-tauri-desktop-app-syncbridge-optional](/docs/setup)**  
-> **📐 Architecture reference → [/docs/architecture](/docs/architecture)**
+> ** Full setup & deployment guide -> [/docs/setup](/docs/setup)**
+> ** Tauri/SyncBridge setup -> [/docs/setup#7-tauri-desktop-app-syncbridge-optional](/docs/setup)**
+> ** Architecture reference -> [/docs/architecture](/docs/architecture)**
 
 ---
 
-## 📄 License
+## License
 This project is open-source and licensed under the **Apache License 2.0**. See the [LICENSE](./LICENSE) file for more details.

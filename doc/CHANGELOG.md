@@ -35,10 +35,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Miro Token Stale-Expiry on Sync:** syncSelectedScreens now calls getValidToken('miro') at the start to auto-refresh the token before syncing, instead of relying on the mount-time token.
 * **Penpot Import Width Hardcode:** Removed width: 800 from createImage() in usePenpotImporter.ts (same fix previously applied to Figma).
 * **Missing Width in Selection State:** SyncedImage now includes width from the Miro widget. The sync selected-items path passes width to the PATCH endpoint, enabling resize.
-* **No Scale Passed to Penpot Export in Sync:** The export_shape call was missing the scale parameter — always defaulted to 2 during propagate. Now passes target.scale so the selected scale takes effect.
+* **No Scale Passed to Penpot Export in Sync:** The export_shape call was missing the scale parameter --- always defaulted to 2 during propagate. Now passes target.scale so the selected scale takes effect.
 * **Render Cache Key Collisions:** Cache keys now include scale (fileKey|nodeId|format|scale) for both Figma and Penpot, preventing collisions when copies have different scales.
 * **Companion Plugin Status Stuck on Unknown:** Handshake waited for a ui-ready message that is never received by the UI. Now sets plugin status to Connected on theme-change (the plugin's actual handshake response).
-* **SVG Widget 0-Width Resize Fail:** Miro SDK returns width: 0 for SVG image widgets. Width calculation now handles 0-width gracefully — uses stored natural width when available, otherwise skips geometry (lets Miro auto-size).
+* **SVG Widget 0-Width Resize Fail:** Miro SDK returns width: 0 for SVG image widgets. Width calculation now handles 0-width gracefully --- uses stored natural width when available, otherwise skips geometry (lets Miro auto-size).
 * **Miro PATCH Geometry Override by Async Image Processing:** Miro's image-specific PATCH overrides geometry.width with the new image's pixel dimensions after async processing. Fixed by splitting into two steps: (1) upload image via image endpoint (no geometry), (2) apply geometry via generic item endpoint (JSON body) which updates the widget data model directly without triggering image reprocessing.
 ### Changed
 * **Penpot Import Display Width:** Display width now calculated as naturalWidth x exportScale (not fixed at natural width). Widgets visually scale with export resolution: 1x=400px, 2x=800px, 4x=1600px.
@@ -58,18 +58,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 * **Ably WebSocket Transport for Penpot Commands:** Replaced Redis polling for command delivery with Ably pub/sub. Companion now subscribes to an Ably channel via WebSocket for near-instant command delivery with zero idle Redis cost.
-  * Added `src/lib/relayAbly.ts` — Ably REST helpers for publishing commands and token generation.
-  * Added `POST /api/ably/token` endpoint — generates scoped subscribe-only tokens for companion authentication.
-  * Updated `POST /api/relay/request` — publishes commands via Ably instead of Redis LPUSH.
-  * Updated `public/penpot-companion-ui.html` — replaced polling loop with Ably Realtime WebSocket subscription.
+ * Added `src/lib/relayAbly.ts` --- Ably REST helpers for publishing commands and token generation.
+ * Added `POST /api/ably/token` endpoint --- generates scoped subscribe-only tokens for companion authentication.
+ * Updated `POST /api/relay/request` --- publishes commands via Ably instead of Redis LPUSH.
+ * Updated `public/penpot-companion-ui.html` --- replaced polling loop with Ably Realtime WebSocket subscription.
 * **Presence via Ably:** Companion enters Ably channel presence on connect; `/api/relay/request` checks Ably presence REST API (instead of Redis SETEX) to determine if companion is online.
 
 ### Removed
 * Redis-based `enqueuePenpotCommand`, `dequeuePenpotCommand`, `isPenpotOnline` functions (command delivery fully migrated to Ably).
-* Period heartbeat to `/api/relay/penpot/register` (no longer needed — Ably presence replaces it).
+* Period heartbeat to `/api/relay/penpot/register` (no longer needed --- Ably presence replaces it).
 
 ### Notes
-* **Result storage remains on Redis** (`storeRelayResponse`/`getRelayResponse`/`deleteRelayResponse`) — these are only used during active imports, with negligible idle cost.
+* **Result storage remains on Redis** (`storeRelayResponse`/`getRelayResponse`/`deleteRelayResponse`) --- these are only used during active imports, with negligible idle cost.
 * **Fallback endpoints preserved:** `/api/relay/penpot/poll` (BRPOP) and `/api/relay/penpot/register` remain operational for non-Ably clients.
 * Requires `ABLY_API_KEY` environment variable. Free tier (200k messages/month) is sufficient.
 
@@ -96,11 +96,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.5.2] - 2026-07-11
 
 ### Added
-* **Import Format & Scale Selectors:** Added format (SVG/PNG) and scale (1x–4x, visible when PNG selected) dropdowns to both Figma and Penpot node info cards in the import tab, matching the sync grouped-card UI. `importFigmaScreen` and `importPenpotScreen` now accept `format` and `scale` parameters.
+* **Import Format & Scale Selectors:** Added format (SVG/PNG) and scale (1x-4x, visible when PNG selected) dropdowns to both Figma and Penpot node info cards in the import tab, matching the sync grouped-card UI. `importFigmaScreen` and `importPenpotScreen` now accept `format` and `scale` parameters.
 
 ### Fixed
-* **Figma MCP Tool Name (SyncBridge & Browser Fallback):** Updated `get_design_context` → `get_selection` in both `tauri-bridge/src-tauri/src/lib.rs` and `src/app/miro-plugin/useFigmaImporter.ts` to match the current Figma Desktop MCP API.
-* **Penpot Companion Polling Flood:** Added 2-second delay (`await sleep(2000)`) between poll iterations in `public/penpot-companion-ui.html` to prevent ~1,000 Redis commands/second when idle. Tight loop was the cause of unexpectedly high Redis consumption (~2,600 commands for 10–20 syncs).
+* **Figma MCP Tool Name (SyncBridge & Browser Fallback):** Updated `get_design_context` -> `get_selection` in both `tauri-bridge/src-tauri/src/lib.rs` and `src/app/miro-plugin/useFigmaImporter.ts` to match the current Figma Desktop MCP API.
+* **Penpot Companion Polling Flood:** Added 2-second delay (`await sleep(2000)`) between poll iterations in `public/penpot-companion-ui.html` to prevent ~1,000 Redis commands/second when idle. Tight loop was the cause of unexpectedly high Redis consumption (~2,600 commands for 10-20 syncs).
 
 ## [0.5.1] - 2026-07-11
 
@@ -117,7 +117,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **PNA/LNA Block in Penpot Web Context:** Removed hard dependency on browser-to-localhost calls for Penpot sync path, preventing `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS` in relay mode.
 
 ### Documentation
-* **Architecture Reassessment:** Updated `doc/architecture.md` with §7 (cloud-relay-first + Tauri as capability extender), revised §1.B, §2, and §5.B to reflect relay-first reality.
+* **Architecture Reassessment:** Updated `doc/architecture.md` with 7 (cloud-relay-first + Tauri as capability extender), revised 1.B, 2, and 5.B to reflect relay-first reality.
 * **Backlog Restructure:** `doc/backlog.md` reorganized with new "Tauri Capability Extender" section (large images, Adobe UXP, local LLMs, compression, document parsing, two-way sync, multi-whiteboard) and an Icebox for archived bridge architectures.
 
 ## [0.5.0] - 2026-07-11
@@ -136,7 +136,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **19 API Route Tests:** Test suites for `/api/figma/render`, `/api/figma/render-batch`, `/api/figma/node-info`, and `/api/miro/update-image` (38 total, all passing).
 
 ### Changed
-* **Issue 4 — Token Refresh Resilience:** `getValidToken()` no longer clears the token on a single refresh failure. The old token stays in storage and retries on the next page load, preventing unnecessary re-authentication from transient failures.
+* **Issue 4 --- Token Refresh Resilience:** `getValidToken()` no longer clears the token on a single refresh failure. The old token stays in storage and retries on the next page load, preventing unnecessary re-authentication from transient failures.
 * **Enhanced Bridge Logging:** All SyncBridge events now show `[Service]` prefixes (`[Bridge]`, `[Figma]`, `[Penpot]`) with pairing IDs, shape names, file keys, and session counts.
 
 ### Fixed
