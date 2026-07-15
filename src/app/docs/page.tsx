@@ -12,8 +12,8 @@ interface DocMeta {
 
 function categorize(slug: string): string {
   if (slug === "readme") return "Overview";
-  if (slug === "setup" || slug === "tauri-setup") return "Guides";
-  if (slug === "architecture" || slug === "changelog") return "Reference";
+  if (slug === "setup") return "Guides";
+  if (slug === "architecture" || slug === "changelog" || slug === "license") return "Reference";
   return "Other";
 }
 
