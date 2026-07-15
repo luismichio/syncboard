@@ -369,3 +369,239 @@ describe("plan name", () => {
     expect(body.plan).toBe("community");
   });
 });
+
+// ─── Attack scenarios ──────────────────────────────────────────────────
+
+describe("attack: token cycling", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("UPSTASH_REDIS_REST_URL", undefined);
+    setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    setEnv("VERCEL", undefined);
+  });
+
+  it("global backstop catches 501 unique tokens cycling", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "figma:render" })(handler);
+
+    for (let i = 0; i < 500; i++) {
+      const req = new Request(
+        `http://localhost/api/figma/render?fileKey=f&nodeId=n`,
+        { headers: { Authorization: `Bearer cycle-token-${i}` } }
+      );
+      const res = await wrapped(req);
+      if (res.status !== 200) {
+        const body = await res.json().catch(() => ({}));
+        expect({ status: res.status, i, body }).toEqual({ status: 200, i, body: {} });
+      }
+    }
+    expect(handler).toHaveBeenCalledTimes(500);
+
+    const lastReq = new Request(
+      "http://localhost/api/figma/render?fileKey=f&nodeId=n",
+      { headers: { Authorization: "Bearer cycle-token-final" } }
+    );
+    const lastRes = await wrapped(lastReq);
+    expect(lastRes.status).toBe(429);
+    const body = await lastRes.json();
+    expect(body.error).toBe("rate_limit_exceeded");
+    expect(body.remaining).toBe(0);
+    expect(body.plan).toBe("community");
+    expect(handler).toHaveBeenCalledTimes(500);
+  });
+
+  it("global backstop shared across endpoint types", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const renderWrapped = withRateLimit({ endpoint: "figma:render" })(handler);
+    const batchWrapped = withRateLimit({ endpoint: "figma:render-batch" })(handler);
+
+    for (let i = 0; i < 3; i++) {
+      const req = new Request(
+        `http://localhost/api/figma/render?fileKey=f&nodeId=n`,
+        { headers: { Authorization: `Bearer shared-global-${i}` } }
+      );
+      await renderWrapped(req);
+    }
+    for (let i = 3; i < 6; i++) {
+      const req = new Request(
+        "http://localhost/api/figma/render-batch",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer shared-global-${i}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ nodes: [] }),
+        }
+      );
+      await batchWrapped(req);
+    }
+    expect(handler).toHaveBeenCalledTimes(6);
+  });
+});
+
+describe("attack: pairingId cycling via relay", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("UPSTASH_REDIS_REST_URL", undefined);
+    setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    setEnv("VERCEL", undefined);
+  });
+
+  it("multi-window + global backstop catches 501 pairing IDs", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "relay:request" })(handler);
+
+    for (let i = 0; i < 500; i++) {
+      const req = new Request("http://localhost/api/relay/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pairingId: `pairing-cycle-${i}`, action: "select" }),
+      });
+      const res = await wrapped(req);
+      if (res.status !== 200) {
+        const body = await res.json().catch(() => ({}));
+        expect({ status: res.status, i, body }).toEqual({ status: 200, i, body: {} });
+      }
+    }
+    expect(handler).toHaveBeenCalledTimes(500);
+
+    const lastReq = new Request("http://localhost/api/relay/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pairingId: "pairing-cycle-final", action: "select" }),
+    });
+    const lastRes = await wrapped(lastReq);
+    expect(lastRes.status).toBe(429);
+    const body = await lastRes.json();
+    expect(body.error).toBe("rate_limit_exceeded");
+    expect(body.plan).toBe("community");
+    expect(handler).toHaveBeenCalledTimes(500);
+  });
+});
+
+describe("attack: concurrent burst", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("UPSTASH_REDIS_REST_URL", undefined);
+    setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    setEnv("VERCEL", undefined);
+  });
+
+  it("10 concurrent requests with same token — max 5 succeed", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "figma:render" })(handler);
+
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        wrapped(new Request(
+          "http://localhost/api/figma/render?fileKey=f&nodeId=n",
+          { headers: { Authorization: "Bearer burst-same-token" } }
+        ))
+      )
+    );
+
+    const successes = responses.filter((r) => r.status === 200).length;
+    const failures = responses.filter((r) => r.status === 429).length;
+    expect(successes).toBeLessThanOrEqual(5);
+    expect(failures).toBeGreaterThanOrEqual(5);
+    expect(successes + failures).toBe(10);
+  });
+
+  it("600 concurrent requests with unique tokens — global backstop holds", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "figma:render" })(handler);
+
+    const responses = await Promise.all(
+      Array.from({ length: 600 }, (_, i) =>
+        wrapped(new Request(
+          "http://localhost/api/figma/render?fileKey=f&nodeId=n",
+          { headers: { Authorization: `Bearer conc-burst-${i}` } }
+        ))
+      )
+    );
+
+    const successes = responses.filter((r) => r.status === 200).length;
+    const failures = responses.filter((r) => r.status === 429).length;
+    expect(successes).toBeGreaterThanOrEqual(495);
+    expect(successes).toBeLessThanOrEqual(505);
+    expect(failures).toBeGreaterThanOrEqual(95);
+    expect(successes + failures).toBe(600);
+  });
+});
+
+describe("attack: IP rotation on fallback", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("UPSTASH_REDIS_REST_URL", undefined);
+    setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    setEnv("VERCEL", undefined);
+  });
+
+  it("malformed JSON body in relay falls back to IP and passes", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "relay:request" })(handler);
+
+    const res = await wrapped(new Request("http://localhost/api/relay/request", {
+      method: "POST",
+      body: "not actually json",
+      headers: { "Content-Type": "application/json" },
+    }));
+    expect(res.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("attack: global backstop starvation", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("UPSTASH_REDIS_REST_URL", undefined);
+    setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    setEnv("VERCEL", undefined);
+  });
+
+  it("attacker exhausts global limit — legitimate user is blocked", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "figma:render" })(handler);
+
+    // Attacker exhausts the 500/day limit with 500 unique tokens
+    for (let i = 0; i < 500; i++) {
+      await wrapped(new Request(
+        "http://localhost/api/figma/render?fileKey=f&nodeId=n",
+        { headers: { Authorization: `Bearer attacker-starv-${i}` } }
+      ));
+    }
+
+    // Legitimate user — should be blocked despite a completely different token
+    const legitRes = await wrapped(new Request(
+      "http://localhost/api/figma/render?fileKey=f&nodeId=n",
+      { headers: { Authorization: "Bearer legitimate-user" } }
+    ));
+    expect(legitRes.status).toBe(429);
+    const body = await legitRes.json();
+    expect(body.error).toBe("rate_limit_exceeded");
+    expect(body.remaining).toBe(0);
+    expect(body.plan).toBe("community");
+
+    // Different endpoint also blocked (shared global counter)
+    const batchWrapped = withRateLimit({ endpoint: "figma:render-batch" })(handler);
+    const batchRes = await batchWrapped(new Request(
+      "http://localhost/api/figma/render-batch",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer legitimate-user", "Content-Type": "application/json" },
+        body: JSON.stringify({ nodes: [] }),
+      }
+    ));
+    expect(batchRes.status).toBe(429);
+  });
+});

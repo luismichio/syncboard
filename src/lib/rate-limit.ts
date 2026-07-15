@@ -407,6 +407,23 @@ export function withRateLimit(opts: WithRateLimitOptions) {
         }
       }
 
+      // ── Global daily backstop ──────────────────────────────────────
+      // Hard ceiling across all users and all tokens. Prevents token cycling
+      // attacks where an attacker collects many OAuth tokens and rotates
+      // through them to bypass per-token limits.
+      const globalResult = await checkGlobalDailyBackstop(
+        "syncs",
+        COMMUNITY_PLAN.globalSyncsPerDay
+      );
+      if (!globalResult.allowed) {
+        return rateLimitResponse({
+          success: false,
+          limit: COMMUNITY_PLAN.globalSyncsPerDay,
+          remaining: 0,
+          reset: Date.now() + 86_400_000,
+        });
+      }
+
       return handler(request, ...args);
     };
   };
