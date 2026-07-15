@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Vercel-deployed-black?style=flat-square&logo=vercel" alt="Deployed on Vercel" />
 </p>
 
-> **Community Edition:** This public instance is rate-limited to protect shared infrastructure. Limits reset daily. See [/docs/setup#rate-limiting](/docs/setup#rate-limiting) to configure your own deployment.
+> **Community Edition:** This public instance is rate-limited to protect shared infrastructure. Limits reset daily. See [doc/setup.md#-rate-limiting-community-protection](https://github.com/luismichio/syncboard/blob/dev/doc/setup.md#-rate-limiting-community-protection) to configure your own deployment.
 
 SyncBoard is a stateless, open-source integration tool that lets product and design teams sync design screens from **Figma** and **Penpot** directly into Miro boards as lightweight, flat images. It prevents canvas clutter by updating images **in-place** (zero duplicates) using metadata tagged inside Miro's native `title` property.
 
@@ -53,4 +53,4 @@ Unlike official live embeds which require browser logins and degrade board perfo
 ---
 
 ## License
-This project is open-source and licensed under the **Apache License 2.0**. See the [LICENSE](/docs/license) file for more details.
+This project is open-source and licensed under the **Apache License 2.0**. See the [LICENSE](https://github.com/luismichio/syncboard/blob/dev/LICENSE) file for more details.
