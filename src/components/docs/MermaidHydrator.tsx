@@ -12,6 +12,8 @@ function getMermaidTheme() {
   const accent = getComputedStyle(root).getPropertyValue("--accent").trim() || "#00A2C9";
   const bgPage = getComputedStyle(root).getPropertyValue("--bg-page").trim() || (isDark ? "#0A0A0A" : "#FAF9F5");
 
+  const baseFont = "14px";
+
   return {
     theme: "base" as const,
     themeVariables: {
@@ -28,10 +30,16 @@ function getMermaidTheme() {
       nodeBorder: borderCard,
       nodeTextColor: textPage,
       titleColor: textPage,
-      fontSize: "14px",
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-      stateLen: "0",
-      sectionFontSize: "15px",
+      // Unified font sizes across all diagram types
+      fontSize: baseFont,
+      sectionFontSize: baseFont,
+      actorFontSize: baseFont,
+      noteFontSize: baseFont,
+      messageFontSize: baseFont,
+      labelFontSize: baseFont,
+      stateLabelFontSize: baseFont,
+      titleFontSize: baseFont,
     },
   };
 }

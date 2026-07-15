@@ -258,11 +258,14 @@ html {
 
 /* Click-to-zoom toggle */
 .mermaid-diagram.zoomed {
+  overflow: visible;
   transform: scale(1.4);
+  transform-origin: top center;
   z-index: 100;
   position: relative;
   cursor: zoom-out;
   box-shadow: 0 16px 48px rgba(0,0,0,0.25);
+  margin-bottom: 2rem;
 }
 .mermaid-diagram svg {
   max-width: 100%;
