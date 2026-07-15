@@ -152,15 +152,54 @@ Vercel is the default, but SyncBoard is a standard Next.js app and runs on any h
 | **Railway** | None documented | Large images work natively | 500MB RAM, 60s timeout |
 | **Render** | None documented | Large images work natively | 100-512MB RAM depending on plan |
 | **Google Cloud Run** | **32 MB** | Large images up to 32MB work natively | 60s timeout, auto-scaling |
+| **AWS ECS/Fargate** | None (full container) | Unlimited | Run behind ALB + CloudFront for HTTPS |
+| **AWS Elastic Beanstalk** | None (full VM) | Unlimited | Managed Node.js platform |
+| **Azure Container Apps** | None | Unlimited | 30s request timeout by default (configurable) |
 | **Fly.io** | None (full VM) | Unlimited | Persistent storage, any runtime |
 | **Docker / VPS** | None | Unlimited | Full control, you manage infra |
 
 To deploy on an alternative host:
 1. Set the same environment variables listed above.
-2. Use `yarn build && yarn start` for a Node server, or adapt for your platform's Next.js builder.
+2. Use `yarn build && yarn start` for a Node server (Next.js standalone mode), or adapt for your platform's builder.
 3. Make sure the public URL matches your `NEXT_PUBLIC_APP_URL` and your Miro/Figma OAuth redirect URIs.
 
 The **4.5MB limit is Vercel-specific** --- if you use any other host, large images sync without needing the Tauri desktop app for size reasons. (Tauri is still needed for Adobe UXP, local LLMs, and two-way sync.)
+
+### ~ Corporate AWS Scenario
+
+If your company runs on AWS, here is the typical deployment pattern:
+
+1. **Build the Docker image:**
+   ```dockerfile
+   FROM node:22-alpine
+   WORKDIR /app
+   COPY package.json yarn.lock ./
+   RUN yarn install --frozen-lockfile
+   COPY . .
+   RUN yarn build
+   EXPOSE 3000
+   CMD ["yarn", "start"]
+   ```
+   > Next.js `standalone` output mode is not configured by default. Add `output: "standalone"` to `next.config.ts` for smaller Docker images that only include the production server.
+
+2. **Push to ECR and deploy on ECS Fargate:**
+   - Service behind an **Application Load Balancer (ALB)** with HTTPS (ACM certificate for your domain).
+   - Set health check to `GET /` or `GET /api/health`.
+   - Minimum 1 task, 512MB RAM / 0.25 vCPU (enough for Next.js).
+
+3. **Set environment variables** in the ECS task definition (same vars as the Vercel table above).
+
+4. **Point your domain** at the ALB DNS name via Route 53 (or your DNS provider). Update the Miro and Figma OAuth redirect URIs to your domain.
+
+5. **Optional --- CloudFront CDN:** Add a CloudFront distribution in front of the ALB for caching static assets (CSS, JS, docs pages). The API routes (`/api/*`) should bypass the cache or use origin-forwarding.
+
+**Result:** Unlimited image payload sizes, no serverless function limits, full control over scaling. The only costs are ECS Fargate (~$10-30/mo for a single small task) + ALB (~$20/mo) + optional CloudFront. No per-request fees.
+
+> **Why still use Upstash/Ably?** The Penpot relay still needs Redis for result storage and Ably for WebSocket delivery --- these are transport-layer services, not hosting. They stay regardless of where you host the Next.js app itself.
+
+---
+
+## 6. Local Development
 
 ---
 

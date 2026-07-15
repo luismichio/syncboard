@@ -879,6 +879,7 @@ Image bytes pass through **Redis ephemerally** (step 1-2) and **Vercel twice** (
 | Heavy Penpot sync, large SVGs | Pro ($20/mo) | Free (~$0) | **$20/mo** | Redis used only for result storage (~2-4 commands per sync). Ably free tier (200k msg/mo) covers delivery. |
 | Large images on Vercel | Pro + Tauri extender | Free ($0) | **$20/mo** | Tauri handles direct Miro upload, bypassing Vercel's 4.5MB body limit |
 | Alternative hosts (Netlify, Railway, etc.) | Platform free tier | Free ($0) | **$0** | Most hosts have higher or no response body limits --- large images sync without Tauri |
+| Corporate infra (AWS ECS, Azure ACA, GCP GCE) | Existing budget | Existing budget | **$0 extra** | Docker container on existing Kubernetes or container platform --- no per-request fees, unlimited payloads |
 
 ### E. Why This Architecture Is Cost-Efficient
 
