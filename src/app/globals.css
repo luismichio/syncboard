@@ -256,3 +256,18 @@ html {
 .mermaid-diagram svg .nodeLabel {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
 }
+
+/* TOC sidebar scrollbar — subtle, matches theme */
+.toc-container::-webkit-scrollbar {
+  width: 4px;
+}
+.toc-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.toc-container::-webkit-scrollbar-thumb {
+  background: var(--border-card);
+  border-radius: 2px;
+}
+.toc-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
