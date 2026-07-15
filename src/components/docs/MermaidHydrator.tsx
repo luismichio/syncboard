@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function getMermaidTheme() {
   const root = document.documentElement;
@@ -9,10 +9,7 @@ function getMermaidTheme() {
   const textMuted = getComputedStyle(root).getPropertyValue("--text-muted").trim() || (isDark ? "#9A9997" : "#5E5E5E");
   const textPage = getComputedStyle(root).getPropertyValue("--text-page").trim() || (isDark ? "#FAF9F5" : "#0A0A0A");
   const borderCard = getComputedStyle(root).getPropertyValue("--border-card").trim() || (isDark ? "#1F1F1F" : "#E0DBD0");
-  const accent = getComputedStyle(root).getPropertyValue("--accent").trim() || "#00A2C9";
   const bgPage = getComputedStyle(root).getPropertyValue("--bg-page").trim() || (isDark ? "#0A0A0A" : "#FAF9F5");
-
-  const baseFont = "14px";
 
   return {
     theme: "base" as const,
@@ -30,22 +27,15 @@ function getMermaidTheme() {
       nodeBorder: borderCard,
       nodeTextColor: textPage,
       titleColor: textPage,
+      fontSize: "14px",
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-      // Unified font sizes across all diagram types
-      fontSize: baseFont,
-      sectionFontSize: baseFont,
-      actorFontSize: baseFont,
-      noteFontSize: baseFont,
-      messageFontSize: baseFont,
-      labelFontSize: baseFont,
-      stateLabelFontSize: baseFont,
-      titleFontSize: baseFont,
     },
   };
 }
 
 export default function MermaidHydrator() {
   const initialized = useRef(false);
+  const [zoomSvg, setZoomSvg] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialized.current) return;
@@ -79,8 +69,7 @@ export default function MermaidHydrator() {
         await mermaidInstance.run({
           querySelector: ".mermaid-diagram",
         });
-      } catch (err) {
-        // If render fails on first attempt, retry once after delay
+      } catch {
         setTimeout(async () => {
           try {
             await mermaidInstance.run({
@@ -92,15 +81,19 @@ export default function MermaidHydrator() {
 
       // Attach click-to-zoom handlers
       document.querySelectorAll<HTMLElement>(".mermaid-diagram").forEach((el) => {
-        // Remove old listener to avoid duplicates on re-render
         const oldHandler = (el as any).__zoomHandler;
-        if (oldHandler) {
-          el.removeEventListener("click", oldHandler);
-        }
-        const handler = (e: MouseEvent) => {
-          e.stopPropagation();
-          el.classList.toggle("zoomed");
-          el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        if (oldHandler) el.removeEventListener("click", oldHandler);
+
+        const handler = () => {
+          const svg = el.querySelector("svg");
+          if (svg) {
+            const cloned = svg.cloneNode(true) as SVGElement;
+            cloned.setAttribute("width", "90vw");
+            cloned.setAttribute("height", "auto");
+            cloned.style.maxWidth = "90vw";
+            cloned.style.maxHeight = "85vh";
+            setZoomSvg(cloned.outerHTML);
+          }
         };
         (el as any).__zoomHandler = handler;
         el.addEventListener("click", handler);
@@ -111,22 +104,16 @@ export default function MermaidHydrator() {
     // Initial render
     renderDiagrams();
 
-    // Watch for theme changes (class toggles on <html>)
-    observer = new MutationObserver(() => {
-      renderDiagrams();
-    });
+    // Watch for theme changes
+    observer = new MutationObserver(() => renderDiagrams());
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class"],
     });
 
-    // Also listen for system color scheme changes
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = () => {
-      // Only react if no explicit theme is stored (system mode)
-      if (!localStorage.getItem("theme")) {
-        renderDiagrams();
-      }
+      if (!localStorage.getItem("theme")) renderDiagrams();
     };
     mediaQuery.addEventListener("change", handleChange);
 
@@ -136,5 +123,36 @@ export default function MermaidHydrator() {
     };
   }, []);
 
-  return null;
+  // Keyboard escape to close zoom
+  useEffect(() => {
+    if (!zoomSvg) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoomSvg(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [zoomSvg]);
+
+  return (
+    <>
+      {zoomSvg && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => setZoomSvg(null)}
+        >
+          <div
+            className="bg-bg-card rounded-xl p-6 max-w-[95vw] max-h-[90vh] overflow-auto"
+            style={{ cursor: "zoom-out" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="mermaid-zoom"
+              dangerouslySetInnerHTML={{ __html: zoomSvg }}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
