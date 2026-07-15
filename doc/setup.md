@@ -1,6 +1,6 @@
 ---
 title: Setup & Deployment
-description: Register OAuth apps, configure environment variables, deploy to Vercel, and set up the Penpot Companion plugin.
+description: Register OAuth apps, configure environment variables, deploy to Vercel, set up the Penpot Companion plugin, and build the Tauri desktop app.
 ---
 
 # 🚀 Setup & Deployment
@@ -173,3 +173,138 @@ For testing and coding on your local machine:
    ```bash
    yarn dev
    ```
+
+---
+
+## 8. Tauri Desktop App (SyncBridge)
+
+> **Note:** The Tauri app is **optional** — only needed for large images (>4.5MB), Adobe UXP integration, local LLMs, and two-way sync. Day-to-day sync with Figma and Penpot works without it.
+
+### 8.1 Local Development Setup
+
+1. **Install Prerequisites:**
+   - **Node.js & Yarn** (already installed)
+   - **Rust toolchain:** Install via **[rustup.rs](https://rustup.rs/)**
+   - **OS Toolkits:**
+     - **Windows:** C++ build tools (via Visual Studio Installer)
+     - **macOS:** Xcode Command Line Tools (`xcode-select --install`)
+     - **Linux:**
+       ```bash
+       sudo apt install libwebkit2gtk-4.1-dev build-essential libssl-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev
+       ```
+
+2. **Build and Run:**
+   ```bash
+   cd tauri-bridge
+   yarn install
+   yarn tauri dev
+   ```
+
+### 8.2 Local SSL Certificate (mkcert)
+
+Miro runs on `https://miro.com`. Browsers block insecure connections from HTTPS pages as **mixed content**. SyncBridge uses `mkcert` — a zero-config tool that creates certificates trusted by your system.
+
+> **Important:** The `cert.pem` and `key.pem` files are machine-specific and excluded from git via `.gitignore`. Every developer generates their own.
+
+**Step 1 — Install `mkcert`:**
+
+- **Windows:** `winget install FiloSottile.mkcert`
+- **macOS:** `brew install mkcert`
+- **Linux:**
+  ```bash
+  sudo apt install libnss3-tools
+  wget -O mkcert https://github.com/FiloSottile/mkcert/releases/latest/download/mkcert-v1.4.4-linux-amd64
+  chmod +x mkcert
+  sudo mv mkcert /usr/local/bin/
+  ```
+
+**Step 2 — Install the Local CA (one-time per machine):**
+
+```bash
+mkcert -install
+```
+
+**Step 3 — Generate the Certificate:**
+
+```bash
+cd tauri-bridge/src-tauri/resources
+mkcert \
+  -cert-file cert.pem \
+  -key-file key.pem \
+  local-syncboard.luiskobayashi.com \
+  127.0.0.1 \
+  localhost
+```
+
+**Windows (PowerShell):**
+
+```powershell
+cd tauri-bridge\src-tauri\resources
+mkcert -cert-file cert.pem -key-file key.pem local-syncboard.luiskobayashi.com 127.0.0.1 localhost
+```
+
+**Step 4 — Rebuild:**
+
+```bash
+cd tauri-bridge
+yarn tauri build    # production
+# or
+yarn tauri dev      # development
+```
+
+> Do not commit `cert.pem` or `key.pem` — they are already in `.gitignore`.
+
+### 8.3 DNS Loopback Record
+
+SyncBoard uses a public DNS A record pointing to `127.0.0.1` so that `local-syncboard.luiskobayashi.com` resolves to your local machine with valid TLS.
+
+- **Domain:** `local-syncboard.luiskobayashi.com`
+- **Type:** `A`
+- **Value:** `127.0.0.1`
+
+If you fork this project with your own domain:
+1. Add an A record (`local-syncboard` → `127.0.0.1`) with your DNS provider.
+   > Squarespace DNS does not accept dots in the Host field. Use a dash (`-`) as a separator.
+2. Update all occurrences of `local-syncboard.luiskobayashi.com` in:
+   - `public/penpot-companion-ui.html`
+   - `src/app/miro-plugin/penpotMcpClient.ts`
+   - `tauri-bridge/index.html`
+   - `tauri-bridge/src-tauri/src/lib.rs` (comment only)
+3. Regenerate your `cert.pem` / `key.pem` for the new domain.
+
+**Troubleshooting — DNS Rebinding Protection:**
+
+Some routers block public domains from resolving to loopback addresses. Add a manual override to your `hosts` file:
+
+```
+127.0.0.1 local-syncboard.luiskobayashi.com
+```
+
+- **Windows:** `C:\Windows\System32\drivers\etc\hosts` (run Notepad as Administrator)
+- **macOS / Linux:** `sudo sh -c 'echo "127.0.0.1 local-syncboard.luiskobayashi.com" >> /etc/hosts'`
+
+Then flush DNS:
+- **Windows:** `ipconfig /flushdns`
+- **macOS:** `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`
+- **Chrome/Edge:** `chrome://net-internals/#dns` → **Clear host cache**
+
+### 8.4 Automated GitHub Releases
+
+SyncBoard includes a GitHub Actions pipeline that compiles installer packages automatically:
+
+**To trigger a release:**
+
+1. Increment the version in `tauri-bridge/src-tauri/tauri.conf.json` and `tauri-bridge/package.json`.
+2. Commit and push.
+3. Tag the commit:
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+4. GitHub Actions builds:
+   - **Windows:** `.msi` and `.exe` installers
+   - **macOS:** `.dmg` and `.app` bundles
+   - **Linux:** `.deb` and `.AppImage` packages
+5. Assets are uploaded to a new **Draft Release** — verify and publish.
+
+> For CI/CD releases, `cert.pem` and `key.pem` must be stored as **GitHub Actions Secrets** and written during the build step. See `.github/workflows/` for the existing pipeline.
