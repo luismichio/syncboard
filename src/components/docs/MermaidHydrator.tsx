@@ -28,8 +28,10 @@ function getMermaidTheme() {
       nodeBorder: borderCard,
       nodeTextColor: textPage,
       titleColor: textPage,
-      fontSize: "13px",
+      fontSize: "14px",
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+      stateLen: "0",
+      sectionFontSize: "15px",
     },
   };
 }
@@ -79,6 +81,23 @@ export default function MermaidHydrator() {
           } catch {}
         }, 300);
       }
+
+      // Attach click-to-zoom handlers
+      document.querySelectorAll<HTMLElement>(".mermaid-diagram").forEach((el) => {
+        // Remove old listener to avoid duplicates on re-render
+        const oldHandler = (el as any).__zoomHandler;
+        if (oldHandler) {
+          el.removeEventListener("click", oldHandler);
+        }
+        const handler = (e: MouseEvent) => {
+          e.stopPropagation();
+          el.classList.toggle("zoomed");
+          el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        };
+        (el as any).__zoomHandler = handler;
+        el.addEventListener("click", handler);
+        el.style.cursor = "zoom-in";
+      });
     }
 
     // Initial render

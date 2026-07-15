@@ -132,7 +132,7 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
       {/* Content + TOC */}
       <div className="relative z-10 max-w-5xl mx-auto px-6 py-12 flex gap-12">
         {/* Main content */}
-        <div className="min-w-0 flex-1">
+        <div className="doc-content min-w-0 flex-1">
           {/* Metadata bar */}
           <div className="flex flex-wrap items-center gap-3 mb-8 pb-6 border-b border-border-card text-[11px] font-mono text-text-muted">
             <span>{lastUpdated}</span>
