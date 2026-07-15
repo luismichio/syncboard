@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withRateLimit } from '@/lib/rate-limit';
 import { RelayJson, storeRelayResponse } from '@/lib/relayRedis';
 
 interface ResultBody {
@@ -7,7 +8,7 @@ interface ResultBody {
   error?: string;
 }
 
-export async function POST(request: Request) {
+async function handler(request: Request) {
   try {
     const body = (await request.json()) as ResultBody;
     const requestId = body.requestId?.trim();
@@ -30,3 +31,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit({ endpoint: "relay:result" })(handler);

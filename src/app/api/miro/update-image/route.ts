@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withRateLimit } from '@/lib/rate-limit';
 
-export async function POST(request: Request) {
+async function handler(request: Request) {
   try {
     const { 
       figmaToken, 
@@ -151,3 +152,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error during Miro image update' }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit({ endpoint: "miro:update-image" })(handler);

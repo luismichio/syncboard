@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withRateLimit } from '@/lib/rate-limit';
 
 /**
  * POST /api/figma/render-batch
@@ -11,7 +12,7 @@ import { NextResponse } from 'next/server';
  * Auth: token via Authorization: Bearer <figmaToken> (not in body)
  * Returns: { images: { [nodeId]: dataUrl } }
  */
-export async function POST(request: Request) {
+async function handler(request: Request) {
   try {
     // Read token from Authorization header instead of body (security)
     const authHeader = request.headers.get('Authorization') || '';
@@ -83,3 +84,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit({ endpoint: "figma:render-batch" })(handler);

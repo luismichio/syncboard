@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withRateLimit } from '@/lib/rate-limit';
 import {
   deleteRelayResponse,
   getRelayResponse,
@@ -56,7 +57,7 @@ function buildCommand(body: RelayRequestBody, requestId: string): RelayCommand {
   return command;
 }
 
-export async function POST(request: Request) {
+async function handler(request: Request) {
   try {
     const body = (await request.json()) as RelayRequestBody;
     const pairingId = body.pairingId?.trim();
@@ -110,3 +111,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit({ endpoint: "relay:request" })(handler);

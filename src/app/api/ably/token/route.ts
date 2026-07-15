@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { withRateLimit } from '@/lib/rate-limit';
 import { generateAblyToken } from '@/lib/relayAbly';
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
     const body: unknown = await request.json().catch(() => null);
     const pairingId =
@@ -28,10 +29,10 @@ export async function POST(request: Request) {
   }
 }
 
-/** GET handler for Ably authUrl (returns TokenDetails directly) */
-export async function GET(request: NextRequest) {
+async function getHandler(request: Request) {
   try {
-    const pairingId = request.nextUrl.searchParams.get('pairingId');
+    const { searchParams } = new URL(request.url);
+    const pairingId = searchParams.get('pairingId');
 
     if (!pairingId) {
       return NextResponse.json(
@@ -59,3 +60,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit({ endpoint: "ably:token" })(postHandler);
+export const GET = withRateLimit({ endpoint: "ably:token" })(getHandler);

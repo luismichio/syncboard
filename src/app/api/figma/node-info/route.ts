@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { withRateLimit } from '@/lib/rate-limit';
 
-export async function GET(request: Request) {
+async function handler(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const fileKey = searchParams.get('fileKey');
@@ -37,3 +38,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ name: 'Pasted Screen' });
   }
 }
+
+export const GET = withRateLimit({ endpoint: "figma:node-info" })(handler);
