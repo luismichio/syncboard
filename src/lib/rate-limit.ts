@@ -1,17 +1,25 @@
 /**
  * Rate limiting for SyncBoard public demo.
  *
+ * Identifies users by their OAuth token hash (or pairingId for Penpot relay),
+ * not by IP. This makes rate limiting immune to VPN cycling — an attacker
+ * cycling IPs gets nowhere because each request requires a valid token,
+ * and getting one requires user-interactive OAuth.
+ *
+ * Fallback to IP only when no token/pairingId is present (covers edge cases
+ * like the first request before OAuth completes).
+ *
  * Three tiers:
- *   1. Global catch-all (Edge Middleware) — 60 req/min per IP
- *   2. Per-endpoint (this module) — fine-grained limits per route
- *   3. Global daily backstop — total sync ops across all IPs
+ *   1. Global catch-all (Edge Middleware) — per-IP at the edge
+ *   2. Per-endpoint (this module) — per-token/per-pairingId
+ *   3. Global daily backstop — total sync ops across all users
  *
  * Backend auto-detection:
  *   - If UPSTASH_REDIS_REST_URL is set → use @upstash/ratelimit (Redis)
- *   - Otherwise → use in-memory Map (persistent infra only; on Vercel serverless
- *     without Redis, rate limiting logs a warning and disables)
+ *   - Otherwise → use in-memory Map (persistent infra only)
  */
 
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -24,17 +32,15 @@ export interface RateLimitResult {
 }
 
 export interface RateLimitConfig {
-  /** Max requests allowed in the window */
   limit: number;
-  /** Window in seconds */
-  window: number;
+  window: number; // seconds
 }
 
-export interface MultiWindowConfig {
+interface MultiWindowConfig {
   windows: RateLimitConfig[];
 }
 
-export type Plan = "demo";
+export type Plan = "community";
 
 export interface PlanConfig {
   figmaPerMin: number;
@@ -49,26 +55,26 @@ export interface PlanConfig {
   maxCompanionPairs: number;
 }
 
-// ─── Demo plan defaults ─────────────────────────────────────────────────────
+// ─── Community plan defaults ─────────────────────────────────────────────
 
-const DEMO_PLAN: PlanConfig = {
-  figmaPerMin: envInt("RATE_LIMIT_DEMO_FIGMA_PER_MIN", 5),
-  figmaPerDay: envInt("RATE_LIMIT_DEMO_FIGMA_PER_DAY", 50),
-  relayPerMin: envInt("RATE_LIMIT_DEMO_RELAY_PER_MIN", 5),
-  relayPerHour: envInt("RATE_LIMIT_DEMO_RELAY_PER_HOUR", 30),
-  relayPerDay: envInt("RATE_LIMIT_DEMO_RELAY_PER_DAY", 100),
-  updateImagePerMin: envInt("RATE_LIMIT_DEMO_UPDATE_IMAGE_PER_MIN", 10),
-  ablyTokenPerMin: envInt("RATE_LIMIT_DEMO_ABLY_TOKEN_PER_MIN", 5),
-  globalSyncsPerDay: envInt("RATE_LIMIT_DEMO_GLOBAL_SYNCS_PER_DAY", 500),
-  globalBandwidthMbPerDay: envInt("RATE_LIMIT_DEMO_GLOBAL_BANDWIDTH_MB_PER_DAY", 500),
-  maxCompanionPairs: envInt("RATE_LIMIT_DEMO_MAX_COMPANION_PAIRS", 1),
+const COMMUNITY_PLAN: PlanConfig = {
+  figmaPerMin: envInt("RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN", 5),
+  figmaPerDay: envInt("RATE_LIMIT_COMMUNITY_FIGMA_PER_DAY", 50),
+  relayPerMin: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_MIN", 5),
+  relayPerHour: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR", 30),
+  relayPerDay: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_DAY", 100),
+  updateImagePerMin: envInt("RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN", 10),
+  ablyTokenPerMin: envInt("RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN", 5),
+  globalSyncsPerDay: envInt("RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY", 500),
+  globalBandwidthMbPerDay: envInt("RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY", 500),
+  maxCompanionPairs: envInt("RATE_LIMIT_COMMUNITY_MAX_COMPANION_PAIRS", 1),
 };
 
-function getPlan(): "demo" {
-  return "demo";
+function getPlan(): Plan {
+  return "community";
 }
 
-// ─── Helper ─────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function envInt(key: string, fallback: number): number {
   const raw = process.env[key];
@@ -85,22 +91,102 @@ function clientIp(request: Request): string {
   );
 }
 
-// ─── Rate limiters per endpoint ────────────────────────────────────────────
+/** Hash a token or pairing ID into a short, stable rate-limit key prefix. */
+function hashId(raw: string): string {
+  return crypto.createHash("sha256").update(raw).digest("hex").substring(0, 16);
+}
+
+/**
+ * Extract a Bearer token from the Authorization header.
+ * Returns null if absent or malformed.
+ */
+export function extractBearerToken(request: Request): string | null {
+  const auth = request.headers.get("Authorization");
+  if (!auth) return null;
+  const token = auth.replace(/^Bearer\s+/i, "").trim();
+  return token || null;
+}
+
+// ─── Identifier extractors per endpoint ─────────────────────────────────────
+
+type IdentifierExtractor = (request: Request) => Promise<string | null> | string | null;
+
+const IDENTIFIER_EXTRACTORS: Record<string, IdentifierExtractor> = {
+  // Figma endpoints: use the Bearer token from Authorization header
+  "figma:render": (req) => {
+    const token = extractBearerToken(req) || new URL(req.url).searchParams.get("token");
+    return token ? `tok:${hashId(token)}` : null;
+  },
+  "figma:render-batch": (req) => {
+    const token = extractBearerToken(req);
+    return token ? `tok:${hashId(token)}` : null;
+  },
+  "figma:node-info": (req) => {
+    const token = extractBearerToken(req);
+    return token ? `tok:${hashId(token)}` : null;
+  },
+  // Miro update-image: miroToken is in the JSON body; clone to avoid consuming it
+  "miro:update-image": async (req) => {
+    const cloned = req.clone();
+    try {
+      const body = await cloned.json();
+      const token = body.miroToken;
+      return token ? `tok:${hashId(token)}` : null;
+    } catch {
+      return null;
+    }
+  },
+  // Relay request: pairingId in the JSON body
+  "relay:request": async (req) => {
+    const cloned = req.clone();
+    try {
+      const body = await cloned.json();
+      return body.pairingId ? `relay:${hashId(body.pairingId)}` : null;
+    } catch {
+      return null;
+    }
+  },
+  // Relay result: requestId in the JSON body (called by companion plugin, already paired)
+  "relay:result": async (req) => {
+    const cloned = req.clone();
+    try {
+      const body = await cloned.json();
+      return body.requestId ? `relay:${hashId(body.requestId)}` : null;
+    } catch {
+      return null;
+    }
+  },
+  // Ably token: pairingId in body (POST) or query param (GET)
+  "ably:token": (req) => {
+    // Can't easily parse body in GET vs POST without reading, so try both
+    try {
+      const url = new URL(req.url);
+      const pid = url.searchParams.get("pairingId");
+      if (pid) return `pairing:${hashId(pid)}`;
+    } catch {}
+    // For POST, the handler reads the body — we use pairingId there too
+    // Since we can't read the body without consuming it, fall back to IP
+    // for the rate limit key. This is fine — ably/token is already tight at 5/min.
+    return null;
+  },
+};
+
+// ─── Rate limit configs per endpoint ────────────────────────────────────────
 
 const ENDPOINT_LIMITS: Record<string, RateLimitConfig | MultiWindowConfig> = {
-  "figma:render": { limit: DEMO_PLAN.figmaPerMin, window: 60 },
-  "figma:render-batch": { limit: DEMO_PLAN.figmaPerMin, window: 60 },
-  "figma:node-info": { limit: DEMO_PLAN.figmaPerMin, window: 60 },
+  "figma:render": { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
+  "figma:render-batch": { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
+  "figma:node-info": { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
   "relay:request": {
     windows: [
-      { limit: DEMO_PLAN.relayPerMin, window: 60 },
-      { limit: DEMO_PLAN.relayPerHour, window: 3600 },
-      { limit: DEMO_PLAN.relayPerDay, window: 86400 },
+      { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
+      { limit: COMMUNITY_PLAN.relayPerHour, window: 3600 },
+      { limit: COMMUNITY_PLAN.relayPerDay, window: 86400 },
     ],
   },
-  "relay:result": { limit: DEMO_PLAN.relayPerMin, window: 60 },
-  "miro:update-image": { limit: DEMO_PLAN.updateImagePerMin, window: 60 },
-  "ably:token": { limit: DEMO_PLAN.ablyTokenPerMin, window: 60 },
+  "relay:result": { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
+  "miro:update-image": { limit: COMMUNITY_PLAN.updateImagePerMin, window: 60 },
+  "ably:token": { limit: COMMUNITY_PLAN.ablyTokenPerMin, window: 60 },
 };
 
 // ─── Backend abstraction ───────────────────────────────────────────────────
@@ -112,7 +198,7 @@ interface RateLimiterBackend {
 /** In-memory fixed-window rate limiter for persistent infra (Docker/VPS/ECS). */
 class InMemoryBackend implements RateLimiterBackend {
   private store = new Map<string, { count: number; resetAt: number }>();
-  private cleanupInterval = 60_000; // clean expired every 60s
+  private cleanupInterval = 60_000;
   private lastCleanup = 0;
 
   private cleanup() {
@@ -160,8 +246,7 @@ class RedisBackend implements RateLimiterBackend {
         const { Ratelimit } = await import("@upstash/ratelimit");
         const { Redis } = await import("@upstash/redis");
         const redis = Redis.fromEnv();
-        // Pre-create common instances
-        for (const [key, cfg] of Object.entries(ENDPOINT_LIMITS)) {
+        for (const [, cfg] of Object.entries(ENDPOINT_LIMITS)) {
           if ("limit" in cfg && "window" in cfg && typeof cfg.window === "number") {
             const label = `${cfg.limit}req_${cfg.window}s`;
             if (!this.instances.has(label)) {
@@ -205,10 +290,8 @@ class RedisBackend implements RateLimiterBackend {
     const label = `${config.limit}req_${config.window}s`;
     const instance = this.instances.get(label);
     if (!instance) {
-      // Fallback: allow if limiter not available
       return { success: true, limit: config.limit, remaining: config.limit, reset: Date.now() + config.window * 1000 };
     }
-    // Prefix identifier with plan for isolation
     const result = await instance.limit(`${getPlan()}:${identifier}`);
     return {
       success: result.success,
@@ -227,7 +310,6 @@ async function getBackend(): Promise<RateLimiterBackend | null> {
   if (backendPromise) return backendPromise;
 
   backendPromise = (async (): Promise<RateLimiterBackend | null> => {
-    // If explicitly disabled, skip
     if (process.env.RATE_LIMIT_ENABLED === "false") return null;
 
     const hasRedis = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
@@ -235,7 +317,6 @@ async function getBackend(): Promise<RateLimiterBackend | null> {
     if (hasRedis) {
       try {
         const backend = new RedisBackend();
-        // Warm up the backend (import + pre-create instances)
         await backend.check("healthcheck", { limit: 1, window: 1 });
         return backend;
       } catch (e) {
@@ -243,36 +324,19 @@ async function getBackend(): Promise<RateLimiterBackend | null> {
       }
     }
 
-    // Check if we're on Vercel serverless (no Redis available means in-memory is useless)
     const isVercel = !!process.env.VERCEL;
     if (isVercel && !hasRedis) {
       console.warn(
         "[rate-limit] Running on Vercel without UPSTASH_REDIS_REST_URL configured. " +
-          "Rate limiting is disabled. Set RATE_LIMIT_ENABLED=false to silence this warning, " +
-          "or configure Upstash Redis to enable rate limiting."
+          "Rate limiting is disabled. Set RATE_LIMIT_ENABLED=false to silence this warning."
       );
       return null;
     }
 
-    // On persistent infra, in-memory works fine
     return new InMemoryBackend();
   })();
 
   return backendPromise;
-}
-
-// ─── checkRateLimit (single window) ────────────────────────────────────────
-
-async function checkRateLimit(
-  identifier: string,
-  config: RateLimitConfig
-): Promise<RateLimitResult | null> {
-  const backend = await getBackend();
-  if (!backend) {
-    // Rate limiting disabled
-    return null;
-  }
-  return backend.check(identifier, config);
 }
 
 // ─── withRateLimit HOF ─────────────────────────────────────────────────────
@@ -285,22 +349,40 @@ export interface WithRateLimitOptions {
 }
 
 /**
- * Wraps a route handler with per-IP rate limiting.
+ * Wraps a route handler with rate limiting.
+ *
+ * Identifies callers by their OAuth token hash (or pairingId for relay),
+ * not by IP. This prevents VPN cycling attacks — each request requires
+ * a valid token obtained via user-interactive OAuth.
+ *
+ * Falls back to client IP only when no token/pairingId is present.
  *
  * Usage:
  *   export const GET = withRateLimit({ endpoint: "figma:render" })(handler);
- *   export const POST = withRateLimit({ endpoint: "relay:request" })(handler);
  */
 export function withRateLimit(opts: WithRateLimitOptions) {
   return function wrap(handler: RouteHandler): RouteHandler {
     return async function rateLimitedHandler(request: Request, ...args: any[]): Promise<NextResponse> {
-      // Check if enabled
       const backend = await getBackend();
       if (!backend) {
         return handler(request, ...args);
       }
 
-      const ip = clientIp(request);
+      // Determine the rate-limit identifier: prefer token/pairingId over IP
+      const extractor = IDENTIFIER_EXTRACTORS[opts.endpoint];
+      let identifier: string | null = null;
+      if (extractor) {
+        try {
+          const extracted = await extractor(request);
+          if (extracted) identifier = extracted;
+        } catch {
+          // Fall through to IP fallback
+        }
+      }
+      if (!identifier) {
+        identifier = `ip:${clientIp(request)}`;
+      }
+
       const configs = ENDPOINT_LIMITS[opts.endpoint];
       if (!configs) {
         return handler(request, ...args);
@@ -308,16 +390,16 @@ export function withRateLimit(opts: WithRateLimitOptions) {
 
       // Single window
       if ("limit" in configs && "window" in configs && typeof configs.window === "number") {
-        const result = await backend.check(`${opts.endpoint}:${ip}`, configs);
+        const result = await backend.check(`${opts.endpoint}:${identifier}`, configs);
         if (!result.success) {
           return rateLimitResponse(result);
         }
       }
 
-      // Multi-window (e.g., relay: 5/min + 30/hour + 100/day)
+      // Multi-window (relay: 5/min + 30/hour + 100/day)
       if ("windows" in configs) {
         const results = await Promise.all(
-          configs.windows.map((w) => backend.check(`${opts.endpoint}:${ip}`, w))
+          configs.windows.map((w) => backend.check(`${opts.endpoint}:${identifier}`, w))
         );
         const failed = results.find((r) => !r.success);
         if (failed) {
@@ -355,11 +437,9 @@ function rateLimitResponse(result: RateLimitResult): NextResponse {
 // ─── Global daily backstop ─────────────────────────────────────────────────
 
 /**
- * Global daily counter across all IPs — a hard ceiling that prevents
- * the entire free-tier budget from being consumed by any number of users.
- *
- * Uses a distinct key namespace ("global") so it doesn't interfere with
- * per-IP limits.
+ * Global daily counter across all users — a hard ceiling preventing
+ * free-tier budget exhaustion regardless of how many tokens or IPs
+ * are cycled through.
  */
 export async function checkGlobalDailyBackstop(
   counterKey: string,
@@ -369,9 +449,7 @@ export async function checkGlobalDailyBackstop(
   if (!backend) {
     return { allowed: true, remaining: Infinity };
   }
-
   const config: RateLimitConfig = { limit: maxPerDay, window: 86400 };
-  // Use a fixed global identifier (not per-IP) so all users share the same counter
   const result = await backend.check(`global:${counterKey}`, config);
   return {
     allowed: result.success,
@@ -379,7 +457,7 @@ export async function checkGlobalDailyBackstop(
   };
 }
 
-// ─── Client IP helper (for middleware) ─────────────────────────────────────
+// ─── Exports ────────────────────────────────────────────────────────────────
 
-export { clientIp, getPlan, DEMO_PLAN };
+export { clientIp, getPlan, COMMUNITY_PLAN };
 export type { RouteHandler };

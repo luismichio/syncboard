@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest) {
           limit,
           remaining: 0,
           reset,
-          plan: "demo",
+          plan: "community",
         },
         {
           status: 429,

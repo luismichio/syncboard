@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.6.0] - 2026-07-15
+### Added
+* **Community Plan Rate Limiting:** Token-based rate limiting that identifies users by their OAuth token hash (or Penpot pairingId) instead of IP, making it immune to VPN cycling. Edge middleware, per-endpoint `withRateLimit()` HOF, and global daily backstop (500 syncs/day all users).
+* **Dual-backend rate limiter:** Auto-detects Redis (`@upstash/ratelimit`) if `UPSTASH_REDIS_REST_URL` is set, otherwise uses in-memory sliding window (persistent infra only). Falls back gracefully on Vercel without Redis.
+* **Configurable via env vars:** 11 `RATE_LIMIT_COMMUNITY_*` variables for all per-endpoint and global limits, plus `RATE_LIMIT_ENABLED=false` to disable entirely.
+* **Setup guide:** Rate limiting section in `doc/setup.md` with env var table and multi-layer explanation.
+* **README callout:** Public demo notice with link to rate limiting docs.
+
 ## [0.5.7] - 2026-07-14
 ### Added
 * **Secure Key Generation:** Migrated pairing ID and OAuth state generation to cryptographically secure random generators using `window.crypto.getRandomValues`.

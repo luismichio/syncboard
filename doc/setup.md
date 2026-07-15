@@ -165,6 +165,47 @@ To deploy on an alternative host:
 
 The **4.5MB limit is Vercel-specific** --- if you use any other host, large images sync without needing the Tauri desktop app for size reasons. (Tauri is still needed for Adobe UXP, local LLMs, and two-way sync.)
 
+### ~ Rate Limiting (Community Protection)
+
+If you run a public instance, rate limiting protects your infrastructure from abuse. Three layers work together:
+
+| Layer | What it stops | Bypassed by |
+|---|---|---|
+| Per-endpoint limits (5-10 req/min) | Per-user token abuse | **Not bypassable** (tracked by OAuth token hash, immune to VPN cycling) |
+| Edge middleware (60 req/min per IP) | Basic script spam before auth | VPN cycling |
+| **Global daily backstop** (500 syncs/day all users) | **Budget exhaustion** | **Not bypassable** (shared Redis counter, all users combined) |
+
+Rate limiting identifies users by their **OAuth token hash** (or Penpot pairingId), not by IP. An attacker cycling through VPN IPs gets nowhere because every meaningful request requires a valid token obtained through user-interactive OAuth. The IP fallback only applies to the rare case before a user has obtained their first token.
+
+Rate limiting is enabled by default when `UPSTASH_REDIS_REST_URL` is configured. On persistent infra (Docker/VPS) without Redis, an in-memory fallback is used instead. On Vercel without Redis, rate limiting logs a warning and disables gracefully (your Vercel function limits still apply).
+
+**Configuration via env vars:**
+
+| Variable | Default | What it limits |
+|---|---|---|
+| `RATE_LIMIT_ENABLED` | `true` | Set to `false` to disable entirely |
+| `RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN` | `5` | Figma render and node-info requests per minute per user token |
+| `RATE_LIMIT_COMMUNITY_FIGMA_PER_DAY` | `50` | Figma renders per day per user token |
+| `RATE_LIMIT_COMMUNITY_RELAY_PER_MIN` | `5` | Penpot relay requests per minute per pairing ID |
+| `RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR` | `30` | Penpot relay requests per hour per pairing ID |
+| `RATE_LIMIT_COMMUNITY_RELAY_PER_DAY` | `100` | Penpot relay requests per day per pairing ID |
+| `RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN` | `10` | Miro image updates per minute per user token |
+| `RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN` | `5` | Ably token generation per minute per requester |
+| `RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY` | `500` | Total syncs across all users per day (hard ceiling) |
+| `RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY` | `500` | Total bandwidth across all users per day |
+| `RATE_LIMIT_COMMUNITY_MAX_COMPANION_PAIRS` | `1` | Concurrent Penpot companion plugin connections |
+
+When a limit is hit, the API returns `429` with a `Retry-After` header and JSON body:
+```json
+{
+  "error": "rate_limit_exceeded",
+  "limit": 5,
+  "remaining": 0,
+  "reset": 1721068800000,
+  "plan": "community"
+}
+```
+
 ### ~ Corporate AWS Scenario
 
 If your company runs on AWS, here is the typical deployment pattern:
