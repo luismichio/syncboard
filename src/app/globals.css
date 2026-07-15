@@ -239,7 +239,7 @@ html {
 
 /* Mermaid diagram styles */
 .mermaid-diagram {
-  background: #0f172a;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
   margin: 24px 0;
@@ -251,4 +251,8 @@ html {
 .mermaid-diagram svg {
   max-width: 100%;
   height: auto;
+}
+.mermaid-diagram svg .cluster-label text,
+.mermaid-diagram svg .nodeLabel {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
 }

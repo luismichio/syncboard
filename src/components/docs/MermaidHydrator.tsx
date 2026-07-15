@@ -2,55 +2,111 @@
 
 import { useEffect, useRef } from "react";
 
+function getMermaidTheme() {
+  const root = document.documentElement;
+  const isDark = root.classList.contains("dark");
+  const bgCard = getComputedStyle(root).getPropertyValue("--bg-card").trim() || (isDark ? "#121212" : "#F2EFE9");
+  const textMuted = getComputedStyle(root).getPropertyValue("--text-muted").trim() || (isDark ? "#9A9997" : "#5E5E5E");
+  const textPage = getComputedStyle(root).getPropertyValue("--text-page").trim() || (isDark ? "#FAF9F5" : "#0A0A0A");
+  const borderCard = getComputedStyle(root).getPropertyValue("--border-card").trim() || (isDark ? "#1F1F1F" : "#E0DBD0");
+  const accent = getComputedStyle(root).getPropertyValue("--accent").trim() || "#00A2C9";
+  const bgPage = getComputedStyle(root).getPropertyValue("--bg-page").trim() || (isDark ? "#0A0A0A" : "#FAF9F5");
+
+  return {
+    theme: "base" as const,
+    themeVariables: {
+      background: bgPage,
+      primaryColor: bgCard,
+      primaryTextColor: textPage,
+      primaryBorderColor: borderCard,
+      lineColor: textMuted,
+      secondaryColor: bgCard,
+      tertiaryColor: bgCard,
+      clusterBkg: bgPage,
+      clusterBorder: borderCard,
+      edgeLabelBackground: bgCard,
+      nodeBorder: borderCard,
+      nodeTextColor: textPage,
+      titleColor: textPage,
+      fontSize: "13px",
+      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    },
+  };
+}
+
 export default function MermaidHydrator() {
   const initialized = useRef(false);
-  const rendered = useRef(false);
 
   useEffect(() => {
-    if (rendered.current) return;
-    rendered.current = true;
+    if (initialized.current) return;
+    initialized.current = true;
 
-    async function init() {
-      if (initialized.current) return;
-      initialized.current = true;
+    let mermaidInstance: any = null;
+    let observer: MutationObserver | null = null;
 
-      const { default: mermaid } = await import("mermaid");
-      mermaid.initialize({
+    async function renderDiagrams() {
+      // Clear existing SVGs from diagram containers
+      document.querySelectorAll<HTMLElement>(".mermaid-diagram").forEach((el) => {
+        const code = el.getAttribute("data-code") || el.textContent || "";
+        if (!el.hasAttribute("data-code")) {
+          el.setAttribute("data-code", code);
+        }
+        el.innerHTML = code;
+      });
+
+      if (!mermaidInstance) {
+        const mod = await import("mermaid");
+        mermaidInstance = mod.default;
+      }
+
+      const config = getMermaidTheme();
+      mermaidInstance.initialize({
         startOnLoad: false,
-        theme: "dark",
-        themeVariables: {
-          primaryColor: "#1e293b",
-          primaryTextColor: "#e2e8f0",
-          primaryBorderColor: "#334155",
-          lineColor: "#475569",
-          secondaryColor: "#0f172a",
-          tertiaryColor: "#1e293b",
-          clusterBkg: "#0f172a",
-          clusterBorder: "#334155",
-          edgeLabelBackground: "#1e293b",
-          nodeBorder: "#334155",
-          fontSize: "13px",
-        },
+        ...config,
       });
 
       try {
-        await mermaid.run({
+        await mermaidInstance.run({
           querySelector: ".mermaid-diagram",
         });
       } catch (err) {
-        console.warn("Mermaid render error:", err);
+        // If render fails on first attempt, retry once after delay
+        setTimeout(async () => {
+          try {
+            await mermaidInstance.run({
+              querySelector: ".mermaid-diagram",
+            });
+          } catch {}
+        }, 300);
       }
     }
 
-    // Small delay to ensure DOM is settled, then retry once if needed
-    const id = setTimeout(() => {
-      init().catch(() => {
-        // Retry once after a longer delay
-        setTimeout(() => init(), 500);
-      });
-    }, 100);
+    // Initial render
+    renderDiagrams();
 
-    return () => clearTimeout(id);
+    // Watch for theme changes (class toggles on <html>)
+    observer = new MutationObserver(() => {
+      renderDiagrams();
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    // Also listen for system color scheme changes
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => {
+      // Only react if no explicit theme is stored (system mode)
+      if (!localStorage.getItem("theme")) {
+        renderDiagrams();
+      }
+    };
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      if (observer) observer.disconnect();
+      mediaQuery.removeEventListener("change", handleChange);
+    };
   }, []);
 
   return null;
