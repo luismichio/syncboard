@@ -1,6 +1,6 @@
 ---
 title: Setup & Deployment
-description: Register OAuth apps, configure environment variables, deploy to Vercel, set up the Penpot Companion plugin, and build the Tauri desktop app.
+description: Register OAuth apps, configure environment variables, deploy to Vercel, set up the Penpot Companion plugin, run locally, and optionally build the Tauri desktop app.
 ---
 
 # 🚀 Setup & Deployment
@@ -104,9 +104,9 @@ To use SyncBoard with **Penpot**, install the Companion Plugin in your Penpot wo
 1. In Penpot, open any design file.
 2. In the right-hand panel, click the **Plugins** tab (puzzle icon).
 3. Locate the plugin insertion section at the bottom of the tab.
-4. Paste the secure manifest URL:
+4. Paste the secure manifest URL (replace with your own domain if self-hosting):
    ```
-   https://syncboard.luiskobayashi.com/penpot-manifest.json
+   https://YOUR_DOMAIN.com/penpot-manifest.json
    ```
 5. Click **Install**. The plugin will appear in your workspace list.
 6. Click the plugin to open it, copy the **Pairing ID** from the Miro plugin settings, and paste it into the Penpot Companion to connect.
@@ -131,18 +131,7 @@ If the Penpot Companion plugin shows "offline" in the Miro plugin:
 
 ---
 
-## 6. Chrome SSL Trust (for SyncBridge)
-
-If you use the **SyncBridge** desktop app (Tauri), Chrome requires trusting its self-signed certificate:
-
-1. Open your browser and navigate to `https://local-syncboard.luiskobayashi.com:4401`.
-2. Click **Advanced** → **Proceed to local-syncboard.luiskobayashi.com (unsafe)**.
-3. The connection warning will not appear again for that domain.
-4. **Restart Miro Desktop** (Electron apps need a full restart to reload their SSL trust store).
-
----
-
-## 7. Local Development
+## 6. Local Development
 
 For testing and coding on your local machine:
 
@@ -176,11 +165,11 @@ For testing and coding on your local machine:
 
 ---
 
-## 8. Tauri Desktop App (SyncBridge)
+## 7. Tauri Desktop App (SyncBridge) (Optional)
 
 > **Note:** The Tauri app is **optional** — only needed for large images (>4.5MB), Adobe UXP integration, local LLMs, and two-way sync. Day-to-day sync with Figma and Penpot works without it.
 
-### 8.1 Local Development Setup
+### 7.1 Prerequisites and Build
 
 1. **Install Prerequisites:**
    - **Node.js & Yarn** (already installed)
@@ -200,9 +189,11 @@ For testing and coding on your local machine:
    yarn tauri dev
    ```
 
-### 8.2 Local SSL Certificate (mkcert)
+### 7.2 Local SSL Certificate (mkcert)
 
-Miro runs on `https://miro.com`. Browsers block insecure connections from HTTPS pages as **mixed content**. SyncBridge uses `mkcert` — a zero-config tool that creates certificates trusted by your system.
+Miro runs on `https://miro.com`. The **SyncBridge desktop app** (Tauri/Electron) serves an HTTPS endpoint on localhost that requires a trusted certificate. SyncBridge uses `mkcert` — a zero-config tool that creates certificates trusted by your system.
+
+> ⚠️ **Chrome web vs Electron:** These certificates are needed for **Miro Desktop (Electron)**, which can connect to localhost. Chrome web has stricter **Private Network Access (PNA)** rules that block browser→localhost connections from public origins regardless of SSL — this is why the cloud-relay architecture is the default for Penpot. SyncBridge is only needed for capability extension (large images, Adobe UXP, local LLMs), not for day-to-day sync.
 
 > **Important:** The `cert.pem` and `key.pem` files are machine-specific and excluded from git via `.gitignore`. Every developer generates their own.
 
@@ -254,7 +245,7 @@ yarn tauri dev      # development
 
 > Do not commit `cert.pem` or `key.pem` — they are already in `.gitignore`.
 
-### 8.3 DNS Loopback Record
+### 7.3 DNS Loopback Record
 
 SyncBoard uses a public DNS A record pointing to `127.0.0.1` so that `local-syncboard.luiskobayashi.com` resolves to your local machine with valid TLS.
 
@@ -288,7 +279,7 @@ Then flush DNS:
 - **macOS:** `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`
 - **Chrome/Edge:** `chrome://net-internals/#dns` → **Clear host cache**
 
-### 8.4 Automated GitHub Releases
+### 7.4 Automated GitHub Releases
 
 SyncBoard includes a GitHub Actions pipeline that compiles installer packages automatically:
 
