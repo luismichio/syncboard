@@ -113,27 +113,27 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
 
           {/* Rendered markdown */}
           <article className="
-            prose prose-sm max-w-none
-            prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-text-page prose-headings:scroll-mt-20
-            prose-h1:text-2xl prose-h1:border-b prose-h1:border-border-card prose-h1:pb-3 prose-h1:mb-8 prose-h1:font-extrabold
-            prose-h2:text-lg prose-h2:mt-10 prose-h2:mb-4 prose-h2:bg-gradient-to-r prose-h2:from-text-page prose-h2:to-text-muted prose-h2:bg-clip-text prose-h2:text-transparent
-            prose-h3:text-base prose-h3:mt-8 prose-h3:mb-3
-            prose-h4:text-sm prose-h4:mt-6 prose-h4:mb-2
-            prose-p:text-sm prose-p:text-text-muted prose-p:leading-relaxed
-            prose-a:text-accent prose-a:no-underline hover:prose-a:underline
-            prose-strong:text-text-page
+            prose max-w-none
+            prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-text-page prose-headings:scroll-mt-24
+            prose-h1:text-3xl prose-h1:border-b prose-h1:border-border-card prose-h1:pb-4 prose-h1:mb-10 prose-h1:font-extrabold prose-h1:leading-tight
+            prose-h2:text-2xl prose-h2:mt-14 prose-h2:mb-5 prose-h2:font-extrabold prose-h2:leading-snug prose-h2:bg-gradient-to-r prose-h2:from-text-page prose-h2:to-text-muted prose-h2:bg-clip-text prose-h2:text-transparent
+            prose-h3:text-xl prose-h3:mt-10 prose-h3:mb-4 prose-h3:font-bold prose-h3:leading-snug
+            prose-h4:text-lg prose-h4:mt-8 prose-h4:mb-3 prose-h4:font-semibold prose-h4:leading-snug
+            prose-p:text-[15px] prose-p:text-text-muted prose-p:leading-[1.75] prose-p:my-4
+            prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-a:font-medium
+            prose-strong:text-text-page prose-strong:font-semibold
             prose-code:text-[13px] prose-code:bg-bg-card prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:border prose-code:border-border-card prose-code:font-normal
             prose-pre:bg-bg-card prose-pre:border prose-pre:border-border-card prose-pre:rounded-xl prose-pre:shadow-sm
-            prose-pre:py-4 prose-pre:px-5
-            prose-li:text-sm prose-li:text-text-muted prose-li:my-1
-            prose-hr:border-border-card
-            prose-blockquote:border-l-2 prose-blockquote:border-l-accent prose-blockquote:bg-bg-card prose-blockquote:rounded-r-xl prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:not-italic
-            prose-blockquote:text-text-muted
+            prose-pre:py-5 prose-pre:px-6 prose-pre:my-6
+            prose-li:text-[15px] prose-li:text-text-muted prose-li:leading-[1.75] prose-li:my-1.5
+            prose-hr:border-border-card prose-hr:my-10
+            prose-blockquote:border-l-2 prose-blockquote:border-l-accent prose-blockquote:bg-bg-card prose-blockquote:rounded-r-xl prose-blockquote:py-2 prose-blockquote:px-5 prose-blockquote:not-italic
+            prose-blockquote:text-text-muted prose-blockquote:my-6
             prose-table:text-sm prose-th:font-semibold prose-th:text-text-page prose-td:text-text-muted
             prose-th:border-b-border-card prose-td:border-b-border-card/50
-            prose-th:py-2 prose-td:py-2
-            prose-img:rounded-xl prose-img:border prose-img:border-border-card
-            prose-ul:my-4 prose-ol:my-4
+            prose-th:py-3 prose-td:py-3 prose-th:px-3 prose-td:px-3
+            prose-img:rounded-xl prose-img:border prose-img:border-border-card prose-img:my-8
+            prose-ul:my-6 prose-ol:my-6
             prose-li:marker:text-text-muted
           ">
             {content}
