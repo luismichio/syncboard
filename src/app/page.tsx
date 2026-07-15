@@ -30,13 +30,13 @@ export default function Home() {
             SyncBoard
           </h1>
           <p className="text-sm font-semibold tracking-wider font-mono uppercase text-accent pt-1">
-            Stateless Figma-Miro Pipeline
+            Stateless Figma/Penpot-Miro Pipeline
           </p>
         </header>
 
         <p className="text-sm md:text-base text-text-muted leading-relaxed max-w-md">
-          A database-free, self-hosted integration that updates Figma frame
-          screenshots inside Miro in-place with zero duplicates. Connect your
+          A database-free, self-hosted integration that syncs Figma and Penpot
+          frame screenshots into Miro in-place with zero duplicates. Connect your
           workspace, select items on your board, and sync.
         </p>
 
