@@ -44,11 +44,11 @@ Unlike official live embeds which require browser logins and degrade board perfo
 | **Adobe UXP / Local LLMs / Two-Way Sync** | Desktop apps | Any | **Optional** (SyncBridge capability extender) |
 | **Figma / Miro Login (OAuth)** | Any browser | Browser or Desktop | **No** (Stateless OAuth polling) |
 
-> ** Full setup & deployment guide -> [/docs/setup](/docs/setup)**
+> ** Full setup & deployment guide -> [doc/setup.md](https://github.com/luismichio/syncboard/blob/dev/doc/setup.md)**
 >
-> ** Tauri/SyncBridge setup -> [/docs/setup#7-tauri-desktop-app-syncbridge-optional](/docs/setup#7-tauri-desktop-app-syncbridge-optional)**
+> ** Tauri/SyncBridge setup -> [doc/setup.md#-7-tauri-desktop-app-syncbridge-optional](https://github.com/luismichio/syncboard/blob/dev/doc/setup.md#-7-tauri-desktop-app-syncbridge-optional)**
 >
-> ** Architecture reference -> [/docs/architecture](/docs/architecture)**
+> ** Architecture reference -> [doc/architecture.md](https://github.com/luismichio/syncboard/blob/dev/doc/architecture.md)**
 
 ---
 
