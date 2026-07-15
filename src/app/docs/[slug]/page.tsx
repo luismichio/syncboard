@@ -93,7 +93,7 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
   });
 
   return (
-    <main className="min-h-screen bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page relative overflow-hidden">
+    <main className="min-h-screen bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page relative overflow-x-clip">
       {/* Decorative background grid */}
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
