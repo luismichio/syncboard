@@ -4,6 +4,7 @@ import { compileMDX } from "next-mdx-remote/rsc";
 import rehypeHighlight from "rehype-highlight";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
+import remarkGfm from "remark-gfm";
 import { getAllDocs, getDocBySlug, extractHeadings, getWordCount } from "@/lib/docs";
 import TOC from "@/components/docs/TOC";
 
@@ -25,6 +26,9 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
     options: {
       parseFrontmatter: false,
       mdxOptions: {
+        remarkPlugins: [
+          remarkGfm,
+        ],
         rehypePlugins: [
           rehypeSlug,
           [
