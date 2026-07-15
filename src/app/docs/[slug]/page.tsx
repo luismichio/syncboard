@@ -7,6 +7,7 @@ import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import remarkGfm from "remark-gfm";
 import { visit } from "unist-util-visit";
 import { getAllDocs, getDocBySlug, extractHeadings, getWordCount } from "@/lib/docs";
+import { DISPLAY } from "@/lib/version";
 import TOC from "@/components/docs/TOC";
 import MermaidHydrator from "@/components/docs/MermaidHydrator";
 
@@ -118,14 +119,19 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
             <span className="text-text-muted font-mono text-xs shrink-0">/</span>
             <span className="text-sm font-mono text-accent font-semibold truncate">{doc.meta.filename}</span>
           </div>
-          <a
-            href={`https://github.com/luismichio/syncboard/blob/main/doc/${doc.meta.filename}`}
-            target="_blank"
-            rel="noreferrer"
-            className="px-4 py-2 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200 shrink-0"
-          >
-            VIEW ON GITHUB
-          </a>
+          <div className="flex items-center gap-3 shrink-0">
+            <a
+              href={`https://github.com/luismichio/syncboard/blob/main/doc/${doc.meta.filename}`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-4 py-2 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200 shrink-0"
+            >
+              VIEW ON GITHUB
+            </a>
+            <span className="text-[11px] font-mono text-text-muted/70 px-3 py-2 rounded-lg border border-border-card/50 shrink-0">
+              {DISPLAY}
+            </span>
+          </div>
         </div>
       </header>
 
