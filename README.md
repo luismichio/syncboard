@@ -1,16 +1,16 @@
 # SyncBoard (Figma & Penpot to Miro Sync Engine)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.6.0-%23007ACC?style=flat-square" alt="Version 0.6.0" />
-  <img src="https://img.shields.io/badge/license-Apache%202.0-%23A81C7D?style=flat-square&label=OSI%20Approved" alt="OSI Approved License" />
-  <img src="https://img.shields.io/badge/TypeScript-%23007ACC.svg?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/github/actions/workflow/status/luismichio/syncboard/ci.yml?branch=dev&style=flat-square&label=CI" alt="CI" />
-  <img src="https://img.shields.io/badge/PRs-welcome-%23FF6B6B?style=flat-square" alt="PRs Welcome" />
-  <img src="https://img.shields.io/badge/Next.js-black?style=flat-square&logo=next.js" alt="Next.js" />
-  <img src="https://img.shields.io/badge/Miro-FFD02F?style=flat-square&logo=miro&logoColor=black" alt="Miro" />
-  <img src="https://img.shields.io/badge/Figma-F24E1E?style=flat-square&logo=figma&logoColor=white" alt="Figma" />
-  <img src="https://img.shields.io/badge/Penpot-000000?style=flat-square&logo=penpot&logoColor=white" alt="Penpot" />
-  <img src="https://img.shields.io/badge/Vercel-deployed-black?style=flat-square&logo=vercel" alt="Deployed on Vercel" />
+  <a href="https://github.com/luismichio/syncboard/blob/dev/package.json"><img src="https://img.shields.io/badge/version-0.6.0-%23007ACC?style=flat-square" alt="Version 0.6.0" /></a>
+  <a href="https://github.com/luismichio/syncboard/blob/dev/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-%23A81C7D?style=flat-square&label=OSI%20Approved" alt="OSI Approved License" /></a>
+  <a href="https://github.com/luismichio/syncboard/blob/dev/tsconfig.json"><img src="https://img.shields.io/badge/TypeScript-%23007ACC.svg?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" /></a>
+  <a href="https://github.com/luismichio/syncboard/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/luismichio/syncboard/ci.yml?branch=dev&style=flat-square&label=CI" alt="CI" /></a>
+  <a href="https://github.com/luismichio/syncboard/issues/new"><img src="https://img.shields.io/badge/PRs-welcome-%23FF6B6B?style=flat-square" alt="PRs Welcome" /></a>
+  <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-black?style=flat-square&logo=next.js" alt="Next.js" /></a>
+  <a href="https://developers.miro.com"><img src="https://img.shields.io/badge/Miro-FFD02F?style=flat-square&logo=miro&logoColor=black" alt="Miro" /></a>
+  <a href="https://www.figma.com/developers/api"><img src="https://img.shields.io/badge/Figma-F24E1E?style=flat-square&logo=figma&logoColor=white" alt="Figma" /></a>
+  <a href="https://penpot.app"><img src="https://img.shields.io/badge/Penpot-000000?style=flat-square&logo=penpot&logoColor=white" alt="Penpot" /></a>
+  <a href="https://vercel.com"><img src="https://img.shields.io/badge/Vercel-deployed-black?style=flat-square&logo=vercel" alt="Deployed on Vercel" /></a>
 </p>
 
 > **Community Edition:** This public instance is rate-limited to protect shared infrastructure. Limits reset daily. See [doc/setup.md#-rate-limiting-community-protection](https://github.com/luismichio/syncboard/blob/dev/doc/setup.md#-rate-limiting-community-protection) to configure your own deployment.
