@@ -69,28 +69,25 @@ SyncBoard is a stateless design-to-canvas sync engine designed to fetch, render,
 
 SyncBoard is organized into three adapter layers, each interchangeable:
 
-```
-┌────────────────────────────────────────────┐
-│            AI Agents / Automation            │
-│  (Claude Desktop, Cursor, pi, scripts)      │
-└──────────────────┬─────────────────────────┘
-                   │ MCP Server (§3B)
-                   ▼
-┌────────────────────────────────────────────┐
-│           SyncBoard Core Engine             │
-│  ┌────────────┐  ┌────────────┐            │
-│  │  Source    │  │  Target    │            │
-│  │  Adapters  │──▶  Adapters  │──▶ Miro   │
-│  │  (§1)      │  │  (§2)      │    Mural  │
-│  │            │  │            │    WB      │
-│  └────────────┘  └────────────┘            │
-│       │                                     │
-│       ▼ MCP Client (§3A)                    │
-│  ┌────────────┐                             │
-│  │  Lovable   │  Stitch                     │
-│  │  MCP HTTP  │  MCP stdio                  │
-│  └────────────┘                             │
-└─────────────────────────────────────────────┘
+```mermaid
+graph TD
+    agents["AI Agents / Automation<br/>(Claude Desktop, Cursor, pi, scripts)"]
+    subgraph engine["SyncBoard Core Engine"]
+        direction LR
+        sa["Source Adapters<br/>(§1)"]
+        ta["Target Adapters<br/>(§2)"]
+        mcp["MCP Client (§3A)"]
+        lovable["Lovable<br/>MCP HTTP"]
+        stitch["Stitch<br/>MCP stdio"]
+        sa --> ta
+        sa -.->|MCP Client| mcp
+        mcp --> lovable
+        mcp --> stitch
+    end
+    ta --> miro["Miro"]
+    ta --> mural["Mural"]
+    ta --> wb["WB"]
+    agents -->|"MCP Server (§3B)"| engine
 ```
 
 Each adapter implements a uniform interface. Adding a new source means writing a new source adapter; adding a new target means writing a new target adapter. The transport and MCP layers are shared.
@@ -103,22 +100,18 @@ Each adapter implements a uniform interface. Adding a new source means writing a
 
 The current production architecture uses two sync strategies depending on the source platform's capabilities:
 
-```
-┌────────────────────────────────────────┐
-│        Miro Plugin (any browser)       │
-└──────┬──────────────────────────┬──────┘
-       │                          │
-       ▼                          ▼
-┌───────────────────┐    ┌───────────────────────────────┐
-│  SyncBoard API    │    │  SyncBoard Cloud Relay        │
-│  (Next.js/Vercel) │    │  (Ably WebSocket + Redis)     │
-└─────────┬─────────┘    └──────────────┬────────────────┘
-          │                             │
-          ▼ Cloud REST                  ▼ HTTPS Poll/Result
-┌─────────────────────┐  ┌──────────────────────────────┐
-│  Figma Cloud        │  │  Penpot Companion Plugin     │
-│  (api.figma.com/v1) │  │  (in design.penpot.app tab) │
-└─────────────────────┘  └──────────────────────────────┘
+```mermaid
+graph TD
+    miro["Miro Plugin<br/>(any browser)"]
+    api["SyncBoard API<br/>(Next.js/Vercel)"]
+    relay["SyncBoard Cloud Relay<br/>(Ably WebSocket + Redis)"]
+    figma["Figma Cloud<br/>(api.figma.com/v1)"]
+    penpot["Penpot Companion Plugin<br/>(in design.penpot.app tab)"]
+
+    miro --> api
+    miro --> relay
+    api -->|"Cloud REST"| figma
+    relay -->|"HTTPS Poll/Result"| penpot
 ```
 
 > **Note:** The optional Tauri desktop app (not shown) extends capabilities for large images, Adobe UXP, local LLMs, and two-way sync — but is not required for the core sync pipeline.
@@ -217,22 +210,18 @@ The Server API FAQ states: *"The Server API uses streaming WebSockets, so it wor
 
 **Integration pattern for SyncBoard:**
 
-```
-Framer Editor Plugin          SyncBoard                  Miro
-      │                          │                        │
-      │  detectSelection()       │                        │
-      │─────────────────────────►│                        │
-      │  nodeId, projectId       │                        │
-      │                          │                        │
-      │                          │  publishPreviewLink()  │
-      │                          │──────────────────────►│  Framer Server API
-      │                          │◄────── preview_url ────│
-      │                          │                        │
-      │                          │  Puppeteer screenshot  │
-      │                          │      of preview_url    │
-      │                          │         │              │
-      │                          │  PATCH /api/miro/…    │
-      │                          │──────────────────────►│  Miro Widget
+```mermaid
+sequenceDiagram
+    participant Plugin as "Framer Editor Plugin"
+    participant SyncBoard
+    participant Miro as "Miro Widget"
+    participant Framer as "Framer Server API"
+
+    Plugin->>SyncBoard: detectSelection()<br/>nodeId, projectId
+    SyncBoard->>Framer: publishPreviewLink()
+    Framer-->>SyncBoard: preview_url
+    Note over SyncBoard: Puppeteer screenshot of preview_url
+    SyncBoard->>Miro: PATCH /api/miro/…
 ```
 
 This is the **same pattern as Lovable** — deploy/preview the project, capture the rendered page, push to Miro. It lacks per-frame granularity (the screenshot captures the entire page), but it's viable for whole-app visual reviews in Miro.
@@ -269,16 +258,22 @@ Lovable provides an **official MCP server** (`https://mcp.lovable.dev`, HTTP-bas
 
 **MCP-native sync flow:**
 
-```
-SyncBoard ──MCP call──► mcp.lovable.dev ──► Lovable API
-(get_project)               |
-                    ┌─────────┴─────────┐
-                    ▼                   ▼
-             screenshot           preview_url
-                    |                   |
-                    ▼                   ▼
-      /api/miro/update-image    Miro embed card
-      (static PNG in widget)    (interactive live URL)
+```mermaid
+graph LR
+    sync["SyncBoard<br/>(get_project)"]
+    mcp["mcp.lovable.dev"]
+    api["Lovable API"]
+    ss["screenshot"]
+    pv["preview_url"]
+    img["Miro Image Widget<br/>(static PNG)"]
+    card["Miro Embed Card<br/>(interactive live URL)"]
+
+    sync -->|"MCP call"| mcp
+    mcp --> api
+    api --> ss
+    api --> pv
+    ss --> img
+    pv --> card
 ```
 
 **Two delivery modes from one API call:**
@@ -317,14 +312,18 @@ Stitch is a Google AI-powered tool that generates mobile and web UI designs from
 
 **Potential SyncBoard integration pattern — MCP-native sync:**
 
-```
-SyncBoard ──MCP call──► stitch-mcp ──► Google Stitch API
-(fetch_screen_image)         |
-                             ▼
-                      high-res screenshot
-                             |
-                             ▼
-              /api/miro/update-image ──► Miro Widget
+```mermaid
+graph LR
+    sb["SyncBoard<br/>(fetch_screen_image)"]
+    stitch["stitch-mcp"]
+    api["Google Stitch API"]
+    img["high-res screenshot"]
+    miro["Miro Widget"]
+
+    sb -->|"MCP call"| stitch
+    stitch --> api
+    api --> img
+    img -->|/api/miro/update-image| miro
 ```
 
 This would represent a **third sync pattern** for SyncBoard, distinct from the Figma cloud-native and Penpot cloud-relay patterns:
@@ -379,14 +378,18 @@ The Adobe Cloud Storage API (`developer.adobe.com/cloud-storage`) provides enter
 
 **If validated,** this would enable a **pure cloud-native path** for Adobe:
 
-```
-SyncBoard ──GET──► Cloud Storage API ──► Adobe Cloud
-(list files + image-rendition)       |
-                                      ▼
-                               image bytes
-                                      |
-                                      ▼
-                        /api/miro/update-image ──► Miro Widget
+```mermaid
+graph LR
+    sync["SyncBoard<br/>(list files + image-rendition)"]
+    csapi["Cloud Storage API"]
+    adobe["Adobe Cloud"]
+    bytes["image bytes"]
+    miro["Miro Widget"]
+
+    sync -->|"GET"| csapi
+    csapi --> adobe
+    adobe --> bytes
+    bytes -->|/api/miro/update-image| miro
 ```
 
 No Tauri, no UXP plugin, no local process needed. Same pattern as Figma's cloud-native sync.
@@ -399,19 +402,19 @@ Adobe UXP (Unified Extensibility Platform) is Adobe's cross-app plugin system fo
 
 **Integration path (Tauri relay):**
 
-```
-Adobe App (Photoshop/Illustrator)          Tauri Desktop            SyncBoard (Vercel)
-      │                                        │                        │
-      │  detectSelection() via UXP             │                        │
-      │  get activeDocument + selection        │                        │
-      │───────────────────────────────────────►│  local socket           │
-      │                                        │                        │
-      │                                        │  exportFile() via UXP  │
-      │◄───────────────────────────────────────│  (trigger export)      │
-      │──────────── image bytes ──────────────►│                        │
-      │                                        │                        │
-      │                                        │  POST /api/miro/…     │
-      │                                        │───────────────────────►│  Miro Widget
+```mermaid
+sequenceDiagram
+    participant Adobe as "Adobe App<br/>(Photoshop/Illustrator)"
+    participant Tauri as "Tauri Desktop"
+    participant SyncBoard as "SyncBoard (Vercel)"
+    participant Miro as "Miro Widget"
+
+    Adobe->>Tauri: detectSelection() via UXP<br/>get activeDocument + selection
+    Note over Adobe,Tauri: local socket
+    Tauri->>Adobe: exportFile() via UXP<br/>(trigger export)
+    Adobe->>Tauri: image bytes
+    Tauri->>SyncBoard: POST /api/miro/…
+    SyncBoard->>Miro: image upload
 ```
 
 **Current status in SyncBoard:**
@@ -512,19 +515,25 @@ async function callLovableTool(accessToken: string, tool: string, args: object) 
 
 **Routing logic inside SyncBoard's API routes:**
 
-```
-POST /api/sync/refresh  { source, sourceId, accessToken }
-       │
-       ├── source === "figma"   → GET api.figma.com/v1/images/...
-       ├── source === "stitch"  → MCP stdio (stitch-mcp fetch_screen_image)
-       ├── source === "lovable" → MCP HTTP (mcp.lovable.dev get_project)
-       └── source === "penpot"  → Ably relay → Penpot companion plugin
-                   │
-                   ▼
-          Uniform response: { image: base64, metadata: { sourceId, sourceName } }
-                   │
-                   ▼
-          PATCH /api/miro/update-image  →  Miro widget updated
+```mermaid
+graph TD
+    req["POST /api/sync/refresh<br/>{ source, sourceId, accessToken }"]
+    figma["GET api.figma.com/v1/images/..."]
+    stitch["MCP stdio<br/>(stitch-mcp fetch_screen_image)"]
+    lovable["MCP HTTP<br/>(mcp.lovable.dev get_project)"]
+    penpot["Ably relay → Penpot companion plugin"]
+    uniform["Uniform response:<br/>image: base64<br/>metadata: sourceId, sourceName"]
+    miro["PATCH /api/miro/update-image<br/>→ Miro widget updated"]
+
+    req -->|figma| figma
+    req -->|stitch| stitch
+    req -->|lovable| lovable
+    req -->|penpot| penpot
+    figma --> uniform
+    stitch --> uniform
+    lovable --> uniform
+    penpot --> uniform
+    uniform --> miro
 ```
 
 #### OAuth Flow for Remote MCP
@@ -539,30 +548,23 @@ Lovable's MCP server uses the standard MCP OAuth flow. SyncBoard handles this as
 6. Tokens are stored encrypted (Vercel KV or database), associated with the SyncBoard user session.
 7. All subsequent `get_project` / `deploy_project` calls use the cached access token.
 
-```
-Miro Sidebar          SyncBoard (Vercel)       mcp.lovable.dev
-    │                       │                       │
-    │  [Connect Lovable]    │                       │
-    │──────────────────────►│                       │
-    │                       │  Redirect to auth     │
-    │                       │──────────────────────►│
-    │  █ Browser opens █    │                       │
-    │  User signs in        │                       │
-    │  Grants access        │                       │
-    │                       │◄──────────────────────│  Auth code
-    │                       │                       │
-    │                       │  Exchange code→token  │
-    │                       │──────────────────────►│
-    │                       │◄──────────────────────│  Access + refresh token
-    │                       │                       │
-    │                       │  Store encrypted      │
-    │                       │                       │
-    │  [Sync Frame A]       │                       │
-    │──────────────────────►│  callTool(get_project) │
-    │                       │──────────────────────►│
-    │                       │◄──────────────────────│  { screenshot, preview_url }
-    │  Update Miro widget   │                       │
-    │◄──────────────────────│                       │
+```mermaid
+sequenceDiagram
+    participant Sidebar as "Miro Sidebar"
+    participant SyncBoard as "SyncBoard (Vercel)"
+    participant Lovable as "mcp.lovable.dev"
+
+    Sidebar->>SyncBoard: [Connect Lovable]
+    SyncBoard->>Lovable: Redirect to auth
+    Note over Sidebar,Lovable: Browser opens / User signs in / Grants access
+    Lovable-->>SyncBoard: Auth code
+    SyncBoard->>Lovable: Exchange code → token
+    Lovable-->>SyncBoard: Access + refresh token
+    Note over SyncBoard: Store encrypted
+    Sidebar->>SyncBoard: [Sync Frame A]
+    SyncBoard->>Lovable: callTool(get_project)
+    Lovable-->>SyncBoard: { screenshot, preview_url }
+    SyncBoard-->>Sidebar: Update Miro widget
 ```
 
 #### Source Adapter Pattern
@@ -620,25 +622,18 @@ Just as SyncBoard acts as an **MCP client** to Lovable and Stitch, it can also a
 
 #### Symmetric Architecture
 
-```
-                    ┌─────────────────────────────────┐
-                    │          AI Agents               │
-                    │  (Claude / Cursor / pi / etc.)   │
-                    └──────────────┬──────────────────┘
-                                   │ MCP client (stdio or HTTP)
-                                   ▼
-                    ┌─────────────────────────────────┐
-                    │       SyncBoard MCP Server       │
-                    │  Exposes: sync_frame, list_*,    │
-                    │  get_status, batch_sync          │
-                    └──────────────┬──────────────────┘
-                                   │ Internal adapters
-                    ┌──────────────┼──────────────┐
-                    ▼              ▼              ▼
-              ┌──────────┐  ┌──────────┐  ┌──────────┐
-              │ Figma    │  │ Lovable  │  │ Stitch   │
-              │ REST API │  │ MCP HTTP │  │ MCP stdio│
-              └──────────┘  └──────────┘  └──────────┘
+```mermaid
+graph TD
+    agents["AI Agents<br/>(Claude / Cursor / pi / etc.)"]
+    server["SyncBoard MCP Server<br/>Exposes: sync_frame, list_*,<br/>get_status, batch_sync"]
+    figma["Figma<br/>REST API"]
+    lovable["Lovable<br/>MCP HTTP"]
+    stitch["Stitch<br/>MCP stdio"]
+
+    agents -->|"MCP client (stdio or HTTP)"| server
+    server -->|"Internal adapters"| figma
+    server -->|"Internal adapters"| lovable
+    server -->|"Internal adapters"| stitch
 ```
 
 SyncBoard sits in the **middle** — MCP server facing agents, MCP client facing design sources. Every MCP tool call maps 1:1 to an existing adapter method (listed in the Source Adapter Pattern above).
@@ -812,15 +807,17 @@ Understanding where image bytes travel is critical for self-hosters evaluating h
 
 ### A. Figma Sync Path (Cloud-Native)
 
-```
-Miro Plugin ──POST──► SyncBoard API ──GET──► Figma API
-(request)       (Next.js on Vercel)   (api.figma.com/v1/images)
-                    │
-                    ▼  image/png bytes
-               SyncBoard API
-                    │
-                    ▼  PATCH multipart
-                    Miro API
+```mermaid
+graph LR
+    miro["Miro Plugin"]
+    sbApi["SyncBoard API<br/>(Next.js on Vercel)"]
+    figmaApi["Figma API<br/>(api.figma.com/v1/images)"]
+    miroApi["Miro API"]
+
+    miro -->|"POST (request)"| sbApi
+    sbApi -->|"GET /v1/images"| figmaApi
+    figmaApi -->|"image/png bytes"| sbApi
+    sbApi -->|"PATCH multipart"| miroApi
 ```
 
 **Where bytes travel:**
@@ -831,33 +828,28 @@ Miro Plugin ──POST──► SyncBoard API ──GET──► Figma API
 
 ### B. Penpot Relay Path (Cloud-Relay)
 
-```
-Miro Plugin ──POST──► /api/relay/request
-(request)       (Vercel publishes to
-                  Ably channel)
-                    │
-                    │  Ably WebSocket
-                    │  (instant delivery)
-                    ▼
-               Penpot Companion Plugin
-               (subscribed to Ably channel)
-               (renders shape locally)
-                    │
-                    │  POSTs result to /api/relay/penpot/result
-                    ▼
-               Redis SETEX ──► /api/relay/request
-               (result stored   (response returned to Miro plugin)
-                for 45s)
-                    │
-                    ▼  SVG text or base64 PNG as JSON
-               Miro Plugin
-                    │
-                    ▼  POST with dataUrl
-               /api/miro/update-image
-               (Vercel decodes base64, PATCHes to Miro API)
-                    │
-                    ▼  multipart PATCH
-                    Miro API
+```mermaid
+graph TD
+    miroPlugin["Miro Plugin<br/>POST /api/relay/request"]
+    relay["/api/relay/request<br/>(Vercel publishes to Ably channel)"]
+    ably["Ably WebSocket<br/>(instant delivery)"]
+    penpot["Penpot Companion Plugin<br/>(subscribed, renders shape locally)"]
+    result["POST /api/relay/penpot/result"]
+    redis["Redis SETEX<br/>(result stored for 45s)"]
+    relayResp["/api/relay/request<br/>(response returned to Miro plugin)"]
+    miroPlugin2["Miro Plugin"]
+    update["/api/miro/update-image<br/>(Vercel decodes base64)"]
+    miroApi["Miro API<br/>multipart PATCH"]
+
+    miroPlugin --> relay
+    relay --> ably
+    ably --> penpot
+    penpot --> result
+    result --> redis
+    redis --> relayResp
+    relayResp -->|"SVG text or base64 PNG as JSON"| miroPlugin2
+    miroPlugin2 -->|"POST with dataUrl"| update
+    update -->|"multipart PATCH"| miroApi
 ```
 
 **Where bytes travel:**
@@ -986,23 +978,27 @@ Chrome's Private Network Access (PNA) blocks both `fetch()` and `WebSocket` from
 
 Tauri is no longer required for day-to-day sync. It becomes an **optional desktop companion** for operations that exceed what a pure web plugin can do:
 
-```
-┌──────────────────────────────────────────────┐
-│            SyncBoard Ecosystem                │
-│                                              │
-│  ┌──────────────────┐ ┌──────────────────┐   │
-│  │   Cloud Tier     │ │  Tauri Extender  │   │
-│  │  (Always Avail.) │ │  (Optional)      │   │
-│  │                  │ │                  │   │
-│  │ • Figma API sync │ │ • Large images   │   │
-│  │ • Penpot relay   │ │   (>4.5MB)       │   │
-│  │ • OAuth polling  │ │ • Adobe UXP      │   │
-│  │ • Doc site       │ │ • Local LLMs     │   │
-│  │ • Rate limiting  │ │ • Image compress │   │
-│  │ • Miro API       │ │ • Office/PDF     │   │
-│  │                  │ │ • Two-way sync   │   │
-│  └──────────────────┘ └──────────────────┘   │
-└──────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph ecosystem["SyncBoard Ecosystem"]
+        direction LR
+        subgraph cloud["Cloud Tier<br/>(Always Available)"]
+            c1["Figma API sync"]
+            c2["Penpot relay"]
+            c3["OAuth polling"]
+            c4["Doc site"]
+            c5["Rate limiting"]
+            c6["Miro API"]
+        end
+        subgraph tauri["Tauri Extender<br/>(Optional)"]
+            t1["Large images (>4.5MB)"]
+            t2["Adobe UXP"]
+            t3["Local LLMs"]
+            t4["Image compression"]
+            t5["Office/PDF"]
+            t6["Two-way sync"]
+        end
+    end
 ```
 
 #### What Tauri Enables (Web-Native Cannot)

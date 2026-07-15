@@ -236,3 +236,19 @@ html {
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/* Mermaid diagram styles */
+.mermaid-diagram {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 24px 0;
+  overflow-x: auto;
+  border: 1px solid var(--border-card);
+  display: flex;
+  justify-content: center;
+}
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}

@@ -5,8 +5,34 @@ import rehypeHighlight from "rehype-highlight";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import remarkGfm from "remark-gfm";
+import { visit } from "unist-util-visit";
 import { getAllDocs, getDocBySlug, extractHeadings, getWordCount } from "@/lib/docs";
 import TOC from "@/components/docs/TOC";
+import MermaidHydrator from "@/components/docs/MermaidHydrator";
+
+// Rehype plugin: transform ```mermaid code blocks into <div class="mermaid-diagram">
+function rehypeMermaidBlocks() {
+  return (tree: any) => {
+    visit(tree, "element", (node: any) => {
+      if (node.tagName === "pre") {
+        const code = node.children?.[0];
+        if (
+          code?.tagName === "code" &&
+          Array.isArray(code.properties?.className) &&
+          code.properties.className.includes("language-mermaid")
+        ) {
+          const text = code.children
+            ?.filter((c: any) => c.type === "text")
+            .map((c: any) => c.value)
+            .join("");
+          node.tagName = "div";
+          node.properties = { className: ["mermaid-diagram"] };
+          node.children = [{ type: "text", value: text || "" }];
+        }
+      }
+    });
+  };
+}
 
 export async function generateStaticParams() {
   const docs = getAllDocs();
@@ -53,6 +79,7 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
               },
             },
           ],
+          rehypeMermaidBlocks,
           rehypeHighlight,
         ],
       },
@@ -142,6 +169,7 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
           ">
             {content}
           </article>
+          <MermaidHydrator />
 
           {/* Back link */}
           <div className="mt-16 pt-8 border-t border-border-card">
