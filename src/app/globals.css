@@ -106,9 +106,17 @@ html {
   background: transparent !important;
   border: none;
   padding: 0;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.25;
   color: var(--text-page);
+}
+
+/* Ensure box-drawing characters in ASCII diagrams connect properly.
+   The tight line-height (1.25) makes ─ │ ┌ ┐ └ ┘ characters align
+   without gaps between rows. */
+.prose pre code {
+  font-variant-ligatures: none;
+  font-kerning: none;
 }
 
 /* Inline code */

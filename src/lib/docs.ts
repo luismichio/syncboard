@@ -88,7 +88,7 @@ export function getDocBySlug(slug: string): { meta: DocMeta; content: string } |
   if (!doc) return null;
 
   const filepath = path.join(DOC_DIR, doc.filename);
-  const content = fs.readFileSync(filepath, 'utf-8');
+  const content = stripFrontmatter(fs.readFileSync(filepath, 'utf-8'));
   return { meta: doc, content };
 }
 
@@ -115,11 +115,16 @@ export function extractHeadings(md: string): DocHeading[] {
   return headings;
 }
 
+/** Strips YAML frontmatter (delimited by `---` at start of file) from markdown content. */
+export function stripFrontmatter(md: string): string {
+  return md.replace(/^---[\s\S]*?---\n*/, '');
+}
+
 /**
  * Rough word count for a markdown document.
  */
 export function getWordCount(md: string): number {
-  const body = md.replace(/^---[\s\S]*?---\n*/, '');
+  const body = stripFrontmatter(md);
   const text = body.replace(/#+\s/g, '').replace(/[\s\n]+/g, ' ').trim();
   return text.split(/\s+/).length;
 }
