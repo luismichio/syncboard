@@ -866,7 +866,7 @@ Image bytes pass through **Redis ephemerally** (step 1-2) and **Vercel twice** (
 | Vercel execution timeout | **10s** (Hobby), **60s** (Pro), **900s** (Enterprise) | `/api/miro/update-image` --- large images take time to download/upload | Keep images under 1MB for Hobby plan; upgrade to Pro for larger |
 | Vercel outbound bandwidth | **100 GB/mo** (Hobby), **1 TB/mo** (Pro) | Figma path downloads image; all paths upload to Miro | SVG format uses ~10x less bandwidth than PNG; Tauri direct upload bypasses Vercel entirely |
 | Vercel function invocations | **100k/mo** (Hobby), **10M/mo** (Pro) | Each sync operation = 1 relay request + 1 update-image call | Batch exports reduce calls; see 6 |
-| Redis value size | **~512 MB** (Upstash max) | Relay result payload returned to Miro plugin | Practical limit is Vercel's 4.5 MB response size, not Redis |
+| Redis value size | **~512 MB** (Upstash max) | Relay result payload returned to Miro plugin | Practical limit is Vercel's 4.5 MB response size (not Redis) on Vercel; other hosts (Netlify 50MB, GCR 32MB, Fly.io unlimited) handle larger payloads natively |
 | Redis commands/mo | **10k/day** (Upstash Free), **100k/day** (Pay-as-you-go ~$0.15/1k) | Each result store/retrieve/delete = 1 command | Each sync run = ~2-4 Redis commands (result store, poll, delete). Zero idle cost --- Ably handles delivery. |
 | Redis storage | **50 MB** (Upstash Free), **1 GB** ($0.15/GB) | Ephemeral command queue + result cache (45s TTL) | Negligible --- data auto-expires; no persistent growth |
 
@@ -874,10 +874,11 @@ Image bytes pass through **Redis ephemerally** (step 1-2) and **Vercel twice** (
 
 | Scenario | Vercel Plan | Upstash Plan | Monthly Cost | Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| Personal use, light sync | Hobby (free) | Free (10k cmd/day) | **$0** | Stay under 4.5MB per image, under 100k invocations |
+| Personal use, light sync | Hobby (free) | Free (10k cmd/day) | **$0** | Stay under 4.5MB per image (Vercel limit), under 100k invocations |
 | Team, regular Figma sync | Pro ($20/mo) | Free (10k cmd/day) | **$20/mo** | 1TB bandwidth, 60s timeout handles larger images |
 | Heavy Penpot sync, large SVGs | Pro ($20/mo) | Free (~$0) | **$20/mo** | Redis used only for result storage (~2-4 commands per sync). Ably free tier (200k msg/mo) covers delivery. |
-| Large images needing >4.5MB | Pro + Tauri extender | Free ($0) | **$20/mo** | Tauri handles direct Miro upload, bypassing Vercel body limit |
+| Large images on Vercel | Pro + Tauri extender | Free ($0) | **$20/mo** | Tauri handles direct Miro upload, bypassing Vercel's 4.5MB body limit |
+| Alternative hosts (Netlify, Railway, etc.) | Platform free tier | Free ($0) | **$0** | Most hosts have higher or no response body limits --- large images sync without Tauri |
 
 ### E. Why This Architecture Is Cost-Efficient
 
@@ -890,11 +891,11 @@ Image bytes pass through **Redis ephemerally** (step 1-2) and **Vercel twice** (
 
 | Scenario | Without Tauri | With Tauri | Savings |
 | :--- | :--- | :--- | :--- |
-| 5 MB PNG export | Fails (Vercel 4.5MB limit) | Uploads directly to Miro API | Unblocks feature |
+| 5 MB PNG export | Fails on Vercel (4.5MB limit); works on other hosts | Uploads directly to Miro API | Unblocks feature on Vercel |
 | 100 daily syncs x 500 KB PNG | ~50 GB Vercel bandwidth/mo | ~0 GB bandwidth (Tauri->Miro direct) | Stays within Hobby plan |
 | Batch 50 images | 50 Vercel invocations | 0 invocations (Tauri batches locally) | Saves function quota |
 
-In short: the cloud relay path handles **small-to-medium payloads** efficiently at near-zero cost. Tauri is only needed when you hit the 4.5MB ceiling or want to eliminate Vercel bandwidth entirely.
+In short: the cloud relay path handles **small-to-medium payloads** efficiently at near-zero cost. The 4.5MB ceiling is **Vercel-specific** --- alternative hosts (Netlify 50MB, Google Cloud Run 32MB, Fly.io/Docker unlimited) handle larger images natively. Tauri is only needed when you hit the 4.5MB ceiling on Vercel or want to eliminate cloud bandwidth entirely.
 
 ### G. Deprecation of Local Tauri Transport for Penpot
 

@@ -115,7 +115,9 @@ If the Penpot Companion plugin shows "offline" in the Miro plugin:
 
 ## Deploy (Required)
 
-### 5. Deploy to Vercel
+### 5. Deploy to Vercel (Recommended)
+
+Vercel is the simplest deployment path --- one-click deploy with zero server management. However, other hosts work too (see [Alternatives](#~alternative-hosting) below).
 
 1. Click the deploy button to clone and deploy instantly:
    [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,ABLY_API_KEY)
@@ -138,6 +140,27 @@ If the Penpot Companion plugin shows "offline" in the Miro plugin:
    > Do NOT add a trailing slash to `NEXT_PUBLIC_APP_URL`. Example: `https://syncboard.yourdomain.com` (no `/` at the end).
 
 4. Click **Deploy**.
+
+### ~ Alternative Hosting
+
+Vercel is the default, but SyncBoard is a standard Next.js app and runs on any host that supports Node.js serverless or containerized workloads. The main difference is the response body limit:
+
+| Host | Response Body Limit | Image Payload Limit | Notes |
+| :--- | :--- | :--- | :--- |
+| **Vercel** (Hobby/Pro) | **4.5 MB** | Images above 4.5MB need Tauri extender | One-click deploy, zero config |
+| **Netlify** | **50 MB** | Most large images work without Tauri | 10s function timeout on free tier |
+| **Railway** | None documented | Large images work natively | 500MB RAM, 60s timeout |
+| **Render** | None documented | Large images work natively | 100-512MB RAM depending on plan |
+| **Google Cloud Run** | **32 MB** | Large images up to 32MB work natively | 60s timeout, auto-scaling |
+| **Fly.io** | None (full VM) | Unlimited | Persistent storage, any runtime |
+| **Docker / VPS** | None | Unlimited | Full control, you manage infra |
+
+To deploy on an alternative host:
+1. Set the same environment variables listed above.
+2. Use `yarn build && yarn start` for a Node server, or adapt for your platform's Next.js builder.
+3. Make sure the public URL matches your `NEXT_PUBLIC_APP_URL` and your Miro/Figma OAuth redirect URIs.
+
+The **4.5MB limit is Vercel-specific** --- if you use any other host, large images sync without needing the Tauri desktop app for size reasons. (Tauri is still needed for Adobe UXP, local LLMs, and two-way sync.)
 
 ---
 
