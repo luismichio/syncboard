@@ -58,7 +58,7 @@ export function getAllDocs(): DocMeta[] {
     .filter((f) => f.endsWith('.md') && !HIDDEN_DOCS.has(f))
     .sort();
 
-  return files.map((filename) => {
+  const results = files.map((filename) => {
     const filepath = path.join(DOC_DIR, filename);
     const stat = fs.statSync(filepath);
     const md = fs.readFileSync(filepath, 'utf-8');
@@ -73,6 +73,25 @@ export function getAllDocs(): DocMeta[] {
       updatedAt: stat.mtime,
     };
   });
+
+  // Include root README.md as a special doc
+  try {
+    const readmePath = path.resolve(process.cwd(), 'README.md');
+    const stat = fs.statSync(readmePath);
+    const md = fs.readFileSync(readmePath, 'utf-8');
+    results.push({
+      slug: 'readme',
+      title: extractTitle(md, 'README.md'),
+      description: extractDescription(md),
+      filename: 'README.md',
+      size: stat.size,
+      updatedAt: stat.mtime,
+    });
+  } catch {
+    // README.md not found — skip
+  }
+
+  return results;
 }
 
 /**
@@ -87,7 +106,9 @@ export function getDocBySlug(slug: string): { meta: DocMeta; content: string } |
   const doc = docs.find((d) => d.slug === slug);
   if (!doc) return null;
 
-  const filepath = path.join(DOC_DIR, doc.filename);
+  // Root-level files (README.md) live at project root, not in doc/
+  const baseDir = doc.filename === 'README.md' ? process.cwd() : DOC_DIR;
+  const filepath = path.join(baseDir, doc.filename);
   const content = stripFrontmatter(fs.readFileSync(filepath, 'utf-8'));
   return { meta: doc, content };
 }
