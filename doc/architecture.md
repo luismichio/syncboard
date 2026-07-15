@@ -1025,3 +1025,20 @@ The relay-first architecture decouples the sync engine from any single canvas pr
 - **tldraw** (embedded)
 
 Each whiteboard gets a thin plugin that reads/updates widgets and talks to SyncBoard's cloud API. The Tauri extender can optionally enhance any of these with the capabilities above.
+
+### Penpot Transport Evolution
+
+Penpot's transport mechanism went through three distinct phases before reaching the current Ably + Redis relay. Each phase solved a specific constraint:
+
+| Phase | Transport | Mechanism | Problem Solved | Limitation | Applies To |
+|-------|-----------|-----------|----------------|------------|------------|
+| **v0.4.0 (original)** | Tauri WebSocket | Companion connected via WSS to Tauri's local loopback server (`local.syncboard.com:4401`). Tauri relayed commands between Miro plugin and Penpot companion. | Bypassed mixed-content browser blocks for desktop apps | Chrome PNA blocked all browser → localhost from web contexts (Miro plugin sandbox, Penpot web app). Only worked in Miro Desktop (Electron). | Miro Desktop only |
+| **v0.5.0** | HTTP long-poll (SyncBridge) | Replaced WebSocket with `fetch()` polling using `targetAddressSpace: 'loopback'`. Companion polled `GET /penpot/poll` every ~1s. Tauri used tokio `Notify` signaling to hold long-poll requests for up to 30s. | Passed Chrome's PNA checks for `targetAddressSpace: 'loopback'` | Still required Tauri running locally. 1-second polling caused ~1,000 Redis commands/second when idle if not throttled (fixed in v0.5.2 with 2s delay). Still a localhost dependency. | All browsers (via PNA workaround) |
+| **v0.5.1+ (current)** | Cloud relay (Ably + Upstash Redis) | Companion subscribes to Ably WebSocket channel. Commands published via `/api/relay/request` → Ably → companion. Results posted to `/api/relay/penpot/result` → Redis → Miro plugin. | Eliminated all localhost dependencies. Companion works in any browser without PNA exceptions or Tauri. | Slightly higher latency (network round-trip vs localhost). Requires Ably and Upstash infrastructure (both free-tier viable). | Any browser, any device |
+
+**Why not skip straight to Ably?** The intermediate long-poll phase was necessary because the PNA block was discovered incrementally:
+1. First found that WebSockets were blocked from public origins to localhost (PNA).
+2. Discovered `targetAddressSpace: 'loopback'` worked for `fetch()` but not WebSocket.
+3. Built long-poll bridge as a PNA-compatible workaround.
+4. Later realized that even with PNA passable, localhost dependencies still broke in Safari and required Tauri running — prompting the cloud relay.
+5. Ably was chosen because it eliminated the polling cost (instant delivery via WebSocket from cloud, not localhost) and maintained the existing pub/sub command pattern.
