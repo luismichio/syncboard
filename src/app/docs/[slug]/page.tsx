@@ -187,8 +187,10 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
 
         {/* TOC sidebar */}
         <aside className="hidden lg:block w-56 shrink-0">
-          <div className="toc-container sticky top-8 max-h-[calc(100vh-6rem)] overflow-y-auto space-y-4">
-            <TOC headings={headings} />
+          <div className="sticky top-8">
+            <div className="toc-container max-h-[calc(100vh-6rem)] overflow-y-auto overflow-x-hidden">
+              <TOC headings={headings} />
+            </div>
           </div>
         </aside>
       </div>
