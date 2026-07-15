@@ -143,10 +143,10 @@ If the Penpot Companion plugin shows "offline" in the Miro plugin:
 
 ## 6. Local Development
 
-For testing and coding on your local machine:
+For testing and coding on your local machine (commands work on Windows, macOS, and Linux):
 
 1. **Install dependencies:**
-   ```bash
+   ```
    yarn install
    ```
 
@@ -163,13 +163,13 @@ For testing and coding on your local machine:
    ```
 
 3. **Expose localhost using `cloudflared`:**
-   ```bash
+   ```
    npx @cloudflare/cloudflared tunnel --url http://localhost:3000
    ```
    > This creates a public HTTPS URL for OAuth callbacks during local development.
 
 4. **Start the development server:**
-   ```bash
+   ```
    yarn dev
    ```
 
