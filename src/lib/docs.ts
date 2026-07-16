@@ -113,7 +113,7 @@ export function getDocBySlug(slug: string): { meta: DocMeta; content: string } |
   // Root-level files (README.md) live at project root, not in doc/
   const baseDir = doc.filename === 'README.md' ? process.cwd() : DOC_DIR;
   const filepath = path.join(baseDir, doc.filename);
-  const content = stripFrontmatter(fs.readFileSync(filepath, 'utf-8'));
+  const content = stripFrontmatter(fs.readFileSync(filepath, 'utf-8')).replace(/\r/g, '');
   return { meta: doc, content };
 }
 
