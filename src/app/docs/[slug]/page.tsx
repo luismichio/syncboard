@@ -11,10 +11,22 @@ import { DISPLAY } from "@/lib/version";
 import TOC from "@/components/docs/TOC";
 import MermaidHydrator from "@/components/docs/MermaidHydrator";
 
+import type { Node } from "unist";
+
+interface UnistNode extends Node {
+  tagName?: string;
+  properties?: {
+    className?: string[];
+    [key: string]: unknown;
+  };
+  children?: UnistNode[];
+  value?: string;
+}
+
 // Rehype plugin: transform ```mermaid code blocks into <div class="mermaid-diagram">
 function rehypeMermaidBlocks() {
-  return (tree: any) => {
-    visit(tree, "element", (node: any) => {
+  return (tree: UnistNode) => {
+    visit(tree, "element", (node: UnistNode) => {
       if (node.tagName === "pre") {
         const code = node.children?.[0];
         if (
@@ -23,8 +35,8 @@ function rehypeMermaidBlocks() {
           code.properties.className.includes("language-mermaid")
         ) {
           const text = code.children
-            ?.filter((c: any) => c.type === "text")
-            .map((c: any) => c.value)
+            ?.filter((c: UnistNode) => c.type === "text")
+            .map((c: UnistNode) => c.value)
             .join("");
           node.tagName = "div";
           node.properties = { className: ["mermaid-diagram"] };

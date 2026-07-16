@@ -21,6 +21,7 @@
 
 import crypto from "crypto";
 import { NextResponse } from "next/server";
+import type { Ratelimit } from "@upstash/ratelimit";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -234,7 +235,7 @@ class InMemoryBackend implements RateLimiterBackend {
 
 /** Redis-backed sliding-window rate limiter via @upstash/ratelimit. */
 class RedisBackend implements RateLimiterBackend {
-  private instances = new Map<string, any>();
+  private instances = new Map<string, Ratelimit>();
   private initPromise: Promise<void> | null = null;
   private initialized = false;
 
@@ -341,7 +342,7 @@ async function getBackend(): Promise<RateLimiterBackend | null> {
 
 // ─── withRateLimit HOF ─────────────────────────────────────────────────────
 
-type RouteHandler = (request: Request, ...args: any[]) => Promise<NextResponse>;
+type RouteHandler = (request: Request, ...args: unknown[]) => Promise<NextResponse>;
 
 export interface WithRateLimitOptions {
   /** Endpoint group identifier, e.g. "figma:render" */
@@ -362,7 +363,7 @@ export interface WithRateLimitOptions {
  */
 export function withRateLimit(opts: WithRateLimitOptions) {
   return function wrap(handler: RouteHandler): RouteHandler {
-    return async function rateLimitedHandler(request: Request, ...args: any[]): Promise<NextResponse> {
+    return async function rateLimitedHandler(request: Request, ...args: unknown[]): Promise<NextResponse> {
       const backend = await getBackend();
       if (!backend) {
         return handler(request, ...args);
