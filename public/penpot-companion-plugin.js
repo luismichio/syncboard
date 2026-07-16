@@ -1,7 +1,7 @@
 // SyncBoard Companion Plugin - Penpot background runner
 penpot.ui.open('SyncBoard Companion', './penpot-companion-ui.html', {
   width: 320,
-  height: 480,
+  height: 600,
 });
 
 function normalizeTheme(theme) {

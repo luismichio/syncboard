@@ -751,6 +751,14 @@ SyncBoard stores all design connection metadata directly in the Miro widget. No 
 }
 ```
 
+### Why Duplicate Metadata in Title Signatures?
+
+Although Miro's native metadata registry (`image.getMetadata().syncboard`) serves as the structured source of truth, SyncBoard infuses the same signature into the visual widget title for three critical reasons:
+
+1. **Durable Copy/Paste Fallback:** In Miro, when a widget is copied and pasted across different boards or by different users, custom plugin-sandboxed metadata can occasionally be stripped or become inaccessible. Standard title text is native to the widget and is guaranteed to persist during duplication. The plugin uses title-based regex matching as its primary detection path to preserve connections under copy/paste.
+2. **Native Board Searchability:** Miro's native search bar indexes widget text (including titles) but does not index custom plugin metadata. Storing the `[SyncBoard|fileKey|nodeId]` signature in the title enables users to search their Miro board for specific Figma/Penpot nodes or files.
+3. **Human-Readable Auditing:** It provides an instant visual reference for developers and editors to verify frame mapping directly from the Miro interface without needing to inspect developer tools or open the plugin sidebar.
+
 ---
 
 ## 6. Duplicate Card Consolidation

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.6.1] - 2026-07-16
+
+### Added
+- **FAQ Document:** Created a Frequently Asked Questions (FAQ) guide under `doc/faq.md` covering concurrent collaboration rules, metadata signatures, Chrome PNA network blocks, security configurations, and image format options.
+
+### Fixed
+- **Penpot Companion Window Height:** Increased the companion iframe height from `480` to `600` to prevent unnecessary vertical scrollbars in the Penpot editor interface.
+
+---
+
 ## [0.6.0] - 2026-07-15
 ### Added
 * **Community Plan Rate Limiting:** Token-based rate limiting that identifies users by their OAuth token hash (or Penpot pairingId) instead of IP, making it immune to VPN cycling. Edge middleware, per-endpoint `withRateLimit()` HOF, and global daily backstop (500 syncs/day all users).
