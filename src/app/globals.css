@@ -96,6 +96,14 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Render markdown badges inline rather than block-stacked */
+.prose p img {
+  display: inline-block;
+  vertical-align: middle;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
 .prose pre {
   background-color: var(--bg-code-block) !important;
   border-color: var(--border-code) !important;

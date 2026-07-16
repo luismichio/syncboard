@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 - **Penpot Companion Window Height:** Increased the companion iframe height from `480` to `600` to prevent unnecessary vertical scrollbars in the Penpot editor interface.
+- **Markdown Description Parsing:** Updated description extraction logic to read `description:` from YAML frontmatter first, preventing the FAQ page card from displaying the first question's answer as its description.
+- **CRLF Frontmatter Strip:** Refactored `stripFrontmatter` to use `trimStart()`, removing trailing carriage returns (`\r`) in Windows line endings that caused the MDX compiler to render raw ````text` at the top of the License document.
+- **Inline Badges Rendering:** Added a CSS override for images in prose paragraphs to render markdown badges inline-block rather than stacking them vertically. Removed the raw `<table>` wrapper from `README.md` that was failing to parse in MDX.
 
 ---
 

@@ -1,7 +1,5 @@
 # SyncBoard (Figma & Penpot to Miro Sync Engine)
 
-<table><tr><td>
-
 [![Version 0.6.0](https://img.shields.io/badge/version-0.6.0-%23007ACC?style=flat-square)](https://github.com/luismichio/syncboard/blob/dev/package.json)
 [![OSI Approved License](https://img.shields.io/badge/license-Apache%202.0-%23A81C7D?style=flat-square&label=OSI%20Approved)](https://github.com/luismichio/syncboard/blob/dev/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-%23007ACC.svg?style=flat-square&logo=typescript&logoColor=white)](https://github.com/luismichio/syncboard/blob/dev/tsconfig.json)
@@ -13,7 +11,6 @@
 [![Penpot](https://img.shields.io/badge/Penpot-000000?style=flat-square&logo=penpot&logoColor=white)](https://penpot.app)
 [![Vercel](https://img.shields.io/badge/Vercel-deployed-black?style=flat-square&logo=vercel)](https://vercel.com)
 
-</td></tr></table>
 
 > **Community Edition:** This public instance is rate-limited to protect shared infrastructure. Limits reset daily. See [doc/setup.md#-rate-limiting-community-protection](https://github.com/luismichio/syncboard/blob/dev/doc/setup.md#-rate-limiting-community-protection) to configure your own deployment.
 

@@ -43,6 +43,10 @@ function extractTitle(md: string, filename: string): string {
  * Extracts a short description from markdown (first paragraph after the heading).
  */
 function extractDescription(md: string): string {
+  // Try frontmatter description
+  const fmDesc = md.match(/^---\s*\n(?:.*\n)*?description:\s*["']?(.+?)["']?\s*\n(?:.*\n)*?---/);
+  if (fmDesc) return fmDesc[1].trim();
+
   // Skip frontmatter
   const body = md.replace(/^---[\s\S]*?---\n*/, '');
   const para = body.match(/(?:^|\n)([^\n#].*?)(?:\n|$)/);
@@ -138,7 +142,7 @@ export function extractHeadings(md: string): DocHeading[] {
 
 /** Strips YAML frontmatter (delimited by `---` at start of file) from markdown content. */
 export function stripFrontmatter(md: string): string {
-  return md.replace(/^---[\s\S]*?---\n*/, '');
+  return md.replace(/^---[\s\S]*?---\s*/, '').trimStart();
 }
 
 /**
