@@ -74,10 +74,11 @@ SyncBoard is extremely cost-effective and can be run entirely on **free tiers**:
 * **Cache & Rate Limiting (Upstash):** Upstash Redis offers a free tier of 10,000 commands/day, which is plenty for temporary OAuth caching and rate limit tracks.
 
 ### What are the rate limits, and why do they exist?
-SyncBoard implements sliding-window rate limits (configurable via environment variables) for public/community deployments. These exist to prevent **Figma/Miro API quota exhaustion**:
-* **Miro REST API Limits:** Miro limits the number of requests per team/token. Exceeding these limits would block the entire board's integrations.
-* **Figma Render Limits:** Heavy canvas syncs require rendering high-resolution images, which quickly triggers Figma API cooldowns (HTTP 429).
-* **The Solution:** SyncBoard throttles requests at the gateway level to protect the team from hitting global design tool limits, ensuring that single users performing large exports do not lock out the rest of the team.
+SyncBoard implements sliding-window rate limits (configurable via environment variables) for the public community demo. These exist to **protect the shared infrastructure and prevent resource abuse**:
+
+* **Infra Protection & Abuse Prevention:** The public community version runs on shared cloud hosting (Vercel, Ably, and Upstash Redis). The rate limiter prevents malicious actions, such as automated token rotation or denial-of-service (DoS) attacks, that could exhaust the community instance's hosting budgets and disrupt service for all users.
+* **API Quota Management:** Throttling requests at the gateway level ensures a single user's heavy batch sync does not exhaust the shared Figma/Miro API quotas, which would otherwise trigger global rate blocks (HTTP 429) for the entire community.
+* **Self-Host Customization:** For teams deploying SyncBoard on their own private infrastructure (e.g. self-hosting on enterprise Vercel or local Docker instances), these limits can be fully managed, adjusted, or entirely disabled (`RATE_LIMIT_ENABLED=false` in the environment configuration) to suit their internal team requirements.
 
 ### Can I run SyncBoard offline or on-premise?
 SyncBoard requires an internet connection to communicate with Figma, Penpot, and Miro cloud APIs. However, the codebase can be self-hosted on your own infrastructure (Vercel, Docker containers, AWS, etc.). The frontend utilizes system font fallbacks to ensure compilation and loading succeed smoothly in isolated or restricted corporate networks without relying on external CDN font fetches.
