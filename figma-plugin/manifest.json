@@ -11,9 +11,15 @@
       "https://*.ably.com",
       "https://*.ably-realtime.com",
       "https://*.vercel.app",
-      "http://localhost:*",
+      "https://syncboard-dev.luiskobayashi.com/",
       "https://*.gitpod.io",
       "https://*.github.dev"
-    ]
+    ],
+    "devAllowedDomains": [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:1420"
+    ],
+    "reasoning": "SyncBoard requires connection to the Ably WebSocket network to receive sync signals from Miro, and your hosted Next.js API endpoints to fetch pairing tokens."
   }
 }

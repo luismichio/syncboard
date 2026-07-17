@@ -51,13 +51,22 @@ Only needed if you sync from **Figma**. Penpot-only users can skip to the Penpot
 
 To enable automatic canvas selection detection in the Miro sidebar without installing the SyncBridge desktop app, you can load the Figma Companion Plugin in your workspace:
 
+#### For Community Version
+1. Go to the Figma Community and search for **"SyncBoard Companion"**.
+2. Click **Save** or **Run** to add it to your Figma account (works in both Figma Browser and Desktop).
+3. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion, and click **Connect**.
+
+#### For Self-Hosted Version
+> [!NOTE]
+> **Figma Desktop App Required:** Importing a local development plugin manifest is only supported in the Figma Desktop Application. The web browser version of Figma does not have access to the local filesystem and does not support local plugin imports.
+
 1. Copy or clone the `figma-plugin/` directory from the root of this repository to your local computer.
-2. In Figma, open any design file.
+2. Open the **Figma Desktop Application** and open any design file.
 3. Click the Figma logo (menu button) in the top-left, then select **Plugins > Development > Import plugin from manifest...**.
 4. Choose the `manifest.json` file inside the local `figma-plugin/` folder you copied.
 5. Once imported, run the plugin: **Plugins > Development > SyncBoard Figma Companion**.
-6. If you are self-hosting, click **Configure** in the settings bar at the top of the plugin, type your own hosted SyncBoard domain (e.g. `https://my-syncboard.vercel.app`), and click **Save**.
-7. In the companion sidebar, copy the **Pairing ID** from the Miro plugin and click **Connect**.
+6. Click **Configure** in the settings bar at the top of the plugin, type your own custom hosted SyncBoard domain (e.g. `https://syncboard.yourdomain.com`), and click **Save**.
+7. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion, and click **Connect**.
 
 ---
 
@@ -439,8 +448,10 @@ SyncBoard includes a GitHub Actions pipeline that compiles installer packages au
 
 If you are self-hosting SyncBoard and want to integrate it as part of your company's internal design tool suite, you can customize the naming, logos, and accent colors to match your brand guidelines.
 
-### 8.1 Renaming the Plugins
-* **Figma Companion:** Edit the `"name"` property inside `figma-plugin/manifest.json`.
+### 8.1 Renaming & Configuring the Plugins
+* **Figma Companion:** 
+  * Edit the `"name"` property inside `figma-plugin/manifest.json`.
+  * **Domain Access Configuration:** If you are self-hosting on a custom domain (e.g. `https://syncboard.mycompany.com`), you must append your custom domain to the `"allowedDomains"` array inside `figma-plugin/manifest.json`. Figma blocks all network requests to domains not whitelisted in this file.
 * **Penpot Companion:** Edit the `"name"` and `"description"` properties inside `public/penpot-manifest.json`.
 * **Miro Sidebar:** Edit the app name in your private Miro developer portal console settings.
 
