@@ -287,7 +287,15 @@
       log(`Connecting to relay channel: ${pairingId}...`);
 
       try {
-        const tokenRes = await fetch(`${RELAY_URL}/api/ably/token`, FETCH_OPTIONS);
+        const urlParams = new URLSearchParams(window.location.search);
+        const secretKey = urlParams.get('key');
+        
+        let tokenUrl = `${RELAY_URL}/api/ably/token?pairingId=${encodeURIComponent(pairingId)}`;
+        if (secretKey) {
+          tokenUrl += `&key=${encodeURIComponent(secretKey)}`;
+        }
+
+        const tokenRes = await fetch(tokenUrl, FETCH_OPTIONS);
         if (!tokenRes.ok) {
           throw new Error(`Token fetch failed with HTTP ${tokenRes.status}`);
         }
