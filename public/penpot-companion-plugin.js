@@ -30,11 +30,37 @@ penpot.on('themechange', (theme) => {
   sendTheme();
 });
 
+function findShapeById(shapeId) {
+  if (!penpot.currentPage) return null;
+
+  function search(node) {
+    if (node.id === shapeId) return node;
+    if (node.children) {
+      for (const child of node.children) {
+        const found = search(child);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  if (penpot.currentPage.root) {
+    const found = search(penpot.currentPage.root);
+    if (found) return found;
+  }
+
+  if (penpot.currentPage.children) {
+    for (const child of penpot.currentPage.children) {
+      const found = search(child);
+      if (found) return found;
+    }
+  }
+
+  return null;
+}
+
 async function exportShapeBuffer(shapeId, format, scale) {
-  const shapeFromPage =
-    penpot.currentPage && typeof penpot.currentPage.getShapeById === 'function'
-      ? penpot.currentPage.getShapeById(shapeId)
-      : null;
+  const shapeFromPage = findShapeById(shapeId);
 
   if (shapeFromPage && typeof shapeFromPage.export === 'function') {
     return shapeFromPage.export({ type: format, scale });
@@ -99,10 +125,7 @@ penpot.ui.onMessage(async (message) => {
       let shapeWidth = 0;
       let shapeHeight = 0;
       try {
-        const shapeFromPage =
-          penpot.currentPage && typeof penpot.currentPage.getShapeById === 'function'
-            ? penpot.currentPage.getShapeById(message.shapeId)
-            : null;
+        const shapeFromPage = findShapeById(message.shapeId);
         if (shapeFromPage) {
           if (shapeFromPage.name) shapeName = shapeFromPage.name;
           // selrect gives the shape's natural dimensions (before scale multiplication)

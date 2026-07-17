@@ -10,6 +10,8 @@
 [![Figma](https://img.shields.io/badge/Figma-F24E1E?style=flat-square&logo=figma&logoColor=white)](https://www.figma.com/developers/api)
 [![Penpot](https://img.shields.io/badge/Penpot-000000?style=flat-square&logo=penpot&logoColor=white)](https://penpot.app)
 [![Vercel](https://img.shields.io/badge/Vercel-deployed-black?style=flat-square&logo=vercel)](https://vercel.com)
+[![Ably](https://img.shields.io/badge/Ably-Realtime-%23F9A01B?style=flat-square&logo=ably&logoColor=white)](https://ably.com)
+[![Upstash](https://img.shields.io/badge/Upstash-Redis-%230E1112?style=flat-square&logo=upstash&logoColor=white)](https://upstash.com)
 
 
 > **Community Edition:** This public instance is rate-limited to protect shared infrastructure. Limits reset daily. See [doc/setup.md#-rate-limiting-community-protection](https://github.com/luismichio/syncboard/blob/dev/doc/setup.md#-rate-limiting-community-protection) to configure your own deployment.

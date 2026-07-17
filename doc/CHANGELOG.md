@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.6.2] - 2026-07-17
+
+### Added
+- **Ably and Upstash Badges:** Added Ably Realtime and Upstash Redis status badges to the top of `README.md`.
+
+### Fixed
+- **Penpot Shape Export Lookup:** Replaced the non-existent `penpot.currentPage.getShapeById(...)` method inside `public/penpot-companion-plugin.js` with a recursive helper `findShapeById(id)` that traverses `currentPage.root.children` to reliably locate shapes by ID.
+- **Companion Status Layout Simplification:** Renamed status labels to clearly distinguish between local and cloud connections, and removed the redundant third "Active Connection" status row from `public/penpot-companion-ui.html`.
+- **Markdown Card Description Fallback Heuristic:** Updated `extractDescription` inside `src/lib/docs.ts` to skip headings, blockquotes, HTML tables, and badge links, allowing repository README card previews on the website to correctly extract the initial text introduction.
+
+---
+
 ## [0.6.1] - 2026-07-16
 
 ### Added

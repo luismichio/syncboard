@@ -171,17 +171,14 @@
     </div>
     <div class="card">
       <div class="status-row">
-        <span>Relay Status:</span>
+        <span>Cloud Connection (WebSocket):</span>
         <span id="status-badge" class="badge badge-disconnected">Disconnected</span>
       </div>
       <div class="status-row" style="margin-top: 4px;">
-        <span>Plugin Status:</span>
+        <span>Penpot Sandbox (Local):</span>
         <span id="plugin-badge" class="badge badge-disconnected">Unknown</span>
       </div>
-      <div class="status-row" style="margin-top: 4px;">
-        <span>Active Connection:</span>
-        <span id="file-name" style="color: var(--text-muted)">Stand-alone mode</span>
-      </div>
+
     </div>
     <div class="card">
       <label>Activity Log</label>
@@ -205,7 +202,6 @@
     const connectBtn = document.getElementById('connect-btn');
     const statusBadge = document.getElementById('status-badge');
     const pluginBadge = document.getElementById('plugin-badge');
-    const fileNameText = document.getElementById('file-name');
     const logBox = document.getElementById('log');
 
     const savedId = localStorage.getItem('syncboard_pairing_id');
@@ -299,7 +295,6 @@
         ablyClient = null;
       }
       updateStatus('disconnected', reason || 'Disconnected');
-      fileNameText.textContent = 'Stand-alone mode';
     }
 
     async function connectBridge(isAuto = false) {
@@ -372,8 +367,6 @@
         reconnectAttempts = 0;
         updateStatus('connected', 'Connected');
         log('Companion connected via Ably WebSocket.');
-        fileNameText.textContent = 'Active Connection';
-
       } catch (err) {
         await disconnectAbly();
         const errMsg = err instanceof Error ? err.message : String(err);
