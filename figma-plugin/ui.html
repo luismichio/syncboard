@@ -75,6 +75,38 @@
       border: none;
       background-color: #0b0c0d;
     }
+
+    /* ── Figma Light Theme Overrides ────────────────────────── */
+    .figma-light body {
+      background-color: #f9fafb;
+    }
+    .figma-light #settings-bar {
+      background-color: #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
+      color: #4b5563;
+    }
+    .figma-light #settings-toggle {
+      color: #00A2C9;
+    }
+    .figma-light #settings-panel {
+      background-color: #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .figma-light input[type="text"] {
+      background-color: #ffffff;
+      border: 1px solid #d1d5db;
+      color: #111827;
+    }
+    .figma-light input[type="text"]:focus {
+      border-color: #00A2C9;
+    }
+    .figma-light button {
+      background-color: #00A2C9;
+      color: #ffffff;
+    }
+    .figma-light iframe {
+      background-color: #f9fafb;
+    }
   </style>
 </head>
 <body>
@@ -135,6 +167,26 @@
     // Request host from figma clientStorage on load
     parent.postMessage({ pluginMessage: { action: 'get-host' } }, '*');
 
+    // ── Theme Detection & Mutation Observer ───────────────────────
+    
+    function getActiveTheme() {
+      // Figma adds figma-light or figma-dark class to <html> when themeColors: true is set
+      return document.documentElement.classList.contains('figma-light') ? 'light' : 'dark';
+    }
+
+    function sendThemeToIframe() {
+      const theme = getActiveTheme();
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ action: 'theme-change', theme }, '*');
+      }
+    }
+
+    // Listen for live theme switches in the editor
+    const themeObserver = new MutationObserver(() => {
+      sendThemeToIframe();
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
     // ── Message Passing Relay Bridge ───────────────────────────
     
     // 1. Forward Figma runtime messages -> Hosted Iframe
@@ -150,12 +202,18 @@
       }
 
       // Forward other messages to hosted iframe
-      iframe.contentWindow.postMessage(msg, '*');
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage(msg, '*');
+      }
     };
 
     // 2. Forward Hosted Iframe messages -> Figma runtime
     window.addEventListener('message', (event) => {
       if (event.source === iframe.contentWindow) {
+        // Intercept ui-ready to send the theme immediately when the frame loads
+        if (event.data && event.data.action === 'ui-ready') {
+          sendThemeToIframe();
+        }
         parent.postMessage({ pluginMessage: event.data }, '*');
       }
     });

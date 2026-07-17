@@ -1,18 +1,9 @@
 // SyncBoard Figma Companion Plugin - Background script
 figma.showUI(__html__, {
   width: 320,
-  height: 350,
+  height: 480,
+  themeColors: true,
 });
-
-function sendTheme() {
-  figma.ui.postMessage({
-    action: 'theme-change',
-    theme: figma.theme || 'dark',
-  });
-}
-
-// Initial theme setup on launch
-setTimeout(sendTheme, 300);
 
 // Listen to selection changes on the active page
 figma.on('selectionchange', () => {
@@ -33,7 +24,6 @@ figma.ui.onmessage = async (msg) => {
   if (!msg || typeof msg !== 'object') return;
 
   if (msg.action === 'ui-ready') {
-    sendTheme();
     // Acknowledge connection
     figma.ui.postMessage({ action: 'ui-ready' });
     return;
