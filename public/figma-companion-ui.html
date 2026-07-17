@@ -207,7 +207,12 @@
     const pluginBadge = document.getElementById('plugin-badge');
     const logBox = document.getElementById('log');
 
-    const savedId = localStorage.getItem('syncboard_pairing_id');
+    let savedId = null;
+    try {
+      savedId = localStorage.getItem('syncboard_pairing_id');
+    } catch (e) {
+      // localStorage is blocked in this sandbox
+    }
     if (savedId) {
       pairingInput.value = savedId;
     }
@@ -310,7 +315,11 @@
           });
         });
 
-        localStorage.setItem('syncboard_pairing_id', pairingId);
+        try {
+          localStorage.setItem('syncboard_pairing_id', pairingId);
+        } catch (e) {
+          // localStorage is blocked in this sandbox
+        }
 
         await ablyChannel.subscribe('select', (msg) => {
           log(`Selection request received from Miro.`);

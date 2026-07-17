@@ -39,6 +39,31 @@ figma.ui.onmessage = async (msg) => {
     return;
   }
 
+  if (msg.action === 'get-host') {
+    try {
+      const host = await figma.clientStorage.getAsync('syncboard_host_url');
+      figma.ui.postMessage({
+        action: 'host-result',
+        host: host || 'https://syncboard.vercel.app'
+      });
+    } catch (err) {
+      figma.ui.postMessage({
+        action: 'host-result',
+        host: 'https://syncboard.vercel.app'
+      });
+    }
+    return;
+  }
+
+  if (msg.action === 'set-host') {
+    try {
+      await figma.clientStorage.setAsync('syncboard_host_url', msg.host);
+    } catch (err) {
+      // Ignore
+    }
+    return;
+  }
+
   if (msg.action === 'get-selection') {
     try {
       const selection = figma.currentPage.selection;

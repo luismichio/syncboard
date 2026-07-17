@@ -101,9 +101,7 @@
     const settingsToggle = document.getElementById('settings-toggle');
     const settingsPanel = document.getElementById('settings-panel');
 
-    // Get current host from localStorage or default
-    let currentHost = localStorage.getItem('syncboard_host_url') || DEFAULT_HOST;
-    hostInput.value = currentHost;
+    let currentHost = DEFAULT_HOST;
 
     // Load iframe
     function loadIframe() {
@@ -127,24 +125,32 @@
       if (hostValue.endsWith('/')) {
         hostValue = hostValue.slice(0, -1);
       }
-      localStorage.setItem('syncboard_host_url', hostValue);
+      parent.postMessage({ pluginMessage: { action: 'set-host', host: hostValue } }, '*');
       currentHost = hostValue;
       settingsPanel.classList.remove('active');
       settingsToggle.textContent = 'Configure';
       loadIframe();
     });
 
-    // Initial load
-    loadIframe();
+    // Request host from figma clientStorage on load
+    parent.postMessage({ pluginMessage: { action: 'get-host' } }, '*');
 
     // ── Message Passing Relay Bridge ───────────────────────────
     
     // 1. Forward Figma runtime messages -> Hosted Iframe
     window.onmessage = (event) => {
       const msg = event.data.pluginMessage;
-      if (msg) {
-        iframe.contentWindow.postMessage(msg, '*');
+      if (!msg) return;
+
+      if (msg.action === 'host-result') {
+        currentHost = msg.host;
+        hostInput.value = currentHost;
+        loadIframe();
+        return;
       }
+
+      // Forward other messages to hosted iframe
+      iframe.contentWindow.postMessage(msg, '*');
     };
 
     // 2. Forward Hosted Iframe messages -> Figma runtime
