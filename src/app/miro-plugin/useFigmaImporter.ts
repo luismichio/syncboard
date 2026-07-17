@@ -121,8 +121,38 @@ export function useFigmaImporter(
         throw new Error('Figma MCP returned empty selection details.');
       }
     } catch (err: unknown) {
-      setSyncStatusParent('Local server not found. Paste link manually below.');
-      console.warn('Local Figma MCP fail:', err);
+      console.warn('Local Figma MCP fail, trying Cloud Relay:', err);
+      try {
+        setSyncStatusParent('Local server not found. Querying Figma Companion Relay...');
+        const { callRelay, getOrCreatePairingId } = await import('./penpotMcpClient');
+        const pairingId = getOrCreatePairingId();
+
+        if (!pairingId) {
+          throw new Error('Pairing ID is not set. Enter a pairing ID in settings first.');
+        }
+
+        const data = await callRelay({
+          pairingId,
+          action: 'select',
+          timeoutMs: 8_000,
+        });
+
+        const payload = data as { id?: string; name?: string; fileKey?: string } | null;
+        if (payload && payload.id && payload.fileKey) {
+          setFigmaNodeInfo({
+            fileKey: payload.fileKey,
+            nodeId: payload.id,
+            name: payload.name || 'Figma Screen',
+          });
+          setSyncStatusParent(`Detected Figma companion frame: "${payload.name || 'Unnamed'}"`);
+        } else {
+          throw new Error('Figma companion returned empty selection. Make sure Figma is open and a frame is selected.');
+        }
+      } catch (relayErr: unknown) {
+        const relayMsg = relayErr instanceof Error ? relayErr.message : String(relayErr);
+        setSyncStatusParent(`Detection failed: ${relayMsg} (Tip: Open Figma Companion Plugin and connect using the same Pairing ID.)`);
+        console.warn('Figma Relay selection fail:', relayErr);
+      }
     } finally {
       setIsDetectingLocal(false);
     }

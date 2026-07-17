@@ -3,9 +3,9 @@ export interface PenpotMcpResponse {
   isError?: boolean;
 }
 
-type RelayJson = null | boolean | number | string | RelayJson[] | { [key: string]: RelayJson };
+export type RelayJson = null | boolean | number | string | RelayJson[] | { [key: string]: RelayJson };
 
-interface RelayRequestBody {
+export interface RelayRequestBody {
   pairingId: string;
   action: 'select' | 'export';
   shapeId?: string;
@@ -19,7 +19,7 @@ interface RelayResponse {
   data?: RelayJson;
 }
 
-function getOrCreatePairingId(): string {
+export function getOrCreatePairingId(): string {
   if (typeof window === 'undefined') return '';
   let id = localStorage.getItem('syncboard_pairing_id');
   if (!id) {
@@ -49,7 +49,7 @@ function getOrCreatePairingId(): string {
 
 
 
-async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
+export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
   const res = await fetch('/api/relay/request', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

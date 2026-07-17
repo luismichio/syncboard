@@ -977,7 +977,7 @@ Chrome's Private Network Access (PNA) blocks both `fetch()` and `WebSocket` from
 | Layer | Before (Tauri Transport) | After (Cloud Relay) |
 | :--- | :--- | :--- |
 | Penpot transport | Tauri WebSocket localhost | Ably WebSocket + Upstash Redis relay |
-| Figma selection | Tauri MCP Figma Desktop port | (Future) Figma plugin -> relay |
+| Figma selection | Tauri MCP Figma Desktop port | Figma plugin -> relay |
 | Penpot selection | Tauri WebSocket -> Companion plugin | Companion plugin -> relay |
 | Selection source | Tauri acts as producer/consumer | Plugin acts as producer, relay as transport |
 

@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.7.0] - 2026-07-17
+
+### Added
+- **Figma Companion Plugin (Cloud Relay):** Built a Figma companion plugin that enables real-time selection auto-detect over the cloud relay using Ably.
+  - Created `figma-plugin/` directory containing `manifest.json`, local sandbox controller `code.js`, and `ui.html` message relay bridge.
+  - Implemented the hosted `public/figma-companion-ui.html` static asset with pairing connection status indicators, Ably subscriptions, and parent window message listeners.
+  - Added a configuration panel in the local plugin UI so self-hosts can easily point the companion to their own deployed SyncBoard domain URL.
+  - Refactored `useFigmaImporter.ts` to fallback to Cloud Relay queries (Figma Companion) if the local Tauri MCP server/SyncBridge is not running.
+- **White-Labeling & Marketplace Setup Docs:** Updated setup and architectural guides detailing the plug-and-play Community installation paths from official marketplaces, alongside a customization guide for renaming plugins, updating brand logo icons, and adjusting CSS theme variables.
+
+---
+
 ## [0.6.2] - 2026-07-17
 
 ### Added

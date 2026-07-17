@@ -1,0 +1,19 @@
+{
+  "name": "SyncBoard Figma Companion",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": [
+    "figma"
+  ],
+  "networkAccess": {
+    "allowedDomains": [
+      "https://*.ably.com",
+      "https://*.ably-realtime.com",
+      "https://*.vercel.app",
+      "http://localhost:*",
+      "https://*.gitpod.io",
+      "https://*.github.dev"
+    ]
+  }
+}

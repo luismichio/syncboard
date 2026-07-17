@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #0b0c0d;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #settings-bar {
+      background-color: #121417;
+      border-bottom: 1px solid #1f232a;
+      padding: 6px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: #6b7280;
+    }
+    #settings-toggle {
+      cursor: pointer;
+      color: #01C8F1;
+      text-decoration: underline;
+      font-weight: 600;
+    }
+    #settings-panel {
+      display: none;
+      background-color: #121417;
+      border-bottom: 1px solid #1f232a;
+      padding: 8px 12px;
+      flex-direction: column;
+      gap: 6px;
+    }
+    #settings-panel.active {
+      display: flex;
+    }
+    .panel-row {
+      display: flex;
+      gap: 8px;
+    }
+    input[type="text"] {
+      flex: 1;
+      background-color: #0b0c0d;
+      border: 1px solid #1f232a;
+      border-radius: 4px;
+      color: #f3f4f6;
+      padding: 4px 8px;
+      font-size: 10px;
+      font-family: monospace;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #01C8F1;
+    }
+    button {
+      background-color: #01C8F1;
+      color: #0b0c0d;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-weight: bold;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+      background-color: #0b0c0d;
+    }
+  </style>
+</head>
+<body>
+  <div id="settings-bar">
+    <span>SyncBoard Host Settings</span>
+    <span id="settings-toggle">Configure</span>
+  </div>
+
+  <div id="settings-panel">
+    <div style="font-size: 9px; color: #6b7280; text-transform: uppercase;">SyncBoard Host Domain (Self-Hosts)</div>
+    <div class="panel-row">
+      <input type="text" id="host-input" placeholder="https://syncboard.vercel.app" />
+      <button id="save-btn">Save</button>
+    </div>
+  </div>
+
+  <iframe id="companion-iframe" src="about:blank"></iframe>
+
+  <script>
+    const DEFAULT_HOST = 'https://syncboard.vercel.app';
+    const iframe = document.getElementById('companion-iframe');
+    const hostInput = document.getElementById('host-input');
+    const saveBtn = document.getElementById('save-btn');
+    const settingsToggle = document.getElementById('settings-toggle');
+    const settingsPanel = document.getElementById('settings-panel');
+
+    // Get current host from localStorage or default
+    let currentHost = localStorage.getItem('syncboard_host_url') || DEFAULT_HOST;
+    hostInput.value = currentHost;
+
+    // Load iframe
+    function loadIframe() {
+      const targetUrl = `${currentHost}/figma-companion-ui.html`;
+      iframe.src = targetUrl;
+    }
+
+    // Toggle settings panel
+    settingsToggle.addEventListener('click', () => {
+      const isActive = settingsPanel.classList.toggle('active');
+      settingsToggle.textContent = isActive ? 'Close' : 'Configure';
+    });
+
+    // Save custom host
+    saveBtn.addEventListener('click', () => {
+      let hostValue = hostInput.value.trim();
+      if (!hostValue) {
+        hostValue = DEFAULT_HOST;
+      }
+      // Remove trailing slash
+      if (hostValue.endsWith('/')) {
+        hostValue = hostValue.slice(0, -1);
+      }
+      localStorage.setItem('syncboard_host_url', hostValue);
+      currentHost = hostValue;
+      settingsPanel.classList.remove('active');
+      settingsToggle.textContent = 'Configure';
+      loadIframe();
+    });
+
+    // Initial load
+    loadIframe();
+
+    // ── Message Passing Relay Bridge ───────────────────────────
+    
+    // 1. Forward Figma runtime messages -> Hosted Iframe
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (msg) {
+        iframe.contentWindow.postMessage(msg, '*');
+      }
+    };
+
+    // 2. Forward Hosted Iframe messages -> Figma runtime
+    window.addEventListener('message', (event) => {
+      if (event.source === iframe.contentWindow) {
+        parent.postMessage({ pluginMessage: event.data }, '*');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SyncBoard Figma Companion</title>
+  <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+  <style>
+    :root {
+      --bg-page: #0b0c0d;
+      --bg-card: #121417;
+      --border-card: #1f232a;
+      --text-page: #f3f4f6;
+      --text-muted: #6b7280;
+      --accent: #01C8F1;
+      --pulse-bg: rgba(1, 200, 241, 0.08);
+      --pulse-border: rgba(1, 200, 241, 0.2);
+    }
+    body.theme-light {
+      --bg-page: #f9fafb;
+      --bg-card: #ffffff;
+      --border-card: #e5e7eb;
+      --text-page: #111827;
+      --text-muted: #9ca3af;
+      --accent: #00A2C9;
+      --pulse-bg: rgba(0, 162, 201, 0.08);
+      --pulse-border: rgba(0, 162, 201, 0.2);
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      background-color: var(--bg-page);
+      color: var(--text-page);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 13px;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border-bottom: 1px solid var(--border-card);
+      padding-bottom: 12px;
+    }
+    .version-badge {
+      font-size: 9px;
+      font-family: monospace;
+      color: var(--text-muted);
+      opacity: 0.6;
+      margin-top: -2px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+    input[type="text"] {
+      flex: 1;
+      background-color: var(--bg-page);
+      border: 1px solid var(--border-card);
+      border-radius: 4px;
+      color: var(--text-page);
+      padding: 6px 8px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    button {
+      background-color: var(--accent);
+      color: var(--bg-page);
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-weight: bold;
+      font-size: 11px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+    .badge {
+      font-size: 9px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+    }
+    .badge-disconnected {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+    .badge-connected {
+      background-color: var(--pulse-bg);
+      color: var(--accent);
+      border-color: var(--pulse-border);
+    }
+    .badge-connecting {
+      background-color: rgba(107, 114, 128, 0.1);
+      color: var(--text-muted);
+      border-color: rgba(107, 114, 128, 0.2);
+    }
+    .log-box {
+      font-family: monospace;
+      font-size: 10px;
+      background-color: var(--bg-page);
+      border: 1px solid var(--border-card);
+      border-radius: 4px;
+      padding: 8px;
+      height: 80px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="subtitle">SyncBoard Companion</div>
+      <h2>Figma Companion Relay</h2>
+      <div class="version-badge">v0.7.0 Community</div>
+    </header>
+
+    <div class="card">
+      <label for="pairing-id">Miro Pairing ID</label>
+      <div class="input-row">
+        <input type="text" id="pairing-id" placeholder="sb_xxxxx" />
+        <button id="connect-btn">Connect</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="status-row">
+        <span>Cloud Connection (WebSocket):</span>
+        <span id="status-badge" class="badge badge-disconnected">Disconnected</span>
+      </div>
+      <div class="status-row" style="margin-top: 4px;">
+        <span>Figma Sandbox (Local):</span>
+        <span id="plugin-badge" class="badge badge-disconnected">Unknown</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Activity Log</label>
+      <div id="log" class="log-box">Initialized. Ready to pair.</div>
+    </div>
+  </div>
+
+  <script>
+    const RELAY_URL = window.location.origin;
+    const FETCH_OPTIONS = {};
+
+    let ablyClient = null;
+    let ablyChannel = null;
+    let reconnectAttempts = 0;
+    let reconnectTimeout = null;
+
+    const pendingRequests = new Map();
+
+    const pairingInput = document.getElementById('pairing-id');
+    const connectBtn = document.getElementById('connect-btn');
+    const statusBadge = document.getElementById('status-badge');
+    const pluginBadge = document.getElementById('plugin-badge');
+    const logBox = document.getElementById('log');
+
+    const savedId = localStorage.getItem('syncboard_pairing_id');
+    if (savedId) {
+      pairingInput.value = savedId;
+    }
+
+    function applyTheme(theme) {
+      if (theme === 'light') {
+        document.body.classList.add('theme-light');
+      } else {
+        document.body.classList.remove('theme-light');
+      }
+    }
+
+    function log(message) {
+      const time = new Date().toLocaleTimeString();
+      logBox.textContent = `[${time}] ${message}\n` + logBox.textContent;
+    }
+
+    function updateStatus(status, text) {
+      statusBadge.className = 'badge';
+      if (status === 'connected') {
+        statusBadge.classList.add('badge-connected');
+        statusBadge.textContent = text || 'Connected';
+      } else if (status === 'connecting') {
+        statusBadge.classList.add('badge-connecting');
+        statusBadge.textContent = text || 'Connecting...';
+      } else {
+        statusBadge.classList.add('badge-disconnected');
+        statusBadge.textContent = text || 'Disconnected';
+      }
+    }
+
+    function updatePluginStatus(connected) {
+      pluginBadge.className = 'badge';
+      if (connected) {
+        pluginBadge.classList.add('badge-connected');
+        pluginBadge.textContent = 'Connected';
+      } else {
+        pluginBadge.classList.add('badge-disconnected');
+        pluginBadge.textContent = 'Unknown';
+      }
+    }
+
+    async function disconnectAbly(reason = '') {
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
+      if (ablyChannel) {
+        try { await ablyChannel.unsubscribe(); } catch (e) {}
+        ablyChannel = null;
+      }
+      if (ablyClient) {
+        try { ablyClient.close(); } catch (e) {}
+        ablyClient = null;
+      }
+      updateStatus('disconnected', reason || 'Disconnected');
+    }
+
+    async function connectBridge(isAuto = false) {
+      const pairingId = pairingInput.value.trim();
+      if (!pairingId) {
+        log('Error: Pairing ID cannot be empty.');
+        return;
+      }
+
+      if (!isAuto) {
+        reconnectAttempts = 0;
+      }
+
+      await disconnectAbly('Connecting...');
+      updateStatus('connecting', 'Fetching Token');
+      log(`Connecting to relay channel: ${pairingId}...`);
+
+      try {
+        const tokenRes = await fetch(`${RELAY_URL}/api/ably/token`, FETCH_OPTIONS);
+        if (!tokenRes.ok) {
+          throw new Error(`Token fetch failed with HTTP ${tokenRes.status}`);
+        }
+        const tokenData = await tokenRes.json();
+        const ablyToken = tokenData.token;
+
+        updateStatus('connecting', 'Connecting WebSocket');
+        ablyClient = new Ably.Realtime({
+          token: ablyToken,
+          autoConnect: true,
+          recover: false
+        });
+
+        ablyChannel = ablyClient.channels.get(pairingId);
+
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('WebSocket connection timed out.')), 10000);
+          ablyClient.connection.once('connected', () => {
+            clearTimeout(timeout);
+            resolve();
+          });
+          ablyClient.connection.once('failed', (state) => {
+            clearTimeout(timeout);
+            reject(new Error(state.reason?.message || 'WebSocket connection failed'));
+          });
+        });
+
+        localStorage.setItem('syncboard_pairing_id', pairingId);
+
+        await ablyChannel.subscribe('select', (msg) => {
+          log(`Selection request received from Miro.`);
+          const reqId = msg.data.requestId;
+          
+          // Request selection from Figma background script
+          pendingRequests.set(reqId, { id: reqId });
+          window.parent.postMessage({ action: 'get-selection', requestId: reqId }, '*');
+        });
+
+        reconnectAttempts = 0;
+        updateStatus('connected', 'Connected');
+        log('Companion connected via Ably WebSocket.');
+
+      } catch (err) {
+        await disconnectAbly();
+        const errMsg = err instanceof Error ? err.message : String(err);
+        log(`Connection failed: ${errMsg}`);
+        updateStatus('disconnected', 'Failed');
+        scheduleReconnect();
+      }
+    }
+
+    function scheduleReconnect() {
+      if (reconnectAttempts >= 5) {
+        log('Max reconnect attempts reached. Please check your credentials/network.');
+        return;
+      }
+      reconnectAttempts++;
+      const delay = Math.min(2000 * Math.pow(2, reconnectAttempts), 16000);
+      log(`Reconnecting in ${delay / 1000}s (Attempt ${reconnectAttempts}/5)...`);
+      reconnectTimeout = setTimeout(() => connectBridge(true), delay);
+    }
+
+    async function submitResult(requestId, data, error) {
+      try {
+        await fetch(`${RELAY_URL}/api/relay/penpot/result`, {
+          ...FETCH_OPTIONS,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestId, data, error }),
+        });
+      } catch (err) {
+        log(`Failed to transmit result to Miro: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // Connect trigger
+    connectBtn.addEventListener('click', () => {
+      connectBridge(false);
+    });
+
+    // Notify Figma local bridge that the UI is ready
+    window.parent.postMessage({ action: 'ui-ready' }, '*');
+
+    // Listen to messages from the Figma UI Wrapper/Local bridge
+    window.addEventListener("message", (event) => {
+      const response = event.data;
+      if (!response || !response.action) return;
+
+      if (response.action === "ui-ready") {
+        updatePluginStatus(true);
+      }
+
+      if (response.action === "theme-change") {
+        applyTheme(response.theme);
+        updatePluginStatus(true);
+      }
+
+      if (response.action === "selection-changed-locally") {
+        const name = response.data ? response.data.name : 'None';
+        log(`Selected node: ${name}`);
+      }
+
+      if (response.action === "selection-result") {
+        const request = pendingRequests.get(response.requestId);
+        if (request) {
+          submitResult(request.id, response.data);
+          pendingRequests.delete(response.requestId);
+          log(`Selection returned: ${response.data ? response.data.name : 'None selected'}`);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
