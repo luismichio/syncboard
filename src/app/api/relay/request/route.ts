@@ -74,7 +74,7 @@ async function handler(request: Request) {
     const online = await isPenpotOnlineAbly(pairingId);
     if (!online) {
       return NextResponse.json(
-        { error: 'Penpot companion is offline. Open the companion UI and connect using this pairing ID.' },
+        { error: 'SyncBoard companion is offline. Open your Figma or Penpot companion plugin and connect using this pairing ID.' },
         { status: 404 }
       );
     }
@@ -105,7 +105,7 @@ async function handler(request: Request) {
       await sleep(350);
     }
 
-    return NextResponse.json({ error: 'Relay request timed out waiting for Penpot companion response.' }, { status: 504 });
+    return NextResponse.json({ error: 'Relay request timed out waiting for companion response.' }, { status: 504 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Relay request failed.';
     return NextResponse.json({ error: message }, { status: 500 });

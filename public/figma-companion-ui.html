@@ -309,7 +309,7 @@
           recover: false
         });
 
-        ablyChannel = ablyClient.channels.get(pairingId);
+        ablyChannel = ablyClient.channels.get('penpot:' + pairingId);
 
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => reject(new Error('WebSocket connection timed out.')), 10000);
@@ -327,6 +327,13 @@
           localStorage.setItem('syncboard_pairing_id', pairingId);
         } catch (e) {
           // localStorage is blocked in this sandbox
+        }
+
+        // Enter presence set so backend can detect companion status
+        try {
+          await ablyChannel.presence.enter();
+        } catch (presErr) {
+          log(`Warning: Presence registration failed: ${presErr.message}`);
         }
 
         await ablyChannel.subscribe('select', (msg) => {
