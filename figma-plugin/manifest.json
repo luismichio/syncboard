@@ -11,7 +11,7 @@
       "https://*.ably.com",
       "https://*.ably-realtime.com",
       "https://*.vercel.app",
-      "https://syncboard-dev.luiskobayashi.com/",
+      "https://*.luiskobayashi.com",
       "https://*.gitpod.io",
       "https://*.github.dev"
     ],
