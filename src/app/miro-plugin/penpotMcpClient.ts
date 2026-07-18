@@ -14,17 +14,10 @@ export interface RelayRequestBody {
   timeoutMs?: number;
 }
 
-interface RelayResponse {
-  error?: string;
-  data?: RelayJson;
-}
-
 export function getOrCreatePairingId(): string {
   if (typeof window === 'undefined') return '';
   let id = localStorage.getItem('syncboard_pairing_id');
   if (!id) {
-    // Generate a new ID only if one doesn't exist at all.
-    // An empty string means the user explicitly cleared it — don't override.
     if (id === null) {
       try {
         const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -47,15 +40,13 @@ export function getOrCreatePairingId(): string {
   return id || '';
 }
 
-
-
 import Ably from 'ably';
 
 let globalAblyClient: Ably.Realtime | null = null;
-let globalAblyChannel: any = null;
+let globalAblyChannel: Ably.RealtimeChannel | null = null;
 let currentConnectedPairingId: string | null = null;
 
-async function getAblyConnection(pairingId: string): Promise<any> {
+async function getAblyConnection(pairingId: string): Promise<Ably.RealtimeChannel> {
   if (globalAblyClient && currentConnectedPairingId === pairingId && globalAblyChannel) {
     return globalAblyChannel;
   }
@@ -134,19 +125,21 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
       }
     }, body.timeoutMs || 10000);
 
-    const onResult = (msg: any) => {
-      if (msg.data?.requestId === requestId) {
+    const onResult = (msg: Ably.Message) => {
+      const msgData = msg.data as Record<string, unknown> | null;
+      if (msgData?.requestId === requestId) {
         cleanup();
-        if (msg.data.error) {
-          reject(new Error(msg.data.error));
+        if (msgData.error) {
+          reject(new Error(String(msgData.error)));
         } else {
-          resolve(msg.data.data ?? null);
+          resolve((msgData.data as RelayJson) ?? null);
         }
       }
     };
 
-    const onResultReady = async (msg: any) => {
-      if (msg.data?.requestId === requestId) {
+    const onResultReady = async (msg: Ably.Message) => {
+      const msgData = msg.data as Record<string, unknown> | null;
+      if (msgData?.requestId === requestId) {
         cleanup();
         try {
           const fetchRes = await fetch(`/api/relay/response?requestId=${requestId}`);
@@ -155,9 +148,10 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
             throw new Error(errData.error || `HTTP ${fetchRes.status}`);
           }
           const fetchPayload = await fetchRes.json();
-          resolve(fetchPayload.data ?? null);
-        } catch (fetchErr: any) {
-          reject(new Error(`Failed to retrieve relay response: ${fetchErr.message}`));
+          resolve((fetchPayload.data as RelayJson) ?? null);
+        } catch (fetchErr: unknown) {
+          const errorMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+          reject(new Error(`Failed to retrieve relay response: ${errorMsg}`));
         }
       }
     };
