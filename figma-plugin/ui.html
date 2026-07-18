@@ -119,10 +119,6 @@
     <div style="font-size: 9px; color: #6b7280; text-transform: uppercase;">SyncBoard Host Domain (Self-Hosts)</div>
     <div class="panel-row">
       <input type="text" id="host-input" placeholder="https://syncboard.vercel.app" />
-    </div>
-    <div style="font-size: 9px; color: #6b7280; text-transform: uppercase; margin-top: 6px;">Figma File Link (Community Fallback)</div>
-    <div class="panel-row">
-      <input type="text" id="file-link-input" placeholder="https://www.figma.com/file/abc..." />
       <button id="save-btn">Save</button>
     </div>
   </div>
@@ -133,16 +129,22 @@
     const DEFAULT_HOST = 'https://syncboard.vercel.app';
     const iframe = document.getElementById('companion-iframe');
     const hostInput = document.getElementById('host-input');
-    const fileLinkInput = document.getElementById('file-link-input');
     const saveBtn = document.getElementById('save-btn');
     const settingsToggle = document.getElementById('settings-toggle');
     const settingsPanel = document.getElementById('settings-panel');
 
     let currentHost = DEFAULT_HOST;
+    let currentFileKey = 'unknown';
 
     // Load iframe
     function loadIframe() {
-      const targetUrl = `${currentHost}/figma-companion-ui.html`;
+      const urlParams = new URLSearchParams(window.location.search);
+      const secretKey = urlParams.get('key');
+      
+      let targetUrl = `${currentHost}/figma-companion-ui.html?fileKey=${encodeURIComponent(currentFileKey)}`;
+      if (secretKey) {
+        targetUrl += `&key=${encodeURIComponent(secretKey)}`;
+      }
       iframe.src = targetUrl;
     }
 
@@ -162,18 +164,7 @@
       if (hostValue.endsWith('/')) {
         hostValue = hostValue.slice(0, -1);
       }
-
-      const fileUrl = fileLinkInput.value.trim();
-      let fileKey = '';
-      if (fileUrl) {
-        // Extract key from standard figma urls (e.g., figma.com/file/abc/... or figma.com/design/abc/...)
-        const match = fileUrl.match(/(?:file|design)\/([a-zA-Z0-9]+)/);
-        if (match) {
-          fileKey = match[1];
-        }
-      }
-
-      parent.postMessage({ pluginMessage: { action: 'set-host', host: hostValue, fileKey } }, '*');
+      parent.postMessage({ pluginMessage: { action: 'set-host', host: hostValue } }, '*');
       currentHost = hostValue;
       settingsPanel.classList.remove('active');
       settingsToggle.textContent = 'Configure';
@@ -181,7 +172,7 @@
     });
 
     // Request host from figma clientStorage on load
-    parent.postMessage({ pluginMessage: { action: 'get-host' } }, '*');
+    parent.postMessage({ pluginMessage: { action: 'ui-ready' } }, '*');
 
     // ── Theme Detection & Mutation Observer ───────────────────────
     
@@ -212,8 +203,8 @@
 
       if (msg.action === 'host-result') {
         currentHost = msg.host;
+        currentFileKey = msg.fileKey || 'unknown';
         hostInput.value = currentHost;
-        fileLinkInput.value = msg.fileKey ? `https://www.figma.com/file/${msg.fileKey}` : '';
         loadIframe();
         return;
       }
@@ -230,6 +221,11 @@
         // Intercept ui-ready to send the theme immediately when the frame loads
         if (event.data && event.data.action === 'ui-ready') {
           sendThemeToIframe();
+        }
+        // Intercept link-file to pass it back to code.js
+        if (event.data && event.data.action === 'link-file') {
+          parent.postMessage({ pluginMessage: event.data }, '*');
+          return;
         }
         parent.postMessage({ pluginMessage: event.data }, '*');
       }

@@ -40,6 +40,18 @@ Penpot plugins run entirely inside the designer's browser tab. If that tab is cl
 ### Do I need the Tauri desktop app (SyncBridge) to auto-detect my Figma selection?
 **No.** While the Tauri desktop app can act as a local capability extender (e.g. for native figma client selection querying), you can now use the **Figma Companion Plugin** directly inside the Figma editor. The companion plugin uses Ably WebSockets to broadcast selection events directly from Figma to the Miro sidebar over the cloud relay, meaning it works entirely within the web browser without any local servers or desktop apps.
 
+### Why do I need to manually link my Figma files in the Community Companion plugin?
+**Because of Figma's API privacy boundaries.**
+
+Figma's `figma.fileKey` API (which retrieves the active file's unique ID automatically) is restricted for security reasons. Figma only allows this API to run in **private plugins** installed inside a Figma Organization workspace (which you can enable by adding `"enablePrivatePluginApi": true` in your self-hosted `manifest.json`). 
+
+In the public Figma Community plugin, this API is blocked and returns `undefined`. Without a file key, the Figma REST API cannot query frames, leading to a `403 Forbidden` error. 
+
+To solve this, the plugin saves the link key directly inside the document metadata (`figma.root.setPluginData`). 
+1. When you open a Figma file for the first time, the companion will show a **"Pair Figma Design File"** input box.
+2. Paste the URL of your Figma file once and click **Link**. 
+3. The plugin links the file key to that specific document. Figma will remember this link permanently for that file, and selection auto-detect will work immediately without any further configuration. You can link as many files as you want without conflict.
+
 ### Does SyncBoard support Miro's native Desktop App?
 **Yes.** Because SyncBoard has been fully migrated to use the cloud-based Ably Relay transport rather than native local loopback ports, the Miro sidebar plugin functions identically in both standard web browsers and Miro's native Electron desktop client. 
 

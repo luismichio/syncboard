@@ -120,7 +120,17 @@ graph TD
 Figma provides a robust, public web API that renders design frames to images in the cloud.
 
 * **Flow:** The Miro plugin makes a request to the SyncBoard Next.js API. The server requests the frame render directly from Figma's cloud servers (`api.figma.com/v1/images`), downloads the image, and uploads it to the Miro widget.
-* **Benefits:** Zero user configuration, no local servers, and no tunnels required.
+* **Benefits:** Zero user configuration, no local servers, and no tunnels required for private setups.
+
+#### The Cloud Key Limitation (Figma Community Restriction)
+
+Figma enforces strict access control on the `figma.fileKey` property in its client-side plugin API:
+* **Private/Organization Plugins:** Can query `figma.fileKey` automatically. If SyncBoard is deployed privately, setting `"enablePrivatePluginApi": true` in `manifest.json` allows the plugin to automatically retrieve the file key on load, enabling zero-config selection auto-detection across all files.
+* **Public/Community Plugins:** Figma blocks access to `figma.fileKey` (returns `undefined`) to preserve document privacy. In this sandbox environment, the Figma companion plugin cannot read the file key or the browser URL.
+* **The Metadata Workaround:** To support public community installations and multi-file workflows, SyncBoard implements a document-level linking bridge:
+  1. The first time a Figma file is opened, the user is prompted to paste the Figma URL once in the Companion UI.
+  2. The plugin extracts the `fileKey` and saves it directly in the document's metadata database using `figma.root.setPluginData('syncboard_file_key', fileKey)`.
+  3. This metadata persists within the `.fig` file itself in Figma's cloud. When the companion launches or processes selections, it retrieves this saved key via `figma.root.getPluginData` to map selections correctly.
 
 ### 1B. Penpot --- Cloud Relay + Companion Plugin
 

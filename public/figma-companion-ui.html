@@ -173,6 +173,17 @@
       </div>
     </div>
 
+    <div id="link-card" class="card" style="display: none;">
+      <label for="file-url-input">Pair Figma Design File</label>
+      <div style="font-size: 10px; color: #6b7280; margin-bottom: 6px; line-height: 1.4;">
+        This Figma file is not linked to Miro yet. Paste the URL of this Figma file once to link it permanently.
+      </div>
+      <div class="input-row">
+        <input type="text" id="file-url-input" placeholder="https://www.figma.com/design/abc..." style="flex: 1;" />
+        <button id="link-btn">Link</button>
+      </div>
+    </div>
+
     <div class="card">
       <div class="status-row">
         <span>Cloud Connection (WebSocket):</span>
@@ -206,6 +217,39 @@
     const statusBadge = document.getElementById('status-badge');
     const pluginBadge = document.getElementById('plugin-badge');
     const logBox = document.getElementById('log');
+
+    const linkCard = document.getElementById('link-card');
+    const fileUrlInput = document.getElementById('file-url-input');
+    const linkBtn = document.getElementById('link-btn');
+
+    // Parse active fileKey from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    let activeFileKey = urlParams.get('fileKey') || 'unknown';
+
+    function updateFileKeyUI() {
+      if (activeFileKey === 'unknown' || !activeFileKey) {
+        linkCard.style.display = 'block';
+      } else {
+        linkCard.style.display = 'none';
+      }
+    }
+
+    linkBtn.addEventListener('click', () => {
+      const url = fileUrlInput.value.trim();
+      if (!url) return;
+      const match = url.match(/(?:file|design)\/([a-zA-Z0-9]+)/);
+      if (match) {
+        const extractedKey = match[1];
+        log(`Linked file to key: ${extractedKey}`);
+        activeFileKey = extractedKey;
+        updateFileKeyUI();
+        updatePluginStatus(true);
+        // Post to parent ui.html -> code.js to save it inside root pluginData!
+        window.parent.postMessage({ action: 'link-file', fileKey: extractedKey }, '*');
+      } else {
+        log('Error: Invalid Figma file URL.');
+      }
+    });
 
     let savedId = null;
     try {
@@ -248,12 +292,15 @@
       pluginBadge.className = 'badge';
       if (connected) {
         pluginBadge.classList.add('badge-connected');
-        pluginBadge.textContent = 'Connected';
+        pluginBadge.textContent = activeFileKey !== 'unknown' ? `Active (${activeFileKey.substring(0, 6)}...)` : 'Active (Unlinked)';
       } else {
         pluginBadge.classList.add('badge-disconnected');
         pluginBadge.textContent = 'Unknown';
       }
     }
+
+    // Run on startup
+    updateFileKeyUI();
 
     async function disconnectAbly(reason = '') {
       if (reconnectTimeout) {

@@ -5,18 +5,17 @@ figma.showUI(__html__, {
   themeColors: true,
 });
 
-let globalFileKey = 'unknown';
-
 // Listen to selection changes on the active page
 figma.on('selectionchange', () => {
   const selection = figma.currentPage.selection;
+  const docFileKey = figma.root.getPluginData('syncboard_file_key');
   figma.ui.postMessage({
     action: 'selection-changed-locally',
     data: selection[0]
       ? {
           id: selection[0].id,
           name: selection[0].name,
-          fileKey: figma.fileKey || globalFileKey || 'unknown',
+          fileKey: figma.fileKey || docFileKey || 'unknown',
         }
       : null,
   });
@@ -29,14 +28,12 @@ figma.ui.onmessage = async (msg) => {
   if (msg.action === 'ui-ready') {
     try {
       const host = await figma.clientStorage.getAsync('syncboard_host_url');
-      const fileKey = await figma.clientStorage.getAsync('syncboard_file_key');
+      const docFileKey = figma.root.getPluginData('syncboard_file_key');
       
-      globalFileKey = figma.fileKey || fileKey || 'unknown';
-
       figma.ui.postMessage({
         action: 'host-result',
         host: host || 'https://syncboard-dev.luiskobayashi.com',
-        fileKey: fileKey || ''
+        fileKey: figma.fileKey || docFileKey || ''
       });
     } catch (err) {
       figma.ui.postMessage({
@@ -51,9 +48,23 @@ figma.ui.onmessage = async (msg) => {
   if (msg.action === 'set-host') {
     try {
       await figma.clientStorage.setAsync('syncboard_host_url', msg.host);
+    } catch (err) {
+      // Ignore
+    }
+    return;
+  }
+
+  if (msg.action === 'link-file') {
+    try {
       if (typeof msg.fileKey === 'string') {
-        await figma.clientStorage.setAsync('syncboard_file_key', msg.fileKey);
-        globalFileKey = figma.fileKey || msg.fileKey || 'unknown';
+        figma.root.setPluginData('syncboard_file_key', msg.fileKey);
+        // Dispatch updated host-result back to UI to reload iframe with the new fileKey
+        const host = await figma.clientStorage.getAsync('syncboard_host_url');
+        figma.ui.postMessage({
+          action: 'host-result',
+          host: host || 'https://syncboard-dev.luiskobayashi.com',
+          fileKey: msg.fileKey
+        });
       }
     } catch (err) {
       // Ignore
@@ -64,8 +75,8 @@ figma.ui.onmessage = async (msg) => {
   if (msg.action === 'get-selection') {
     try {
       const selection = figma.currentPage.selection;
-      const savedFileKey = await figma.clientStorage.getAsync('syncboard_file_key');
-      const fileKey = figma.fileKey || savedFileKey || globalFileKey || 'unknown';
+      const docFileKey = figma.root.getPluginData('syncboard_file_key');
+      const fileKey = figma.fileKey || docFileKey || 'unknown';
 
       figma.ui.postMessage({
         action: 'selection-result',

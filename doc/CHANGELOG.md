@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.7.1] - 2026-07-18
+
+### Added
+- **Document-Level Figma Pairing:** Implemented a document-level linking system to support syncing from multiple different Figma files to a single Miro board without credential collisions.
+  - Refactored `figma-plugin/code.js` to save and read pairing keys using document metadata storage APIs (`figma.root.setPluginData` / `figma.root.getPluginData`).
+  - Added an inline **"Pair Figma Design File"** input box inside the hosted companion panel (`public/figma-companion-ui.html`) that prompts the user exactly once per file and links the document permanently.
+  - Dynamically propagates the saved file key via query parameters when loading the companion iframe.
+- **Limitation Documentation:** Documented the Figma public API security limitations (blocking automated `figma.fileKey` reads in Community plugins) and how self-hosters can enable it automatically using the `enablePrivatePluginApi` manifest flag in `doc/architecture.md` and `doc/faq.md`.
+
+### Fixed
+- **Ably Selection Bridge Sync:** 
+  - Corrected Ably event subscription from `'select'` to `'command'` in `public/figma-companion-ui.html` to align with the backend router protocol.
+  - Appended the `pairingId` query parameters to the `/api/ably/token` token request inside the companion UI, resolving the HTTP 400 Bad Request error.
+  - Prefixed the Ably channel key with `'penpot:'` to align with backend security tokens.
+  - Propagated the server security key (`?key=...`) inside `submitResult` queries, authorizing REST selections callback triggers on protected deployments.
+
+---
+
 ## [0.7.0] - 2026-07-17
 
 ### Added
