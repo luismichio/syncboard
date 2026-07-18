@@ -17,6 +17,7 @@ interface RelayRequestBody {
   format?: 'svg' | 'png';
   scale?: number;
   timeoutMs?: number;
+  async?: boolean;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -82,6 +83,13 @@ async function handler(request: Request) {
     const requestId = `req_${crypto.randomUUID().replace(/-/g, '')}`;
     const command = buildCommand(body, requestId);
     await publishPenpotCommand(pairingId, command);
+
+    if (body.async) {
+      return NextResponse.json({
+        error: null,
+        data: { requestId, async: true },
+      });
+    }
 
     const timeoutMs = clampTimeout(body.timeoutMs, commandAction);
     const deadline = Date.now() + timeoutMs;

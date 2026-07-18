@@ -420,23 +420,15 @@
     }
 
     async function submitResult(requestId, data, error) {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const secretKey = urlParams.get('key');
-        
-        let resultUrl = `${RELAY_URL}/api/relay/penpot/result`;
-        if (secretKey) {
-          resultUrl += `?key=${encodeURIComponent(secretKey)}`;
+      if (ablyChannel) {
+        try {
+          await ablyChannel.publish('result', { requestId, data, error });
+          log(`Selection returned directly via Ably: ${data ? data.name : 'None selected'}`);
+        } catch (err) {
+          log(`Ably publish failed: ${err.message}`);
         }
-
-        await fetch(resultUrl, {
-          ...FETCH_OPTIONS,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ requestId, data, error }),
-        });
-      } catch (err) {
-        log(`Failed to transmit result to Miro: ${err instanceof Error ? err.message : String(err)}`);
+      } else {
+        log('Error: Ably channel not connected. Cannot publish selection.');
       }
     }
 

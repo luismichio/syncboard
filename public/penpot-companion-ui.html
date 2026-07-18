@@ -377,13 +377,37 @@
     }
 
     async function submitResult(requestId, data, error) {
+      // For selection-result (no heavy image data): send directly via Ably
+      const isSelection = data && !data.svg && !data.base64;
+      if (isSelection && ablyChannel) {
+        try {
+          await ablyChannel.publish('result', { requestId, data, error });
+          log(`Selection returned directly via Ably: ${data ? data.name : 'None selected'}`);
+          return;
+        } catch (err) {
+          log(`Ably publish failed: ${err.message}. Falling back to HTTP.`);
+        }
+      }
+
+      // For heavy exports: write to Upstash Redis via Next.js HTTP POST
       try {
-        await fetch(`${RELAY_URL}/api/relay/penpot/result`, {
+        const res = await fetch(`${RELAY_URL}/api/relay/penpot/result`, {
           ...FETCH_OPTIONS,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ requestId, data, error })
         });
+        if (!res.ok) {
+          throw new Error(`HTTP status ${res.status}`);
+        }
+        
+        // Notify Miro directly over Ably WebSocket that the buffered image is ready in Upstash
+        if (ablyChannel) {
+          await ablyChannel.publish('result-ready', { requestId });
+          log("Export payload uploaded and notified via Ably.");
+        } else {
+          log("Export payload uploaded. Warning: Ably channel disconnected, could not send event signal.");
+        }
       } catch (err) {
         log(`Failed to submit result: ${err.message}`);
       }

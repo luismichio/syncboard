@@ -49,20 +49,122 @@ export function getOrCreatePairingId(): string {
 
 
 
+import Ably from 'ably';
+
+let globalAblyClient: Ably.Realtime | null = null;
+let globalAblyChannel: any = null;
+let currentConnectedPairingId: string | null = null;
+
+async function getAblyConnection(pairingId: string): Promise<any> {
+  if (globalAblyClient && currentConnectedPairingId === pairingId && globalAblyChannel) {
+    return globalAblyChannel;
+  }
+
+  if (globalAblyClient) {
+    try {
+      globalAblyClient.close();
+    } catch (e) {
+      // Ignore
+    }
+    globalAblyClient = null;
+    globalAblyChannel = null;
+  }
+
+  globalAblyClient = new Ably.Realtime({
+    authUrl: `/api/ably/token?pairingId=${encodeURIComponent(pairingId)}`,
+    authMethod: 'GET',
+  });
+
+  globalAblyChannel = globalAblyClient.channels.get(`penpot:${pairingId}`);
+  currentConnectedPairingId = pairingId;
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Ably connection timed out.')), 10000);
+    globalAblyClient!.connection.once('connected', () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+    globalAblyClient!.connection.once('failed', (state) => {
+      clearTimeout(timeout);
+      reject(new Error(state.reason?.message || 'Ably connection failed'));
+    });
+  });
+
+  return globalAblyChannel;
+}
+
 export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
+  const pairingId = body.pairingId;
+  const channel = await getAblyConnection(pairingId);
+
   const res = await fetch('/api/relay/request', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      ...body,
+      async: true, // Trigger async execution on backend
+    }),
   });
 
-  const payload = (await res.json().catch(() => ({}))) as RelayResponse;
-
-  if (!res.ok || payload.error) {
+  const payload = (await res.json().catch(() => ({}))) as { error?: string; data?: { requestId: string } };
+  if (!res.ok || payload.error || !payload.data?.requestId) {
     throw new Error(payload.error || `Relay request failed with HTTP ${res.status}`);
   }
 
-  return payload.data ?? null;
+  const requestId = payload.data.requestId;
+
+  return new Promise<RelayJson>((resolve, reject) => {
+    let isResolved = false;
+
+    const cleanup = () => {
+      isResolved = true;
+      try {
+        channel.unsubscribe('result', onResult);
+        channel.unsubscribe('result-ready', onResultReady);
+      } catch (e) {
+        // Ignore
+      }
+      clearTimeout(timeout);
+    };
+
+    const timeout = setTimeout(() => {
+      if (!isResolved) {
+        cleanup();
+        reject(new Error('Relay timed out waiting for companion response.'));
+      }
+    }, body.timeoutMs || 10000);
+
+    const onResult = (msg: any) => {
+      if (msg.data?.requestId === requestId) {
+        cleanup();
+        if (msg.data.error) {
+          reject(new Error(msg.data.error));
+        } else {
+          resolve(msg.data.data ?? null);
+        }
+      }
+    };
+
+    const onResultReady = async (msg: any) => {
+      if (msg.data?.requestId === requestId) {
+        cleanup();
+        try {
+          const fetchRes = await fetch(`/api/relay/response?requestId=${requestId}`);
+          if (!fetchRes.ok) {
+            const errData = await fetchRes.json().catch(() => ({}));
+            throw new Error(errData.error || `HTTP ${fetchRes.status}`);
+          }
+          const fetchPayload = await fetchRes.json();
+          resolve(fetchPayload.data ?? null);
+        } catch (fetchErr: any) {
+          reject(new Error(`Failed to retrieve relay response: ${fetchErr.message}`));
+        }
+      }
+    };
+
+    channel.subscribe('result', onResult);
+    channel.subscribe('result-ready', onResultReady);
+  });
 }
 
 
