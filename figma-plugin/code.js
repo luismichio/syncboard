@@ -7,6 +7,15 @@ figma.showUI(__html__, {
 
 let globalFileKey = 'unknown';
 
+// Pre-load saved fileKey from storage immediately in the background on script execution
+try {
+  figma.clientStorage.getAsync('syncboard_file_key').then((val) => {
+    if (val) globalFileKey = val;
+  }).catch(() => {});
+} catch (e) {
+  // Ignore
+}
+
 // Listen to selection changes on the active page
 figma.on('selectionchange', () => {
   const selection = figma.currentPage.selection;
@@ -34,6 +43,15 @@ figma.ui.onmessage = async (msg) => {
   if (!msg || typeof msg !== 'object') return;
 
   if (msg.action === 'ui-ready') {
+    // Refresh saved fileKey from storage asynchronously to keep cache hot
+    try {
+      figma.clientStorage.getAsync('syncboard_file_key').then((val) => {
+        if (val) globalFileKey = val;
+      }).catch(() => {});
+    } catch (e) {
+      // Ignore
+    }
+    
     // Simply acknowledge connection, do not trigger host-result loop
     figma.ui.postMessage({ action: 'ui-ready' });
     return;
