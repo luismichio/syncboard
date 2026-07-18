@@ -5,17 +5,25 @@ figma.showUI(__html__, {
   themeColors: true,
 });
 
+let globalFileKey = 'unknown';
+
 // Listen to selection changes on the active page
 figma.on('selectionchange', () => {
   const selection = figma.currentPage.selection;
-  const docFileKey = figma.root.getPluginData('syncboard_file_key');
+  let docFileKey = undefined;
+  try {
+    docFileKey = figma.root.getPluginData('syncboard_file_key');
+  } catch (e) {
+    // No plugin ID in manifest
+  }
+  
   figma.ui.postMessage({
     action: 'selection-changed-locally',
     data: selection[0]
       ? {
           id: selection[0].id,
           name: selection[0].name,
-          fileKey: figma.fileKey || docFileKey || 'unknown',
+          fileKey: figma.fileKey || docFileKey || globalFileKey || 'unknown',
         }
       : null,
   });
@@ -26,19 +34,34 @@ figma.ui.onmessage = async (msg) => {
   if (!msg || typeof msg !== 'object') return;
 
   if (msg.action === 'ui-ready') {
+    // Simply acknowledge connection, do not trigger host-result loop
+    figma.ui.postMessage({ action: 'ui-ready' });
+    return;
+  }
+
+  if (msg.action === 'get-host') {
     try {
       const host = await figma.clientStorage.getAsync('syncboard_host_url');
-      const docFileKey = figma.root.getPluginData('syncboard_file_key');
       
+      let docFileKey = undefined;
+      try {
+        docFileKey = figma.root.getPluginData('syncboard_file_key');
+      } catch (e) {
+        // No plugin ID in manifest
+      }
+
+      const savedFileKey = await figma.clientStorage.getAsync('syncboard_file_key');
+      globalFileKey = docFileKey || savedFileKey || 'unknown';
+
       figma.ui.postMessage({
         action: 'host-result',
-        host: host || 'https://syncboard-dev.luiskobayashi.com',
-        fileKey: figma.fileKey || docFileKey || ''
+        host: host || 'https://syncboard.vercel.app',
+        fileKey: figma.fileKey || docFileKey || savedFileKey || ''
       });
     } catch (err) {
       figma.ui.postMessage({
         action: 'host-result',
-        host: 'https://syncboard-dev.luiskobayashi.com',
+        host: 'https://syncboard.vercel.app',
         fileKey: ''
       });
     }
@@ -57,12 +80,20 @@ figma.ui.onmessage = async (msg) => {
   if (msg.action === 'link-file') {
     try {
       if (typeof msg.fileKey === 'string') {
-        figma.root.setPluginData('syncboard_file_key', msg.fileKey);
+        try {
+          figma.root.setPluginData('syncboard_file_key', msg.fileKey);
+        } catch (e) {
+          // No plugin ID in manifest. Fall back to clientStorage.
+          await figma.clientStorage.setAsync('syncboard_file_key', msg.fileKey);
+        }
+        
+        globalFileKey = msg.fileKey;
+
         // Dispatch updated host-result back to UI to reload iframe with the new fileKey
         const host = await figma.clientStorage.getAsync('syncboard_host_url');
         figma.ui.postMessage({
           action: 'host-result',
-          host: host || 'https://syncboard-dev.luiskobayashi.com',
+          host: host || 'https://syncboard.vercel.app',
           fileKey: msg.fileKey
         });
       }
@@ -75,8 +106,15 @@ figma.ui.onmessage = async (msg) => {
   if (msg.action === 'get-selection') {
     try {
       const selection = figma.currentPage.selection;
-      const docFileKey = figma.root.getPluginData('syncboard_file_key');
-      const fileKey = figma.fileKey || docFileKey || 'unknown';
+      let docFileKey = undefined;
+      try {
+        docFileKey = figma.root.getPluginData('syncboard_file_key');
+      } catch (e) {
+        // No plugin ID in manifest
+      }
+
+      const savedFileKey = await figma.clientStorage.getAsync('syncboard_file_key');
+      const fileKey = figma.fileKey || docFileKey || savedFileKey || globalFileKey || 'unknown';
 
       figma.ui.postMessage({
         action: 'selection-result',

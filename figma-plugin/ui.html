@@ -172,7 +172,7 @@
     });
 
     // Request host from figma clientStorage on load
-    parent.postMessage({ pluginMessage: { action: 'ui-ready' } }, '*');
+    parent.postMessage({ pluginMessage: { action: 'get-host' } }, '*');
 
     // ── Theme Detection & Mutation Observer ───────────────────────
     
