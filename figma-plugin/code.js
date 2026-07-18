@@ -6,10 +6,32 @@ figma.showUI(__html__, {
 });
 
 let globalFileKey = 'unknown';
+let lastActiveSelection = null;
+
+function updateActiveSelectionCache() {
+  try {
+    const selection = figma.currentPage.selection;
+    if (selection.length > 0) {
+      lastActiveSelection = {
+        id: selection[0].id,
+        name: selection[0].name,
+        selectionCount: selection.length
+      };
+    } else {
+      lastActiveSelection = null;
+    }
+  } catch (e) {
+    // Ignore
+  }
+}
+
+// Initialize active selection cache on load
+updateActiveSelectionCache();
 
 // Listen to selection changes on the active page
 figma.on('selectionchange', () => {
-  const selection = figma.currentPage.selection;
+  updateActiveSelectionCache();
+  
   let docFileKey = undefined;
   try {
     docFileKey = figma.root.getPluginData('syncboard_file_key');
@@ -19,10 +41,10 @@ figma.on('selectionchange', () => {
   
   figma.ui.postMessage({
     action: 'selection-changed-locally',
-    data: selection[0]
+    data: lastActiveSelection
       ? {
-          id: selection[0].id,
-          name: selection[0].name,
+          id: lastActiveSelection.id,
+          name: lastActiveSelection.name,
           fileKey: figma.fileKey || docFileKey || globalFileKey || 'unknown',
         }
       : null,
@@ -105,7 +127,6 @@ figma.ui.onmessage = async (msg) => {
 
   if (msg.action === 'get-selection') {
     try {
-      const selection = figma.currentPage.selection;
       let docFileKey = undefined;
       try {
         docFileKey = figma.root.getPluginData('syncboard_file_key');
@@ -119,14 +140,14 @@ figma.ui.onmessage = async (msg) => {
       figma.ui.postMessage({
         action: 'selection-result',
         requestId: msg.requestId,
-        data: selection[0]
+        data: lastActiveSelection
           ? {
-              id: selection[0].id.replace(':', '-'), // Figma uses colons inside API, hyphens inside link node-ids
-              name: selection[0].name,
+              id: lastActiveSelection.id.replace(':', '-'), // Figma uses colons inside API, hyphens inside link node-ids
+              name: lastActiveSelection.name,
               fileKey: fileKey,
             }
           : null,
-        selectionCount: selection.length
+        selectionCount: lastActiveSelection ? lastActiveSelection.selectionCount : 0
       });
     } catch (err) {
       figma.ui.postMessage({
