@@ -126,6 +126,7 @@ figma.ui.onmessage = async (msg) => {
               fileKey: fileKey,
             }
           : null,
+        selectionCount: selection.length
       });
     } catch (err) {
       figma.ui.postMessage({

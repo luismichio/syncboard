@@ -472,7 +472,8 @@
         if (request) {
           submitResult(request.id, response.data);
           pendingRequests.delete(response.requestId);
-          log(`Selection returned: ${response.data ? response.data.name : 'None selected'}`);
+          const count = response.selectionCount || 0;
+          log(`Selection returned: ${response.data ? response.data.name : 'None selected'} (Figma saw ${count} selected items)`);
         }
       }
     });
