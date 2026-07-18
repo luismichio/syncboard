@@ -336,13 +336,16 @@
           log(`Warning: Presence registration failed: ${presErr.message}`);
         }
 
-        await ablyChannel.subscribe('select', (msg) => {
-          log(`Selection request received from Miro.`);
-          const reqId = msg.data.requestId;
-          
-          // Request selection from Figma background script
-          pendingRequests.set(reqId, { id: reqId });
-          window.parent.postMessage({ action: 'get-selection', requestId: reqId }, '*');
+        await ablyChannel.subscribe('command', (msg) => {
+          const command = msg.data;
+          if (command && command.action === 'select') {
+            log(`Selection request received from Miro.`);
+            const reqId = command.id;
+            
+            // Request selection from Figma background script
+            pendingRequests.set(reqId, { id: reqId });
+            window.parent.postMessage({ action: 'get-selection', requestId: reqId }, '*');
+          }
         });
 
         reconnectAttempts = 0;
@@ -371,7 +374,15 @@
 
     async function submitResult(requestId, data, error) {
       try {
-        await fetch(`${RELAY_URL}/api/relay/penpot/result`, {
+        const urlParams = new URLSearchParams(window.location.search);
+        const secretKey = urlParams.get('key');
+        
+        let resultUrl = `${RELAY_URL}/api/relay/penpot/result`;
+        if (secretKey) {
+          resultUrl += `?key=${encodeURIComponent(secretKey)}`;
+        }
+
+        await fetch(resultUrl, {
           ...FETCH_OPTIONS,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
