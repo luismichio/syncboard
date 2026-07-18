@@ -172,7 +172,7 @@ figma.ui.onmessage = async (msg) => {
         requestId: msg.requestId,
         data: selection[0]
           ? {
-              id: selection[0].id.replace(':', '-'), // Figma uses colons inside API, hyphens inside link node-ids
+              id: selection[0].id, // Keep raw ID with colons for Figma REST API
               name: selection[0].name,
               fileKey: fileKey,
             }
