@@ -119,6 +119,10 @@
     <div style="font-size: 9px; color: #6b7280; text-transform: uppercase;">SyncBoard Host Domain (Self-Hosts)</div>
     <div class="panel-row">
       <input type="text" id="host-input" placeholder="https://syncboard.vercel.app" />
+    </div>
+    <div style="font-size: 9px; color: #6b7280; text-transform: uppercase; margin-top: 6px;">Figma File Link (Community Fallback)</div>
+    <div class="panel-row">
+      <input type="text" id="file-link-input" placeholder="https://www.figma.com/file/abc..." />
       <button id="save-btn">Save</button>
     </div>
   </div>
@@ -129,6 +133,7 @@
     const DEFAULT_HOST = 'https://syncboard.vercel.app';
     const iframe = document.getElementById('companion-iframe');
     const hostInput = document.getElementById('host-input');
+    const fileLinkInput = document.getElementById('file-link-input');
     const saveBtn = document.getElementById('save-btn');
     const settingsToggle = document.getElementById('settings-toggle');
     const settingsPanel = document.getElementById('settings-panel');
@@ -157,7 +162,18 @@
       if (hostValue.endsWith('/')) {
         hostValue = hostValue.slice(0, -1);
       }
-      parent.postMessage({ pluginMessage: { action: 'set-host', host: hostValue } }, '*');
+
+      const fileUrl = fileLinkInput.value.trim();
+      let fileKey = '';
+      if (fileUrl) {
+        // Extract key from standard figma urls (e.g., figma.com/file/abc/... or figma.com/design/abc/...)
+        const match = fileUrl.match(/(?:file|design)\/([a-zA-Z0-9]+)/);
+        if (match) {
+          fileKey = match[1];
+        }
+      }
+
+      parent.postMessage({ pluginMessage: { action: 'set-host', host: hostValue, fileKey } }, '*');
       currentHost = hostValue;
       settingsPanel.classList.remove('active');
       settingsToggle.textContent = 'Configure';
@@ -197,6 +213,7 @@
       if (msg.action === 'host-result') {
         currentHost = msg.host;
         hostInput.value = currentHost;
+        fileLinkInput.value = msg.fileKey ? `https://www.figma.com/file/${msg.fileKey}` : '';
         loadIframe();
         return;
       }

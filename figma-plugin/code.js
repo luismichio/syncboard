@@ -5,6 +5,8 @@ figma.showUI(__html__, {
   themeColors: true,
 });
 
+let globalFileKey = 'unknown';
+
 // Listen to selection changes on the active page
 figma.on('selectionchange', () => {
   const selection = figma.currentPage.selection;
@@ -14,6 +16,7 @@ figma.on('selectionchange', () => {
       ? {
           id: selection[0].id,
           name: selection[0].name,
+          fileKey: figma.fileKey || globalFileKey || 'unknown',
         }
       : null,
   });
@@ -24,22 +27,22 @@ figma.ui.onmessage = async (msg) => {
   if (!msg || typeof msg !== 'object') return;
 
   if (msg.action === 'ui-ready') {
-    // Acknowledge connection
-    figma.ui.postMessage({ action: 'ui-ready' });
-    return;
-  }
-
-  if (msg.action === 'get-host') {
     try {
       const host = await figma.clientStorage.getAsync('syncboard_host_url');
+      const fileKey = await figma.clientStorage.getAsync('syncboard_file_key');
+      
+      globalFileKey = figma.fileKey || fileKey || 'unknown';
+
       figma.ui.postMessage({
         action: 'host-result',
-        host: host || 'https://syncboard.vercel.app'
+        host: host || 'https://syncboard-dev.luiskobayashi.com',
+        fileKey: fileKey || ''
       });
     } catch (err) {
       figma.ui.postMessage({
         action: 'host-result',
-        host: 'https://syncboard.vercel.app'
+        host: 'https://syncboard-dev.luiskobayashi.com',
+        fileKey: ''
       });
     }
     return;
@@ -48,6 +51,10 @@ figma.ui.onmessage = async (msg) => {
   if (msg.action === 'set-host') {
     try {
       await figma.clientStorage.setAsync('syncboard_host_url', msg.host);
+      if (typeof msg.fileKey === 'string') {
+        await figma.clientStorage.setAsync('syncboard_file_key', msg.fileKey);
+        globalFileKey = figma.fileKey || msg.fileKey || 'unknown';
+      }
     } catch (err) {
       // Ignore
     }
@@ -57,9 +64,8 @@ figma.ui.onmessage = async (msg) => {
   if (msg.action === 'get-selection') {
     try {
       const selection = figma.currentPage.selection;
-      
-      // Figma file key must be available (requires cloud-saved file)
-      const fileKey = figma.fileKey || 'unknown';
+      const savedFileKey = await figma.clientStorage.getAsync('syncboard_file_key');
+      const fileKey = figma.fileKey || savedFileKey || globalFileKey || 'unknown';
 
       figma.ui.postMessage({
         action: 'selection-result',
