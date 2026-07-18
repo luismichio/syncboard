@@ -1,5 +1,6 @@
 {
   "name": "SyncBoard Figma Companion",
+  "id": "1660413000378332441",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
