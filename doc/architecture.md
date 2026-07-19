@@ -113,13 +113,12 @@ graph TD
 
 > **Note:** The optional Tauri desktop app (not shown) extends capabilities for large images, Adobe UXP, local LLMs, and two-way sync --- but is not required for the core sync pipeline.
 
-### 1A. Figma --- Cloud-Native REST
+### 1A. Figma --- Cloud-Native REST + Companion Relay
 
-> **Status:** stable --- implemented in production.
+Figma provides a robust, public web API that renders design frames to images in the cloud (`api.figma.com/v1/images`), while using an Ably WebSocket companion plugin for real-time selection auto-detect.
 
-Figma provides a robust, public web API that renders design frames to images in the cloud.
-
-* **Flow:** The Miro plugin makes a request to the SyncBoard Next.js API. The server requests the frame render directly from Figma's cloud servers (`api.figma.com/v1/images`), downloads the image, and uploads it to the Miro widget.
+* **Image Sync Flow:** The Miro plugin makes a request to the SyncBoard Next.js API. The server requests the frame render directly from Figma's cloud REST API (`api.figma.com/v1/images`), downloads the image, and uploads it to the Miro widget.
+* **Selection Auto-Detect Flow (Ably WebSocket):** For real-time selection auto-detect inside Figma Desktop, the Figma Companion plugin (`public/figma-companion-ui.html`) connects via an Ably WebSocket channel (`penpot:${pairingId}`). When selection changes or is requested, it publishes selection metadata (`id`, `name`, `fileKey`) directly over Ably to the Miro plugin sidebar with zero server polling and zero Redis overhead.
 * **Benefits:** Zero user configuration, no local servers, and no tunnels required for private setups.
 
 #### The Cloud Key Limitation (Figma Community Restriction)
@@ -139,10 +138,10 @@ Figma enforces strict access control on the `figma.fileKey` property in its clie
 Unlike Figma, Penpot does **not** provide a public REST API that can render design frames into PNG/SVG in the cloud. Syncing Penpot designs uses a cloud relay to coordinate a local browser plugin:
 
 * **The Cloud Limitation:** To render Penpot designs in the cloud, a server must boot a headless browser instance (Puppeteer/Playwright), load the Penpot editor client, authenticate the user, load the heavy WebAssembly editor assets, and take screenshots. This would require hosting expensive rendering nodes.
-* **The Relay Solution:** SyncBoard uses the designer's **active Penpot browser tab** as the renderer, coordinated via an **Ably WebSocket** for command delivery and an **Upstash Redis** relay for result storage.
-* **Command Delivery (Ably):** The Miro plugin publishes commands to an Ably channel; the Penpot Companion subscribes via WebSocket and executes them instantly using Penpot's native plugin APIs (`penpot.export`). This eliminates idle polling costs completely.
-* **Result Storage (Redis):** Results are posted to `/api/relay/penpot/result` (Redis SETEX), and the Miro plugin polls `/api/relay/request` (Redis GET/DEL) synchronously waiting for the response. Redis is only used during active imports, so idle cost is negligible.
-* **Flow:** All communication travels over public HTTPS --- no localhost calls required. The Penpot Companion plugin stays connected via a presence heartbeat, and the relay handles timeouts, retries, and pairing.
+* **The Event-Driven Relay Solution:** SyncBoard uses the designer's **active Penpot browser tab** as the renderer, coordinated via **Ably WebSockets** for instant real-time delivery and an ephemeral **Upstash Redis** cache for heavy binary result storage.
+* **Direct Selection (0 Redis Commands):** Selection payloads (`id`, `name`, `fileKey`) are published directly over the Ably WebSocket channel back to the Miro plugin sidebar. This completely bypasses Upstash Redis for selection detection.
+* **Hybrid Image Storage (Single-Read Redis):** Heavy PNG/SVG renders are posted to `/api/relay/penpot/result` (stored in Redis with a 45s TTL) and a tiny `'result-ready'` notification event is published over Ably. The Miro plugin receives the WebSocket event and reads/deletes the image with a single `GET /api/relay/response` call (3 Redis commands total per export: 1 SET, 1 GET, 1 DEL).
+* **Flow & Scale:** All communication travels over public WebSockets and HTTPS --- zero polling loops required. Each active pairing consumes 2–3 concurrent Ably connections (Miro sidebar + Figma/Penpot companion), comfortably supporting up to ~100 simultaneous users on Ably's Free Tier (200 connections max).
 
 ### 1C. Research: Future Sources
 
@@ -719,20 +718,20 @@ An agent calling `sync_frame` does exactly what the sidebar's "Sync" button does
 
 ## 4. Selection Detection Strategy
 
-> **Status:** design --- Penpot relay implemented, Figma relay planned.
+> **Status:** stable --- Figma companion relay and Penpot companion relay both implemented via Ably WebSockets.
 
-Selection detection sources vary by platform and evolve toward a uniform relay pattern:
+Selection detection sources vary by platform and use a uniform event-driven Ably relay pattern:
 
-| Platform | Current Method | Future Direction |
+| Platform | Current Method | Status |
 | :--- | :--- | :--- |
-| **Penpot** | Companion receives commands via Ably WebSocket | Stable --- relay-first |
-| **Figma** | (Planned) Figma plugin -> relay | Figma plugin + relay (mirror Penpot pattern) |
+| **Figma** | Companion receives commands & publishes selections via Ably WebSocket | Stable --- relay-first |
+| **Penpot** | Companion receives commands & publishes selections via Ably WebSocket | Stable --- relay-first |
 | **Adobe** | (Planned) UXP plugin -> Tauri local socket | Tauri capability extender |
 
 ### Current Implementation
 
-- **Penpot:** The Penpot Companion plugin (`penpot-companion-ui.html`) connects via WebSocket (Ably), subscribes to the pairing channel for `select` or `export` commands, executes them using Penpot's native plugin API, and returns results through the relay.
-- **Figma (SyncBridge fallback):** When Tauri is installed, it can query the Figma Desktop MCP port (`127.0.0.1:3845/mcp`) locally via native HTTP on the Rust side --- this is the only remaining Tauri dependency and will be replaced by the Figma plugin + relay.
+- **Figma:** The Figma Companion plugin (`public/figma-companion-ui.html`) connects via WebSocket (Ably), subscribes to the pairing channel (`penpot:${pairingId}`) for `select` commands, retrieves selected frame metadata via `figma.root.getPluginData`, and publishes selection details (`id`, `name`, `fileKey`) directly over Ably back to Miro with zero server polling and zero Redis commands.
+- **Penpot:** The Penpot Companion plugin (`public/penpot-companion-ui.html`) connects via WebSocket (Ably), subscribes to the pairing channel for `select` or `export` commands, executes them using Penpot's native plugin API, and returns selection results directly over Ably or uploads heavy image buffers to Vercel/Redis with a `'result-ready'` Ably notification event.
 
 ### Why Not Tauri for Transport?
 

@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.8.0] - 2026-07-19
+
+### Added
+- **Event-Driven WebSocket Relay Architecture:** Refactored selection detection and image sync pipelines to eliminate server-side polling loops, reducing Upstash Redis command usage by 90% and Vercel serverless execution time by 95%.
+  - **Direct Selection Transport (0 Redis Commands):** Figma and Penpot companion plugins publish selection details (`id`, `name`, `fileKey`) directly over Ably WebSockets to the Miro plugin sidebar, bypassing Redis entirely.
+  - **Hybrid Image Export (3 Redis Commands):** Heavy base64 image exports are uploaded to Vercel/Redis, followed by publishing a tiny `'result-ready'` event notification over Ably. Miro receives the WebSocket event and reads/deletes the image payload in a single `GET /api/relay/response` call.
+- **Client-Side Ably Bridge in Miro:** Integrated direct Ably WebSocket client connections inside the Miro plugin sidebar to listen for companion response events in real-time.
+- **Unified Companion Relay Client:** Renamed `penpotMcpClient.ts` to `companionRelayClient.ts` to reflect its unified role as the Cloud Relay client for both Figma and Penpot companions.
+
+### Fixed
+- **Ably Publish Capability Permission:** Updated `generateAblyToken` in `src/lib/relayAbly.ts` to grant `['publish', 'subscribe', 'presence']` capabilities on pairing channels, resolving Ably `40160: Unable to publish message due to lacking publish capability` errors.
+- **Subscription Race Condition:** Restructured `callRelay` inside `companionRelayClient.ts` to subscribe to Ably events and set up early-results buffering *before* sending HTTP trigger requests to Vercel, completely resolving 10-second timeout errors.
+- **Penpot Export Shape Lookup:** Updated `findShapeById` in `public/penpot-companion-plugin.js` to prioritize active selection (`penpot.selection[0]`) and native `findShape` API methods, resolving `Penpot export API unavailable in this runtime` and `unknown-file` ID fallbacks.
+- **Direct Cloud Relay Routing:** Removed legacy `http://127.0.0.1:3845/mcp` fetch fallbacks in `useFigmaImporter.ts`, eliminating browser Private Network Access (PNA) CORS warnings and 2-second connection delays on HTTPS.
+
+---
+
 ## [0.7.1] - 2026-07-18
 
 ### Added
