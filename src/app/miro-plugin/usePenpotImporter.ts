@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { parsePenpotUrl } from './penpotUrlParser';
-import { callPenpotMcpTool } from './penpotMcpClient';
+import { callPenpotMcpTool } from './companionRelayClient';
 
 export interface PenpotNodeInfo {
   fileId: string;

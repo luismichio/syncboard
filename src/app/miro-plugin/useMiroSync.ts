@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { SyncedImage } from './useMiroSelection';
-import { callPenpotMcpTool } from './penpotMcpClient';
+import { callPenpotMcpTool } from './companionRelayClient';
 import { getValidToken } from '@/lib/tokens';
 
 /**

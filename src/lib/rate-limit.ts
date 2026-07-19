@@ -178,13 +178,7 @@ const ENDPOINT_LIMITS: Record<string, RateLimitConfig | MultiWindowConfig> = {
   "figma:render": { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
   "figma:render-batch": { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
   "figma:node-info": { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
-  "relay:request": {
-    windows: [
-      { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
-      { limit: COMMUNITY_PLAN.relayPerHour, window: 3600 },
-      { limit: COMMUNITY_PLAN.relayPerDay, window: 86400 },
-    ],
-  },
+  "relay:request": { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
   "relay:result": { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
   "miro:update-image": { limit: COMMUNITY_PLAN.updateImagePerMin, window: 60 },
   "ably:token": { limit: COMMUNITY_PLAN.ablyTokenPerMin, window: 60 },

@@ -69,7 +69,7 @@ export function useFigmaImporter(
     const useTauri = typeof window !== 'undefined' && localStorage.getItem('syncboard_use_tauri') === 'true';
     if (useTauri) {
       try {
-        const { callFigmaSelectionTauri } = await import('./penpotMcpClient');
+        const { callFigmaSelectionTauri } = await import('./companionRelayClient');
         const selection = await callFigmaSelectionTauri();
         if (selection) {
           setFigmaNodeInfo({
@@ -91,41 +91,8 @@ export function useFigmaImporter(
     }
 
     try {
-      const response = await fetch('http://127.0.0.1:3845/mcp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: {
-            name: 'get_selection',
-            arguments: {},
-          },
-          id: 1,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('Local Figma MCP server not running or CORS blocked.');
-      }
-      const result = await response.json();
-      if (result.error) {
-        throw new Error(result.error.message || 'Failed to fetch design context');
-      }
-      const fileKey = result.result.content[0].text.match(/fileKey:\s*([a-zA-Z0-9]+)/)?.[1];
-      const nodeId = result.result.content[0].text.match(/nodeId:\s*([a-zA-Z0-9\-:]+)/)?.[1];
-      const name = result.result.content[0].text.match(/name:\s*([^\n]+)/)?.[1] || 'Figma Screen';
-      if (fileKey && nodeId) {
-        setFigmaNodeInfo({ fileKey, nodeId, name });
-        setSyncStatusParent('Local selection detected successfully!');
-      } else {
-        throw new Error('Figma MCP returned empty selection details.');
-      }
-    } catch (err: unknown) {
-      console.warn('Local Figma MCP fail, trying Cloud Relay:', err);
-      try {
-        setSyncStatusParent('Local server not found. Querying Figma Companion Relay...');
-        const { callRelay, getOrCreatePairingId } = await import('./penpotMcpClient');
-        const pairingId = getOrCreatePairingId();
+      const { callRelay, getOrCreatePairingId } = await import('./companionRelayClient');
+      const pairingId = getOrCreatePairingId();
 
         if (!pairingId) {
           throw new Error('Pairing ID is not set. Enter a pairing ID in settings first.');
@@ -152,8 +119,7 @@ export function useFigmaImporter(
         const relayMsg = relayErr instanceof Error ? relayErr.message : String(relayErr);
         setSyncStatusParent(`Detection failed: ${relayMsg} (Tip: Open Figma Companion Plugin and connect using the same Pairing ID.)`);
         console.warn('Figma Relay selection fail:', relayErr);
-      }
-    } finally {
+      } finally {
       setIsDetectingLocal(false);
     }
   };

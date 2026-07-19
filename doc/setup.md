@@ -401,7 +401,7 @@ If you fork this project with your own domain:
    > Squarespace DNS does not accept dots in the Host field. Use a dash (`-`) as a separator.
 2. Update all occurrences of `local-syncboard.luiskobayashi.com` in:
    - `public/penpot-companion-ui.html`
-   - `src/app/miro-plugin/penpotMcpClient.ts`
+   - `src/app/miro-plugin/companionRelayClient.ts`
    - `tauri-bridge/index.html`
    - `tauri-bridge/src-tauri/src/lib.rs` (comment only)
 3. Regenerate your `cert.pem` / `key.pem` for the new domain.

@@ -88,24 +88,10 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
   const pairingId = body.pairingId;
   const channel = await getAblyConnection(pairingId);
 
-  const res = await fetch('/api/relay/request', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ...body,
-      async: true, // Trigger async execution on backend
-    }),
-  });
-
-  const payload = (await res.json().catch(() => ({}))) as { error?: string; data?: { requestId: string } };
-  if (!res.ok || payload.error || !payload.data?.requestId) {
-    throw new Error(payload.error || `Relay request failed with HTTP ${res.status}`);
-  }
-
-  const requestId = payload.data.requestId;
-
   return new Promise<RelayJson>((resolve, reject) => {
     let isResolved = false;
+    let targetRequestId: string | null = null;
+    const earlyResults = new Map<string, Record<string, unknown>>();
 
     const cleanup = () => {
       isResolved = true;
@@ -125,24 +111,34 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
       }
     }, body.timeoutMs || 10000);
 
+    const processResultData = (msgData: Record<string, unknown>) => {
+      cleanup();
+      if (msgData.error) {
+        reject(new Error(String(msgData.error)));
+      } else {
+        resolve((msgData.data as RelayJson) ?? null);
+      }
+    };
+
     const onResult = (msg: Ably.Message) => {
       const msgData = msg.data as Record<string, unknown> | null;
-      if (msgData?.requestId === requestId) {
-        cleanup();
-        if (msgData.error) {
-          reject(new Error(String(msgData.error)));
+      const reqId = typeof msgData?.requestId === 'string' ? msgData.requestId : null;
+      if (reqId && msgData) {
+        if (targetRequestId && reqId === targetRequestId) {
+          processResultData(msgData);
         } else {
-          resolve((msgData.data as RelayJson) ?? null);
+          earlyResults.set(reqId, msgData);
         }
       }
     };
 
     const onResultReady = async (msg: Ably.Message) => {
       const msgData = msg.data as Record<string, unknown> | null;
-      if (msgData?.requestId === requestId) {
+      const reqId = typeof msgData?.requestId === 'string' ? msgData.requestId : null;
+      if (reqId && targetRequestId && reqId === targetRequestId) {
         cleanup();
         try {
-          const fetchRes = await fetch(`/api/relay/response?requestId=${requestId}`);
+          const fetchRes = await fetch(`/api/relay/response?requestId=${targetRequestId}`);
           if (!fetchRes.ok) {
             const errData = await fetchRes.json().catch(() => ({}));
             throw new Error(errData.error || `HTTP ${fetchRes.status}`);
@@ -156,8 +152,36 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
       }
     };
 
+    // 1. Subscribe to Ably events BEFORE triggering backend HTTP request
     channel.subscribe('result', onResult);
     channel.subscribe('result-ready', onResultReady);
+
+    // 2. Trigger async request on backend
+    fetch('/api/relay/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...body,
+        async: true,
+      }),
+    })
+      .then(async (res) => {
+        const payload = (await res.json().catch(() => ({}))) as { error?: string; data?: { requestId: string } };
+        if (!res.ok || payload.error || !payload.data?.requestId) {
+          throw new Error(payload.error || `Relay request failed with HTTP ${res.status}`);
+        }
+        targetRequestId = payload.data.requestId;
+
+        // Check if an early result arrived while HTTP trigger was in flight
+        if (earlyResults.has(targetRequestId)) {
+          const early = earlyResults.get(targetRequestId)!;
+          processResultData(early);
+        }
+      })
+      .catch((err) => {
+        cleanup();
+        reject(err);
+      });
   });
 }
 
