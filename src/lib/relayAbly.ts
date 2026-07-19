@@ -66,7 +66,7 @@ export async function generateAblyToken(
   const ably = getAblyRest();
   const tokenParams: TokenParams = {
     capability: JSON.stringify({
-      [`${CHANNEL_PREFIX}:${pairingId}`]: ['subscribe', 'presence'],
+      [`${CHANNEL_PREFIX}:${pairingId}`]: ['publish', 'subscribe', 'presence'],
     }),
     ttl: 2 * 60 * 60 * 1000, // 2 hours
     clientId: `companion:${pairingId}`,
