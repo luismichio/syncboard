@@ -30,12 +30,33 @@ penpot.on('themechange', (theme) => {
   sendTheme();
 });
 
-function findShapeById(shapeId) {
+async function findShapeById(shapeId) {
+  // 1. Check active selection first (fastest and most reliable)
+  if (penpot.selection && penpot.selection.length > 0) {
+    const selMatch = penpot.selection.find((s) => s && s.id === shapeId);
+    if (selMatch) return selMatch;
+    if (penpot.selection.length === 1 && penpot.selection[0]) {
+      return penpot.selection[0];
+    }
+  }
+
+  // 2. Try native findShape method on current page
+  if (penpot.currentPage && typeof penpot.currentPage.findShape === 'function') {
+    try {
+      const found = await penpot.currentPage.findShape({ id: shapeId });
+      if (found) return found;
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  // 3. Fall back to recursive page tree search
   if (!penpot.currentPage) return null;
 
   function search(node) {
+    if (!node) return null;
     if (node.id === shapeId) return node;
-    if (node.children) {
+    if (node.children && Array.isArray(node.children)) {
       for (const child of node.children) {
         const found = search(child);
         if (found) return found;
@@ -56,26 +77,25 @@ function findShapeById(shapeId) {
     }
   }
 
-  return null;
+  return search(penpot.currentPage);
 }
 
 async function exportShapeBuffer(shapeId, format, scale) {
-  const shapeFromPage = findShapeById(shapeId);
+  const shapeFromPage = await findShapeById(shapeId);
 
   if (shapeFromPage && typeof shapeFromPage.export === 'function') {
     return shapeFromPage.export({ type: format, scale });
   }
 
-  // Backward compatibility with older Penpot runtimes.
+  if (shapeFromPage && typeof shapeFromPage.exportShape === 'function') {
+    return shapeFromPage.exportShape({ format, scale });
+  }
+
   if (typeof penpot.export === 'function') {
     return penpot.export(shapeId, { format, scale });
   }
 
-  const rootKeys = Object.keys(penpot).filter((key) => key.toLowerCase().includes('export'));
-  throw new Error(
-    `Penpot export API unavailable in this runtime. Expected shape.export(...). ` +
-      `Detected root export-like keys: ${rootKeys.length ? rootKeys.join(', ') : 'none'}`
-  );
+  throw new Error(`Penpot shape "${shapeId}" export API unavailable. Ensure a valid frame or shape is selected in Penpot.`);
 }
 
 // Listen to messages from the UI Iframe
@@ -89,7 +109,7 @@ penpot.ui.onMessage(async (message) => {
 
   if (message.action === 'get-selection') {
     const selection = penpot.selection[0];
-    const file = penpot.currentFile;
+    const fileId = penpot.currentFile ? penpot.currentFile.id : (penpot.currentFileId || penpot.fileId || 'penpot-doc');
 
     let selWidth = 0;
     let selHeight = 0;
@@ -105,7 +125,7 @@ penpot.ui.onMessage(async (message) => {
         ? {
             id: selection.id,
             name: selection.name,
-            fileId: file ? file.id : 'unknown',
+            fileId: fileId,
             width: selWidth,
             height: selHeight,
           }
