@@ -20,7 +20,7 @@ SyncBoard is designed with a **zero-persistent-storage, cloud-relay-first** arch
 
 ### 🔐 Authentication & Token Handling
 
-- **OAuth tokens live only in the browser session** (in-memory React state). They are never stored in `localStorage`, cookies, or server-side databases.
+- **OAuth tokens are stored in Miro board storage** (via `board.storage.set`), with a **localStorage fallback** for same-origin contexts. Tokens are never persisted server-side beyond an ephemeral Upstash Redis cache (300s TTL) used only during OAuth popup handoff.
 - Token refresh uses an ephemeral Upstash Redis cache (300s TTL) with automatic deletion on consumption — no long-lived token storage on the server.
 - **OAuth CSRF protection** via cryptographically secure `state` parameters generated with `window.crypto.getRandomValues()`. State values are validated server-side before accepting the callback.
 - **Pairing IDs** (Penpot ↔ Miro link) are read-only fields in the UI and generated via `crypto.getRandomValues()` — users cannot inject custom values.

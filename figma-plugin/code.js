@@ -90,14 +90,14 @@ figma.ui.onmessage = async (msg) => {
 
       figma.ui.postMessage({
         action: 'host-result',
-        host: host || 'https://syncboard.vercel.app',
+        host: host || 'https://syncboard.luiskobayashi.com',
         fileKey: figma.fileKey || docFileKey || savedFileKey || ''
       });
     } catch (err) {
       console.error("[SyncBoard] get-host failed:", err);
       figma.ui.postMessage({
         action: 'host-result',
-        host: 'https://syncboard.vercel.app',
+        host: 'https://syncboard.luiskobayashi.com',
         fileKey: ''
       });
     }
@@ -135,7 +135,7 @@ figma.ui.onmessage = async (msg) => {
         const host = await figma.clientStorage.getAsync('syncboard_host_url');
         figma.ui.postMessage({
           action: 'host-result',
-          host: host || 'https://syncboard.vercel.app',
+          host: host || 'https://syncboard.luiskobayashi.com',
           fileKey: msg.fileKey
         });
       }
