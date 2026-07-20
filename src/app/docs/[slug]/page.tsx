@@ -250,7 +250,7 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
       {/* Footer */}
       <footer className="relative z-10 border-t border-border-card">
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between text-[10px] font-mono text-text-muted">
-          <span>Apache 2.0 License</span>
+          <span>AGPLv3 License</span>
           <a href="https://github.com/luismichio/syncboard" target="_blank" rel="noreferrer" className="hover:text-text-page transition">
             github.com/luismichio/syncboard
           </a>
