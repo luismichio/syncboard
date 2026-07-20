@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useMiroPlugin } from './useMiroPlugin';
 import ThemeToggle from '@/components/ThemeToggle';
+import { DISPLAY } from '@/lib/version';
 
 export default function MiroPluginPage() {
   const [propagate, setPropagate] = useState<boolean>(false);
@@ -291,7 +292,7 @@ export default function MiroPluginPage() {
           <div>
             <h2 className="text-xl font-bold tracking-tight text-accent leading-none">SyncBoard</h2>
             <p className="text-[10px] text-text-muted mt-0.5">Stateless Design-Miro Pipeline</p>
-            <span className="text-[8px] font-mono text-text-muted/50">v0.5.7</span>
+            <span className="text-[8px] font-mono text-text-muted/50">{DISPLAY}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">

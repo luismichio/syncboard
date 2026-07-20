@@ -160,7 +160,7 @@
     <header>
       <h2>SyncBoard Companion</h2>
       <p class="subtitle">Penpot Companion Relay</p>
-      <span class="version-badge">v0.5.7</span>
+      <span class="version-badge">v0.8.0 Community</span>
     </header>
     <div class="card">
       <label for="pairing-id">Miro Pairing ID</label>
@@ -171,17 +171,14 @@
     </div>
     <div class="card">
       <div class="status-row">
-        <span>Relay Status:</span>
+        <span>Cloud Connection (WebSocket):</span>
         <span id="status-badge" class="badge badge-disconnected">Disconnected</span>
       </div>
       <div class="status-row" style="margin-top: 4px;">
-        <span>Plugin Status:</span>
+        <span>Penpot Sandbox (Local):</span>
         <span id="plugin-badge" class="badge badge-disconnected">Unknown</span>
       </div>
-      <div class="status-row" style="margin-top: 4px;">
-        <span>Active Connection:</span>
-        <span id="file-name" style="color: var(--text-muted)">Stand-alone mode</span>
-      </div>
+
     </div>
     <div class="card">
       <label>Activity Log</label>
@@ -205,7 +202,6 @@
     const connectBtn = document.getElementById('connect-btn');
     const statusBadge = document.getElementById('status-badge');
     const pluginBadge = document.getElementById('plugin-badge');
-    const fileNameText = document.getElementById('file-name');
     const logBox = document.getElementById('log');
 
     const savedId = localStorage.getItem('syncboard_pairing_id');
@@ -299,7 +295,6 @@
         ablyClient = null;
       }
       updateStatus('disconnected', reason || 'Disconnected');
-      fileNameText.textContent = 'Stand-alone mode';
     }
 
     async function connectBridge(isAuto = false) {
@@ -372,8 +367,6 @@
         reconnectAttempts = 0;
         updateStatus('connected', 'Connected');
         log('Companion connected via Ably WebSocket.');
-        fileNameText.textContent = 'Active Connection';
-
       } catch (err) {
         await disconnectAbly();
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -384,13 +377,37 @@
     }
 
     async function submitResult(requestId, data, error) {
+      // For selection-result (no heavy image data): send directly via Ably
+      const isSelection = data && !data.svg && !data.base64;
+      if (isSelection && ablyChannel) {
+        try {
+          await ablyChannel.publish('result', { requestId, data, error });
+          log(`Selection returned directly via Ably: ${data ? data.name : 'None selected'}`);
+          return;
+        } catch (err) {
+          log(`Ably publish failed: ${err.message}. Falling back to HTTP.`);
+        }
+      }
+
+      // For heavy exports: write to Upstash Redis via Next.js HTTP POST
       try {
-        await fetch(`${RELAY_URL}/api/relay/penpot/result`, {
+        const res = await fetch(`${RELAY_URL}/api/relay/penpot/result`, {
           ...FETCH_OPTIONS,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ requestId, data, error })
         });
+        if (!res.ok) {
+          throw new Error(`HTTP status ${res.status}`);
+        }
+        
+        // Notify Miro directly over Ably WebSocket that the buffered image is ready in Upstash
+        if (ablyChannel) {
+          await ablyChannel.publish('result-ready', { requestId });
+          log("Export payload uploaded and notified via Ably.");
+        } else {
+          log("Export payload uploaded. Warning: Ably channel disconnected, could not send event signal.");
+        }
       } catch (err) {
         log(`Failed to submit result: ${err.message}`);
       }

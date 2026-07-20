@@ -49,18 +49,18 @@ SyncBoard is a stateless design-to-canvas sync engine designed to fetch, render,
 
 ### Quick Status Reference
 
-| Section | Status | What it describes |
-|---|---|---|
-| 1 Source Adapters | stable / draft | Figma & Penpot (implemented); UXPin, Framer, Lovable, Stitch, Adobe UXP (research) |
-| 2 Target Adapters | stable / design | Miro (implemented); Mural, MS Whiteboard (research placeholder) |
-| 3 MCP Transport Layer | design | MCP client for sources + MCP server for agents --- architecture exploration |
-| 4 Selection Detection | design | Planned feature --- partially built |
-| 5 Metadata Registry | stable | Implemented --- exact format in use |
-| 6 Duplicate Consolidation | design | Planned feature |
-| 7 Rate Limits | stable | Implemented throttles + known quotas |
-| 8 Data Transport & Costs | stable | Current cost model + self-hosting guide |
-| A Appendix: Chromium Loopback | historical | Research findings --- no longer actionable |
-| B Appendix: Architecture Evolution | historical | Decision log --- context only |
+| Section | Status | Availability | What it describes |
+|---|---|---|---|
+| **1 Source Adapters** | stable / draft | **Figma & Penpot (LIVE)**; Lovable, Stitch, UXPin, Framer, Adobe UXP *(Planned)* | Figma & Penpot production APIs; future design source specs |
+| **2 Target Adapters** | stable / design | **Miro (LIVE)**; Mural, MS Whiteboard *(Planned)* | Miro v2 Web SDK; future whiteboard adapters |
+| **3 MCP Transport Layer** | design | **⚠️ NOT AVAILABLE YET** | Speculative MCP client & MCP server for AI agents |
+| **4 Selection Detection** | stable | **LIVE** | Real-time WebSocket selection stream from Figma & Penpot companions |
+| **5 Metadata Registry** | stable | **LIVE** | Implemented `linked_boards` and widget metadata format |
+| **6 Duplicate Card Consolidation** | stable | **LIVE** | Aggregates identical `fileKey`+`nodeId` items and propagates multi-copy board sync |
+| **7 Rate Limits** | stable | **LIVE** | Implemented `@upstash/ratelimit` & daily bandwidth caps |
+| **8 Data Transport & Costs** | stable | **LIVE** | Serverless direct push & zero-Redis selection transport |
+| **A Appendix: Chromium Loopback** | historical | Archived | Deprecated research log |
+| **B Appendix: Architecture Evolution** | historical | Archived | Decision log — context only |
 
 ### Architectural Principle: Adapter Layers
 
@@ -113,14 +113,23 @@ graph TD
 
 > **Note:** The optional Tauri desktop app (not shown) extends capabilities for large images, Adobe UXP, local LLMs, and two-way sync --- but is not required for the core sync pipeline.
 
-### 1A. Figma --- Cloud-Native REST
+### 1A. Figma --- Cloud-Native REST + Companion Relay
 
-> **Status:** stable --- implemented in production.
+Figma provides a robust, public web API that renders design frames to images in the cloud (`api.figma.com/v1/images`), while using an Ably WebSocket companion plugin for real-time selection auto-detect.
 
-Figma provides a robust, public web API that renders design frames to images in the cloud.
+* **Image Sync Flow:** The Miro plugin makes a request to the SyncBoard Next.js API. The server requests the frame render directly from Figma's cloud REST API (`api.figma.com/v1/images`), downloads the image, and uploads it to the Miro widget.
+* **Selection Auto-Detect Flow (Ably WebSocket):** For real-time selection auto-detect inside Figma Desktop, the Figma Companion plugin (`public/figma-companion-ui.html`) connects via an Ably WebSocket channel (`penpot:${pairingId}`). When selection changes or is requested, it publishes selection metadata (`id`, `name`, `fileKey`) directly over Ably to the Miro plugin sidebar with zero server polling and zero Redis overhead.
+* **Benefits:** Zero user configuration, no local servers, and no tunnels required for private setups.
 
-* **Flow:** The Miro plugin makes a request to the SyncBoard Next.js API. The server requests the frame render directly from Figma's cloud servers (`api.figma.com/v1/images`), downloads the image, and uploads it to the Miro widget.
-* **Benefits:** Zero user configuration, no local servers, and no tunnels required.
+#### The Cloud Key Limitation (Figma Community Restriction)
+
+Figma enforces strict access control on the `figma.fileKey` property in its client-side plugin API:
+* **Private/Organization Plugins:** Can query `figma.fileKey` automatically. If SyncBoard is deployed privately, setting `"enablePrivatePluginApi": true` in `manifest.json` allows the plugin to automatically retrieve the file key on load, enabling zero-config selection auto-detection across all files.
+* **Public/Community Plugins:** Figma blocks access to `figma.fileKey` (returns `undefined`) to preserve document privacy. In this sandbox environment, the Figma companion plugin cannot read the file key or the browser URL.
+* **The Metadata Workaround:** To support public community installations and multi-file workflows, SyncBoard implements a document-level linking bridge:
+  1. The first time a Figma file is opened, the user is prompted to paste the Figma URL once in the Companion UI.
+  2. The plugin extracts the `fileKey` and saves it directly in the document's metadata database using `figma.root.setPluginData('syncboard_file_key', fileKey)`.
+  3. This metadata persists within the `.fig` file itself in Figma's cloud. When the companion launches or processes selections, it retrieves this saved key via `figma.root.getPluginData` to map selections correctly.
 
 ### 1B. Penpot --- Cloud Relay + Companion Plugin
 
@@ -129,10 +138,28 @@ Figma provides a robust, public web API that renders design frames to images in 
 Unlike Figma, Penpot does **not** provide a public REST API that can render design frames into PNG/SVG in the cloud. Syncing Penpot designs uses a cloud relay to coordinate a local browser plugin:
 
 * **The Cloud Limitation:** To render Penpot designs in the cloud, a server must boot a headless browser instance (Puppeteer/Playwright), load the Penpot editor client, authenticate the user, load the heavy WebAssembly editor assets, and take screenshots. This would require hosting expensive rendering nodes.
-* **The Relay Solution:** SyncBoard uses the designer's **active Penpot browser tab** as the renderer, coordinated via an **Ably WebSocket** for command delivery and an **Upstash Redis** relay for result storage.
-* **Command Delivery (Ably):** The Miro plugin publishes commands to an Ably channel; the Penpot Companion subscribes via WebSocket and executes them instantly using Penpot's native plugin APIs (`penpot.export`). This eliminates idle polling costs completely.
-* **Result Storage (Redis):** Results are posted to `/api/relay/penpot/result` (Redis SETEX), and the Miro plugin polls `/api/relay/request` (Redis GET/DEL) synchronously waiting for the response. Redis is only used during active imports, so idle cost is negligible.
-* **Flow:** All communication travels over public HTTPS --- no localhost calls required. The Penpot Companion plugin stays connected via a presence heartbeat, and the relay handles timeouts, retries, and pairing.
+* **The Event-Driven Relay Solution:** SyncBoard uses the designer's **active Penpot browser tab** as the renderer, coordinated via **Ably WebSockets** for instant real-time delivery and an ephemeral **Upstash Redis** cache for heavy binary result storage.
+* **Direct Selection (0 Redis Commands):** Selection payloads (`id`, `name`, `fileKey`) are published directly over the Ably WebSocket channel back to the Miro plugin sidebar. This completely bypasses Upstash Redis for selection detection.
+* **Hybrid Image Storage (Single-Read Redis):** Heavy PNG/SVG renders are posted to `/api/relay/penpot/result` (stored in Redis with a 45s TTL) and a tiny `'result-ready'` notification event is published over Ably. The Miro plugin receives the WebSocket event and reads/deletes the image with a single `GET /api/relay/response` call (3 Redis commands total per export: 1 SET, 1 GET, 1 DEL).
+* **Flow & Scale:** All communication travels over public WebSockets and HTTPS --- zero polling loops required. Each active pairing consumes 2–3 connections (Miro sidebar + Figma/Penpot companion), comfortably supporting up to ~100 simultaneous users on Ably's Free Tier (200 connections max).
+
+### D. Operational Limits Summary
+
+| Metric | Limit | Impact |
+|---|---|---|
+| Figma image export | 6/mo (free plan) | Critical for self-hosters on free Figma accounts |
+| Miro REST API | 50 req/min per token | 500ms delay between updates in batch sync |
+| Vercel function payload | 4.5 MB | Image exports larger than 4.5MB must use SVG or lower scale |
+| Vercel function timeout | 60 seconds | Batch syncs limited to ~20 items per request |
+| Upstash Redis storage | 30 KB per key, 45s TTL | Result buffers automatically expire |
+| Ably connections | ~100 active users (free tier) | 2 connections per active user (Miro + Companion) |
+
+### E. Open-Source Licensing & Contributor Governance
+
+SyncBoard is licensed under the **GNU Affero General Public License v3 (AGPL-3.0)** with trademark protections and a **Contributor License Agreement (CLA)**.
+
+* **SaaS Copyleft Protection (AGPLv3 Sec. 13):** Protects the platform against proprietary cloud SaaS forks by requiring anyone running a modified SyncBoard backend service over a network to release their source code modifications under AGPLv3.
+* **Dual-Licensing Readiness:** Because SyncBoard maintains a mandatory 1-click **Contributor License Agreement (CLA)** for external pull requests, the project maintainers hold complete commercial re-licensing rights. This allows offering non-AGPL commercial licenses to enterprise customers whose internal legal policies ban AGPL software.
 
 ### 1C. Research: Future Sources
 
@@ -468,7 +495,8 @@ The source-adapter and target-adapter architecture means adding a new whiteboard
 
 ## 3. MCP Transport Layer
 
-> **Overview:** SyncBoard uses the Model Context Protocol (MCP) in two directions --- as a **client** to consume design-source MCP servers (Lovable, Stitch), and as a **server** to expose SyncBoard tools to AI agents.
+> ⚠️ **NOT AVAILABLE YET (PLANNED FEATURE / FUTURE ROADMAP SPECIFICATION)**
+> **Overview:** SyncBoard's proposed Model Context Protocol (MCP) layer defines future capabilities for acting as an **MCP client** to consume design-source MCP servers (Lovable, Stitch) and as an **MCP server** to expose SyncBoard tools to AI agents. *Note: Neither the MCP client nor the MCP server are implemented in the current production build.*
 
 ### 3A. SyncBoard as MCP Client
 
@@ -602,7 +630,8 @@ The `@modelcontextprotocol/sdk` is used in the **Stitch** and **Lovable** adapte
 
 ### 3B. SyncBoard as MCP Server
 
-> **Status:** design --- architecture explored, not yet implemented.
+> ⚠️ **NOT AVAILABLE YET (PLANNED FEATURE / FUTURE ROADMAP SPECIFICATION)**
+> **Status:** design — speculative architecture spec. Exposing SyncBoard tools to external AI agents via an MCP server endpoint is planned for future releases.
 
 Just as SyncBoard acts as an **MCP client** to Lovable and Stitch, it can also act as an **MCP server** --- exposing its own tools to AI agents (Claude Desktop, Cursor, pi, custom scripts). This is the architectural symmetry: SyncBoard consumes MCP tools from design sources and exposes MCP tools for board operations.
 
@@ -709,20 +738,28 @@ An agent calling `sync_frame` does exactly what the sidebar's "Sync" button does
 
 ## 4. Selection Detection Strategy
 
-> **Status:** design --- Penpot relay implemented, Figma relay planned.
+> **Status:** stable --- Figma companion relay and Penpot companion relay both implemented via Ably WebSockets.
 
-Selection detection sources vary by platform and evolve toward a uniform relay pattern:
+### Terminology Clarification: What is "Relay"?
 
-| Platform | Current Method | Future Direction |
-| :--- | :--- | :--- |
-| **Penpot** | Companion receives commands via Ably WebSocket | Stable --- relay-first |
-| **Figma** | (Planned) Figma plugin -> relay | Figma plugin + relay (mirror Penpot pattern) |
-| **Adobe** | (Planned) UXP plugin -> Tauri local socket | Tauri capability extender |
+The term **"Relay"** (and **"Relay-First"**) refers to the cloud-based event transport connecting Figma/Penpot companion plugins to the Miro sidebar without requiring local desktop daemons (Tauri) or server polling. The Relay Architecture combines two complementary cloud infrastructure components:
+
+* **Ably WebSockets (Direct Stream):** Handles real-time selection detection (`select` events), instant command triggers, and light metadata payloads (`{ fileKey, nodeId, name }`). Consumes **0 Upstash Redis commands**.
+* **Upstash Redis (Ephemeral Single-Read Store):** Used exclusively for heavy binary image renders (Penpot base64 exports) that exceed WebSocket payload limits. Renders are stored with a 45-second TTL (`SETEX`) and deleted immediately after a single `GET` fetch (3 Redis commands per export: 1 SET, 1 GET, 1 DEL).
+
+| Platform | Selection Transport | Heavy Image Transport | Status |
+| :--- | :--- | :--- | :--- |
+| **Figma** | Ably WebSockets (0 Redis) | Figma REST API v1 (Direct Serverless) | Stable --- relay-first |
+| **Penpot** | Ably WebSockets (0 Redis) | Hybrid Relay (Upstash Redis 45s TTL + Ably notification) | Stable --- relay-first |
+| **Adobe** | (Planned) UXP plugin -> Tauri local socket | Local HTTP / Socket | Tauri capability extender |
 
 ### Current Implementation
 
-- **Penpot:** The Penpot Companion plugin (`penpot-companion-ui.html`) connects via WebSocket (Ably), subscribes to the pairing channel for `select` or `export` commands, executes them using Penpot's native plugin API, and returns results through the relay.
-- **Figma (SyncBridge fallback):** When Tauri is installed, it can query the Figma Desktop MCP port (`127.0.0.1:3845/mcp`) locally via native HTTP on the Rust side --- this is the only remaining Tauri dependency and will be replaced by the Figma plugin + relay.
+- **Unified Companion Relay Client (`companionRelayClient.ts`):** Both Figma and Penpot companion plugins communicate with the Miro sidebar via a unified `companionRelayClient.ts` module.
+- **WebSocket Pre-Subscription & Early Buffer:** To prevent race conditions between HTTP request triggers and WebSocket response events, `companionRelayClient.ts` subscribes to Ably WebSocket events *before* firing the HTTP request and buffers any incoming `'result'` messages in an `earlyResults` Map.
+- **Ably Capabilities:** Ably tokens issued by `/api/ably/token` grant `['publish', 'subscribe', 'presence']` capabilities on pairing channels (`penpot:${pairingId}`), enabling zero-polling bidirectional streaming.
+- **Figma:** The Figma Companion plugin (`public/figma-companion-ui.html`) connects via WebSocket (Ably), subscribes to the pairing channel (`penpot:${pairingId}`) for `select` commands, retrieves selected frame metadata via `figma.root.getPluginData`, and publishes selection details (`id`, `name`, `fileKey`) directly over Ably back to Miro with zero server polling and zero Redis commands.
+- **Penpot:** The Penpot Companion plugin (`public/penpot-companion-ui.html`) connects via WebSocket (Ably), subscribes to the pairing channel for `select` or `export` commands, executes them using Penpot's native plugin API, and returns selection results directly over Ably or uploads heavy image buffers to Vercel/Redis with a `'result-ready'` Ably notification event.
 
 ### Why Not Tauri for Transport?
 
@@ -751,11 +788,19 @@ SyncBoard stores all design connection metadata directly in the Miro widget. No 
 }
 ```
 
+### Why Duplicate Metadata in Title Signatures?
+
+Although Miro's native metadata registry (`image.getMetadata().syncboard`) serves as the structured source of truth, SyncBoard infuses the same signature into the visual widget title for three critical reasons:
+
+1. **Durable Copy/Paste Fallback:** In Miro, when a widget is copied and pasted across different boards or by different users, custom plugin-sandboxed metadata can occasionally be stripped or become inaccessible. Standard title text is native to the widget and is guaranteed to persist during duplication. The plugin uses title-based regex matching as its primary detection path to preserve connections under copy/paste.
+2. **Native Board Searchability:** Miro's native search bar indexes widget text (including titles) but does not index custom plugin metadata. Storing the `[SyncBoard|fileKey|nodeId]` signature in the title enables users to search their Miro board for specific Figma/Penpot nodes or files.
+3. **Human-Readable Auditing:** It provides an instant visual reference for developers and editors to verify frame mapping directly from the Miro interface without needing to inspect developer tools or open the plugin sidebar.
+
 ---
 
 ## 6. Duplicate Card Consolidation
 
-> **Status:** design --- planned feature.
+> **Status:** stable --- implemented in production via `useMiroSync` hook and `propagate` multi-copy sync toggle.
 
 To prevent clutter in the Miro plugin sidebar, SyncBoard groups identical selected canvas widgets (same `fileKey` + `nodeId` signature) into a single card:
 
@@ -969,7 +1014,7 @@ Chrome's Private Network Access (PNA) blocks both `fetch()` and `WebSocket` from
 | Layer | Before (Tauri Transport) | After (Cloud Relay) |
 | :--- | :--- | :--- |
 | Penpot transport | Tauri WebSocket localhost | Ably WebSocket + Upstash Redis relay |
-| Figma selection | Tauri MCP Figma Desktop port | (Future) Figma plugin -> relay |
+| Figma selection | Tauri MCP Figma Desktop port | Figma plugin -> relay |
 | Penpot selection | Tauri WebSocket -> Companion plugin | Companion plugin -> relay |
 | Selection source | Tauri acts as producer/consumer | Plugin acts as producer, relay as transport |
 

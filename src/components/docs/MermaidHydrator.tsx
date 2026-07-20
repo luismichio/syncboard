@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type mermaid from "mermaid";
+
+type ZoomableHTMLElement = HTMLElement & { __zoomHandler?: () => void };
 
 function getMermaidTheme() {
   const root = document.documentElement;
@@ -41,7 +44,7 @@ export default function MermaidHydrator() {
     if (initialized.current) return;
     initialized.current = true;
 
-    let mermaidInstance: any = null;
+    let mermaidInstance: typeof mermaid | null = null;
     let observer: MutationObserver | null = null;
 
     async function renderDiagrams() {
@@ -59,20 +62,23 @@ export default function MermaidHydrator() {
         mermaidInstance = mod.default;
       }
 
+      const instance = mermaidInstance;
+      if (!instance) return;
+
       const config = getMermaidTheme();
-      mermaidInstance.initialize({
+      instance.initialize({
         startOnLoad: false,
         ...config,
       });
 
       try {
-        await mermaidInstance.run({
+        await instance.run({
           querySelector: ".mermaid-diagram",
         });
       } catch {
         setTimeout(async () => {
           try {
-            await mermaidInstance.run({
+            await instance.run({
               querySelector: ".mermaid-diagram",
             });
           } catch {}
@@ -81,7 +87,8 @@ export default function MermaidHydrator() {
 
       // Attach click-to-zoom handlers
       document.querySelectorAll<HTMLElement>(".mermaid-diagram").forEach((el) => {
-        const oldHandler = (el as any).__zoomHandler;
+        const zoomableEl = el as ZoomableHTMLElement;
+        const oldHandler = zoomableEl.__zoomHandler;
         if (oldHandler) el.removeEventListener("click", oldHandler);
 
         const handler = () => {
@@ -95,7 +102,7 @@ export default function MermaidHydrator() {
             setZoomSvg(cloned.outerHTML);
           }
         };
-        (el as any).__zoomHandler = handler;
+        zoomableEl.__zoomHandler = handler;
         el.addEventListener("click", handler);
         el.style.cursor = "zoom-in";
       });

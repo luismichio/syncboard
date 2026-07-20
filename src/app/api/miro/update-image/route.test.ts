@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-function createPostRequest(body: unknown): Request {
+function createPostRequest(body: unknown, extras?: { miroToken?: string; figmaToken?: string }): Request {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (extras?.miroToken) headers['Authorization'] = `Bearer ${extras.miroToken}`;
+  if (extras?.figmaToken) headers['X-Figma-Token'] = extras.figmaToken;
   return new Request('http://localhost:3000/api/miro/update-image', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
   });
 }
@@ -15,14 +18,14 @@ beforeEach(() => {
 describe('POST /api/miro/update-image', () => {
   it('returns 400 when required params are missing', async () => {
     const { POST } = await import('./route');
-    const res = await POST(createPostRequest({ miroToken: 'tok', boardId: 'b', itemId: 'i' }));
+    const res = await POST(createPostRequest({ boardId: 'b', itemId: 'i' }, { miroToken: 'tok' }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain('Missing');
 
     // Missing nodeName as well
     const res2 = await POST(
-      createPostRequest({ miroToken: 'tok', boardId: 'b', itemId: 'i', fileKey: 'f', nodeId: 'n' })
+      createPostRequest({ boardId: 'b', itemId: 'i', fileKey: 'f', nodeId: 'n' }, { miroToken: 'tok' })
     );
     expect(res2.status).toBe(400);
   });
@@ -31,13 +34,12 @@ describe('POST /api/miro/update-image', () => {
     const { POST } = await import('./route');
     const res = await POST(
       createPostRequest({
-        miroToken: 'tok',
         boardId: 'b',
         itemId: 'i',
         fileKey: 'f',
         nodeId: '1:2',
         nodeName: 'Frame',
-      })
+      }, { miroToken: 'tok' })
     );
     expect(res.status).toBe(401);
     const body = await res.json();
@@ -58,7 +60,6 @@ describe('POST /api/miro/update-image', () => {
     const { POST } = await import('./route');
     const res = await POST(
       createPostRequest({
-        miroToken: 'miro-tok',
         boardId: 'board-1',
         itemId: 'item-1',
         fileKey: 'file-1',
@@ -66,7 +67,7 @@ describe('POST /api/miro/update-image', () => {
         nodeName: 'My Frame',
         dataUrl: 'data:image/png;base64,ZmFrZS1wbmctZGF0YQ==',
         width: 400,
-      })
+      }, { miroToken: 'miro-tok' })
     );
 
     expect(res.status).toBe(200);
@@ -94,15 +95,13 @@ describe('POST /api/miro/update-image', () => {
     const { POST } = await import('./route');
     const res = await POST(
       createPostRequest({
-        figmaToken: 'figma-tok',
-        miroToken: 'miro-tok',
         boardId: 'board-1',
         itemId: 'item-1',
         fileKey: 'file-1',
         nodeId: '1:2',
         nodeName: 'My Frame',
         scale: 2,
-      })
+      }, { miroToken: 'miro-tok', figmaToken: 'figma-tok' })
     );
 
     expect(res.status).toBe(200);
@@ -120,8 +119,6 @@ describe('POST /api/miro/update-image', () => {
     const { POST } = await import('./route');
     const res = await POST(
       createPostRequest({
-        figmaToken: 'figma-tok',
-        miroToken: 'miro-tok',
         boardId: 'board-1',
         itemId: 'item-p',
         fileKey: 'file-p',
@@ -129,7 +126,7 @@ describe('POST /api/miro/update-image', () => {
         nodeName: 'Penpot Frame',
         dataUrl: 'data:image/png;base64,cGVucG90',
         platform: 'penpot',
-      })
+      }, { miroToken: 'miro-tok', figmaToken: 'figma-tok' })
     );
 
     // Should succeed - dataUrl path avoids Figma API
@@ -149,14 +146,13 @@ describe('POST /api/miro/update-image', () => {
     const { POST } = await import('./route');
     const res = await POST(
       createPostRequest({
-        miroToken: 'bad-tok',
         boardId: 'board-1',
         itemId: 'item-1',
         fileKey: 'file-1',
         nodeId: '1:2',
         nodeName: 'Frame',
         dataUrl: 'data:image/png;base64,ZGF0YQ==',
-      })
+      }, { miroToken: 'bad-tok' })
     );
 
     expect(res.status).toBe(403);

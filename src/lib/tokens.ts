@@ -231,11 +231,11 @@ export async function getValidToken(platform: 'figma' | 'miro'): Promise<string 
 
     const response = await fetch('/api/oauth/refresh', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        platform,
-        refreshToken: tokenData.refreshToken,
-      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Refresh-Token': tokenData.refreshToken,
+      },
+      body: JSON.stringify({ platform }),
       signal: controller.signal,
     });
 

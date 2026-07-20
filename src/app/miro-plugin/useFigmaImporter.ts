@@ -14,6 +14,7 @@ export interface FigmaNodeInfo {
  */
 export function useFigmaImporter(
   figmaToken: string | null,
+  miroToken: string | null,
   setIsSyncingParent: (val: boolean) => void,
   setSyncStatusParent: (val: string) => void
 ) {
@@ -69,7 +70,7 @@ export function useFigmaImporter(
     const useTauri = typeof window !== 'undefined' && localStorage.getItem('syncboard_use_tauri') === 'true';
     if (useTauri) {
       try {
-        const { callFigmaSelectionTauri } = await import('./penpotMcpClient');
+        const { callFigmaSelectionTauri } = await import('./companionRelayClient');
         const selection = await callFigmaSelectionTauri();
         if (selection) {
           setFigmaNodeInfo({
@@ -91,39 +92,35 @@ export function useFigmaImporter(
     }
 
     try {
-      const response = await fetch('http://127.0.0.1:3845/mcp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          method: 'tools/call',
-          params: {
-            name: 'get_selection',
-            arguments: {},
-          },
-          id: 1,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('Local Figma MCP server not running or CORS blocked.');
-      }
-      const result = await response.json();
-      if (result.error) {
-        throw new Error(result.error.message || 'Failed to fetch design context');
-      }
-      const fileKey = result.result.content[0].text.match(/fileKey:\s*([a-zA-Z0-9]+)/)?.[1];
-      const nodeId = result.result.content[0].text.match(/nodeId:\s*([a-zA-Z0-9\-:]+)/)?.[1];
-      const name = result.result.content[0].text.match(/name:\s*([^\n]+)/)?.[1] || 'Figma Screen';
-      if (fileKey && nodeId) {
-        setFigmaNodeInfo({ fileKey, nodeId, name });
-        setSyncStatusParent('Local selection detected successfully!');
-      } else {
-        throw new Error('Figma MCP returned empty selection details.');
-      }
-    } catch (err: unknown) {
-      setSyncStatusParent('Local server not found. Paste link manually below.');
-      console.warn('Local Figma MCP fail:', err);
-    } finally {
+      const { callRelay, getOrCreatePairingId } = await import('./companionRelayClient');
+      const pairingId = getOrCreatePairingId();
+
+        if (!pairingId) {
+          throw new Error('Pairing ID is not set. Enter a pairing ID in settings first.');
+        }
+
+        const data = await callRelay({
+          pairingId,
+          action: 'select',
+          timeoutMs: 8_000,
+        });
+
+        const payload = data as { id?: string; name?: string; fileKey?: string } | null;
+        if (payload && payload.id && payload.fileKey) {
+          setFigmaNodeInfo({
+            fileKey: payload.fileKey,
+            nodeId: payload.id,
+            name: payload.name || 'Figma Screen',
+          });
+          setSyncStatusParent(`Detected Figma companion frame: "${payload.name || 'Unnamed'}"`);
+        } else {
+          throw new Error('Figma companion returned empty selection. Make sure Figma is open and a frame is selected.');
+        }
+      } catch (relayErr: unknown) {
+        const relayMsg = relayErr instanceof Error ? relayErr.message : String(relayErr);
+        setSyncStatusParent(`Detection failed: ${relayMsg} (Tip: Open Figma Companion Plugin and connect using the same Pairing ID.)`);
+        console.warn('Figma Relay selection fail:', relayErr);
+      } finally {
       setIsDetectingLocal(false);
     }
   };
@@ -189,6 +186,32 @@ export function useFigmaImporter(
           scale: resolvedScale,
         });
         await image.sync();
+
+        // Non-blocking background registration of binary File resource on Miro backend
+        // so that right-clicking and downloading the image from Miro uses the frame's actual name.
+        if (miroToken) {
+          miro.board.getInfo().then((boardInfo) => {
+            fetch('/api/miro/update-image', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${miroToken}`,
+              },
+              body: JSON.stringify({
+                boardId: boardInfo.id,
+                itemId: image.id,
+                dataUrl,
+                nodeName: fallbackName,
+                fileKey: figmaNodeInfo.fileKey,
+                nodeId: figmaNodeInfo.nodeId,
+                format,
+                scale: resolvedScale,
+                platform: 'figma',
+              }),
+            }).catch((err) => console.warn('Background filename registration warning:', err));
+          }).catch(() => {});
+        }
+
         setSyncStatusParent('Image placed successfully!');
         setIsSyncingParent(false);
       } catch (metaErr: unknown) {

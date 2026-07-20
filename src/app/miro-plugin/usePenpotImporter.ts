@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { parsePenpotUrl } from './penpotUrlParser';
-import { callPenpotMcpTool } from './penpotMcpClient';
+import { callPenpotMcpTool } from './companionRelayClient';
 
 export interface PenpotNodeInfo {
   fileId: string;
@@ -14,6 +14,7 @@ export interface PenpotNodeInfo {
  * Saves Penpot configuration and platform metadata in the Miro image widget.
  */
 export function usePenpotImporter(
+  miroToken: string | null,
   setIsSyncingParent: (val: boolean) => void,
   setSyncStatusParent: (val: string) => void
 ) {
@@ -173,6 +174,31 @@ export function usePenpotImporter(
         height: naturalHeight,
       });
       await image.sync();
+
+      // Non-blocking background registration of binary File resource on Miro backend
+      // so that right-clicking and downloading the image from Miro uses the frame's actual name.
+      if (miroToken) {
+        miro.board.getInfo().then((boardInfo) => {
+          fetch('/api/miro/update-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${miroToken}`,
+            },
+            body: JSON.stringify({
+              boardId: boardInfo.id,
+              itemId: image.id,
+              dataUrl,
+              nodeName: penpotNodeInfo.name || 'Penpot Screen',
+              fileKey: penpotNodeInfo.fileId,
+              nodeId: penpotNodeInfo.objectId,
+              format,
+              scale,
+              platform: 'penpot',
+            }),
+          }).catch((err) => console.warn('Background filename registration warning:', err));
+        }).catch(() => {});
+      }
 
       setSyncStatusParent('Penpot vector screen placed successfully!');
       setIsSyncingParent(false);

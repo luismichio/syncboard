@@ -47,51 +47,52 @@ Only needed if you sync from **Figma**. Penpot-only users can skip to the Penpot
 5. Under **Scopes**, select **`file_content:read`**.
 6. Copy the **Client ID and Secret**.
 
+### 2b. Install Figma Companion Plugin (Optional — for Selection Auto-Detect)
+
+To enable automatic canvas selection detection in the Miro sidebar without installing the SyncBridge desktop app, you can load the Figma Companion Plugin in your workspace:
+
+#### For Community Version
+1. Go to the Figma Community and search for **"SyncBoard Companion"**.
+2. Click **Save** or **Run** to add it to your Figma account (works in both Figma Browser and Desktop).
+3. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion, and click **Connect**.
+
+#### For Self-Hosted Version
+> [!NOTE]
+> **Figma Desktop App Required:** Importing a local development plugin manifest is only supported in the Figma Desktop Application. The web browser version of Figma does not have access to the local filesystem and does not support local plugin imports.
+
+1. Copy or clone the `figma-plugin/` directory from the root of this repository to your local computer.
+2. Open the **Figma Desktop Application** and open any design file.
+3. Click the Figma logo (menu button) in the top-left, then select **Plugins > Development > Import plugin from manifest...**.
+4. Choose the `manifest.json` file inside the local `figma-plugin/` folder you copied.
+5. Once imported, run the plugin: **Plugins > Development > SyncBoard Figma Companion**.
+6. Click **Configure** in the settings bar at the top of the plugin, type your own custom hosted SyncBoard domain (e.g. `https://syncboard.yourdomain.com`), and click **Save**.
+7. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion, and click **Connect**.
+
 ---
 
 ## Source Adapter: Penpot (Skip if using Figma only)
 
-### 3. Set Up Cloud Services (for Penpot Relay)
-
-Only needed if you sync from **Penpot**. Unlike Figma (cloud-native API), Penpot requires a relay because it has no cloud rendering API. Two lightweight services coordinate between the Miro plugin and the Penpot Companion plugin:
-
-#### Ably (command delivery via WebSocket)
-
-1. Go to **[Ably Console](https://ably.com/signup)** and create a free account.
-2. In the dashboard, go to **API Keys** and click **Create new API key**.
-3. Set the capability to:
-   ```json
-   {"penpot:*": ["publish", "presence", "subscribe"]}
-   ```
-4. Copy the key --- you'll use it as `ABLY_API_KEY` in the deploy step.
-   > The free tier includes **200,000 messages/month** --- more than enough for personal use. Companion subscriptions do not count toward the message limit.
-
-#### Upstash Redis (result storage)
-
-1. Go to **[Upstash Console](https://console.upstash.com/)** and create a free account.
-2. Click **Create Database**:
-   - Select **Redis** as the database type.
-   - Choose a name (e.g., `syncboard-relay`).
-   - Select the region closest to your Vercel deployment (e.g., `us-east-1` or `eu-west-1`).
-   - **TLS** should be enabled by default (required).
-3. After creation, copy the **REST URL** and **REST Token**.
-   > The free tier includes 10,000 commands per day --- only used during active imports, not idle polling.
-
-### 4. Install Penpot Companion Plugin
+### 3. Install Penpot Companion Plugin
 
 To use SyncBoard with **Penpot**, install the Companion Plugin in your Penpot workspace:
 
-#### Production Installation
-
+#### For Community Version
 1. In Penpot, open any design file.
 2. In the right-hand panel, click the **Plugins** tab (puzzle icon).
-3. Locate the plugin insertion section at the bottom of the tab.
-4. Paste the secure manifest URL (replace with your own domain if self-hosting):
+3. Search for **"SyncBoard Companion"** inside the Penpot Templates & Libraries, or click the `+` button and paste the official Community manifest URL:
    ```
-   https://YOUR_DOMAIN.com/penpot-manifest.json
+   https://syncboard.luiskobayashi.com/penpot-manifest.json
    ```
-5. Click **Install**. The plugin will appear in your workspace list.
-6. Click the plugin to open it, copy the **Pairing ID** from the Miro plugin settings, and paste it into the Penpot Companion to connect.
+4. Click **Install**, open the companion sidebar, copy the **Pairing ID** from your Miro sidebar, and click **Connect**.
+
+#### For Self-Hosted Version
+1. In Penpot, open any design file.
+2. In the right-hand panel, click the **Plugins** tab (puzzle icon).
+3. Click the `+` button and paste your own custom hosted manifest URL:
+   ```
+   https://syncboard.yourdomain.com/penpot-manifest.json
+   ```
+4. Click **Install**, open the companion sidebar, copy the **Pairing ID** from your Miro sidebar, and click **Connect**.
 
 > **Note:** The Penpot Companion communicates over the cloud relay (public HTTPS). No local server or desktop app is required. Rendering happens locally in your browser tab; transport goes through SyncBoard's relay.
 
@@ -110,6 +111,40 @@ If the Penpot Companion plugin shows "offline" in the Miro plugin:
 1. Make sure both the Miro plugin and the Penpot Companion use the **exact same Pairing ID**.
 2. Check that your SyncBoard deployment is reachable and `ABLY_API_KEY` is configured correctly.
 3. Open the browser DevTools console in the Penpot tab --- look for Ably connection errors (CSP blocking the CDN script, or token timeout).
+
+---
+
+## Common Cloud Services: Upstash & Ably (Self-Hosters Only)
+
+These cloud accounts are required to run the real-time relays and enforce persistent rate limits. Setup these accounts before deploying to Vercel:
+
+### 1. Upstash Redis (Penpot Sync & Persistent Rate Limiting)
+* **Required** if you sync from **Penpot** (used to store and relay binary image buffers).
+* **Required** for **both Figma & Penpot** self-hosters who want to enforce persistent rate limiting on serverless platforms (like Vercel).
+
+**Setup Steps:**
+1. Go to **[Upstash Console](https://console.upstash.com/)** and create a free account.
+2. Click **Create Database**:
+   - Select **Redis** as the database type.
+   - Choose a name (e.g., `syncboard-relay`).
+   - Select the region closest to your Vercel deployment (e.g., `us-east-1` or `eu-west-1`).
+   - **TLS** should be enabled by default (required).
+3. After creation, copy the **REST URL** and **REST Token** --- you'll use them as `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in the deploy step.
+   > The free tier includes 10,000 commands per day --- only used during active imports and rate tracking.
+
+### 2. Ably Realtime (Penpot Sync & Figma Selection Relay)
+* **Required** if you sync from **Penpot** (used to broadcast render command messages).
+* **Required** if you want **Figma selection auto-detect** over the cloud relay (Figma Companion Plugin).
+
+**Setup Steps:**
+1. Go to **[Ably Console](https://ably.com/signup)** and create a free account.
+2. In the dashboard, go to **API Keys** and click **Create new API key**.
+3. Set the capability to:
+   ```json
+   {"penpot:*": ["publish", "presence", "subscribe"]}
+   ```
+4. Copy the key --- you'll use it as `ABLY_API_KEY` in the deploy step.
+   > The free tier includes **200,000 messages/month** --- more than enough for personal use. Companion subscriptions do not count toward the message limit.
 
 ---
 
@@ -133,9 +168,9 @@ Vercel is the simplest deployment path --- one-click deploy with zero server man
    | `MIRO_CLIENT_SECRET` | **Both** | From Miro Developer App |
    | `FIGMA_CLIENT_ID` | **Figma only** | From Figma Developer App |
    | `FIGMA_CLIENT_SECRET` | **Figma only** | From Figma Developer App |
-   | `UPSTASH_REDIS_REST_URL` | **Penpot only** | From Upstash Console |
-   | `UPSTASH_REDIS_REST_TOKEN` | **Penpot only** | From Upstash Console |
-   | `ABLY_API_KEY` | **Penpot only** | From Ably Console |
+   | `UPSTASH_REDIS_REST_URL` | **Penpot only** | From Upstash Console (used for Penpot image relay) |
+   | `UPSTASH_REDIS_REST_TOKEN` | **Penpot only** | From Upstash Console (used for Penpot image relay) |
+   | `ABLY_API_KEY` | **Figma (selection relay) & Penpot** | From Ably Console (WebSocket broker) |
 
    > Do NOT add a trailing slash to `NEXT_PUBLIC_APP_URL`. Example: `https://syncboard.yourdomain.com` (no `/` at the end).
 
@@ -164,6 +199,47 @@ To deploy on an alternative host:
 3. Make sure the public URL matches your `NEXT_PUBLIC_APP_URL` and your Miro/Figma OAuth redirect URIs.
 
 The **4.5MB limit is Vercel-specific** --- if you use any other host, large images sync without needing the Tauri desktop app for size reasons. (Tauri is still needed for Adobe UXP, local LLMs, and two-way sync.)
+
+### ~ Rate Limiting (Community Protection)
+
+If you run a public instance, rate limiting protects your infrastructure from abuse. Three layers work together:
+
+| Layer | What it stops | Bypassed by |
+|---|---|---|
+| Per-endpoint limits (5-10 req/min) | Per-user token abuse | **Not bypassable** (tracked by OAuth token hash, immune to VPN cycling) |
+| Edge middleware (60 req/min per IP) | Basic script spam before auth | VPN cycling |
+| **Global daily backstop** (500 syncs/day all users) | **Budget exhaustion** | **Not bypassable** (shared Redis counter, all users combined) |
+
+Rate limiting identifies users by their **OAuth token hash** (or Penpot pairingId), not by IP. An attacker cycling through VPN IPs gets nowhere because every meaningful request requires a valid token obtained through user-interactive OAuth. The IP fallback only applies to the rare case before a user has obtained their first token.
+
+Rate limiting is enabled by default when `UPSTASH_REDIS_REST_URL` is configured. On persistent infra (Docker/VPS) without Redis, an in-memory fallback is used instead. On Vercel without Redis, rate limiting logs a warning and disables gracefully (your Vercel function limits still apply).
+
+**Configuration via env vars:**
+
+| Variable | Default | What it limits |
+|---|---|---|
+| `RATE_LIMIT_ENABLED` | `true` | Set to `false` to disable entirely |
+| `RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN` | `5` | Figma render and node-info requests per minute per user token |
+| `RATE_LIMIT_COMMUNITY_FIGMA_PER_DAY` | `50` | Figma renders per day per user token |
+| `RATE_LIMIT_COMMUNITY_RELAY_PER_MIN` | `5` | Penpot relay requests per minute per pairing ID |
+| `RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR` | `30` | Penpot relay requests per hour per pairing ID |
+| `RATE_LIMIT_COMMUNITY_RELAY_PER_DAY` | `100` | Penpot relay requests per day per pairing ID |
+| `RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN` | `10` | Miro image updates per minute per user token |
+| `RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN` | `5` | Ably token generation per minute per requester |
+| `RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY` | `500` | Total syncs across all users per day (hard ceiling) |
+| `RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY` | `500` | Total bandwidth across all users per day |
+| `RATE_LIMIT_COMMUNITY_MAX_COMPANION_PAIRS` | `1` | Concurrent Penpot companion plugin connections |
+
+When a limit is hit, the API returns `429` with a `Retry-After` header and JSON body:
+```json
+{
+  "error": "rate_limit_exceeded",
+  "limit": 5,
+  "remaining": 0,
+  "reset": 1721068800000,
+  "plan": "community"
+}
+```
 
 ### ~ Corporate AWS Scenario
 
@@ -325,7 +401,7 @@ If you fork this project with your own domain:
    > Squarespace DNS does not accept dots in the Host field. Use a dash (`-`) as a separator.
 2. Update all occurrences of `local-syncboard.luiskobayashi.com` in:
    - `public/penpot-companion-ui.html`
-   - `src/app/miro-plugin/penpotMcpClient.ts`
+   - `src/app/miro-plugin/companionRelayClient.ts`
    - `tauri-bridge/index.html`
    - `tauri-bridge/src-tauri/src/lib.rs` (comment only)
 3. Regenerate your `cert.pem` / `key.pem` for the new domain.
@@ -365,3 +441,27 @@ SyncBoard includes a GitHub Actions pipeline that compiles installer packages au
 5. Assets are uploaded to a new **Draft Release** --- verify and publish.
 
 > For CI/CD releases, `cert.pem` and `key.pem` must be stored as **GitHub Actions Secrets** and written during the build step. See `.github/workflows/` for the existing pipeline.
+
+---
+
+## 8. Customization & White-Labeling (Optional)
+
+If you are self-hosting SyncBoard and want to integrate it as part of your company's internal design tool suite, you can customize the naming, logos, and accent colors to match your brand guidelines.
+
+### 8.1 Renaming & Configuring the Plugins
+* **Figma Companion:** 
+  * Edit the `"name"` property inside `figma-plugin/manifest.json`.
+  * **Domain Access Configuration:** If you are self-hosting on a custom domain (e.g. `https://syncboard.mycompany.com`), you must append your custom domain to the `"allowedDomains"` array inside `figma-plugin/manifest.json`. Figma blocks all network requests to domains not whitelisted in this file.
+* **Penpot Companion:** Edit the `"name"` and `"description"` properties inside `public/penpot-manifest.json`.
+* **Miro Sidebar:** Edit the app name in your private Miro developer portal console settings.
+
+### 8.2 Customizing Logo Icons
+* **Penpot Companion:** Replace `public/syncboard_logo.svg` with your custom company icon (maintaining the same filename so the manifest automatically references it).
+* **Figma Companion:** When publishing the plugin to your private Figma Organization directory, upload your custom square icon asset (SVG or PNG) in the Figma Publisher console page.
+* **Miro Sidebar:** Upload your custom app icon asset in your private Miro developer app settings page.
+
+### 8.3 Adjusting Theme Colors
+SyncBoard uses standard CSS variable tokens to define themes. You can change these colors to match your design system's branding:
+* **Miro Sidebar UI:** Update the `--accent` (brand cyan) and color tokens inside `src/app/globals.css`.
+* **Figma Companion UI:** Update the root variable tokens inside `public/figma-companion-ui.html`.
+* **Penpot Companion UI:** Update the root variable tokens inside `public/penpot-companion-ui.html`.

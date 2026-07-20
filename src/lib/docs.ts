@@ -43,10 +43,26 @@ function extractTitle(md: string, filename: string): string {
  * Extracts a short description from markdown (first paragraph after the heading).
  */
 function extractDescription(md: string): string {
+  // Try frontmatter description
+  const fmDesc = md.match(/^---\s*\n(?:.*\n)*?description:\s*["']?(.+?)["']?\s*\n(?:.*\n)*?---/);
+  if (fmDesc) return fmDesc[1].trim();
+
   // Skip frontmatter
-  const body = md.replace(/^---[\s\S]*?---\n*/, '');
-  const para = body.match(/(?:^|\n)([^\n#].*?)(?:\n|$)/);
-  if (para) return para[1].trim().slice(0, 160);
+  const body = md.replace(/^---[\s\S]*?---\s*/, '');
+  
+  // Find the first valid text paragraph (skipping titles, badges, quotes, tables)
+  const lines = body.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith('#')) continue;
+    if (trimmed.startsWith('>')) continue;
+    if (trimmed.startsWith('<table') || trimmed.startsWith('<tr') || trimmed.startsWith('<td') || trimmed.startsWith('</table')) continue;
+    // Skip lines starting with markdown links/images (badges or cards)
+    if (trimmed.startsWith('[!') || (trimmed.startsWith('[') && (trimmed.includes('badge') || trimmed.includes('shields.io') || trimmed.includes('vercel.com')))) continue;
+    
+    return trimmed.slice(0, 160);
+  }
   return '';
 }
 
@@ -109,7 +125,7 @@ export function getDocBySlug(slug: string): { meta: DocMeta; content: string } |
   // Root-level files (README.md) live at project root, not in doc/
   const baseDir = doc.filename === 'README.md' ? process.cwd() : DOC_DIR;
   const filepath = path.join(baseDir, doc.filename);
-  const content = stripFrontmatter(fs.readFileSync(filepath, 'utf-8'));
+  const content = stripFrontmatter(fs.readFileSync(filepath, 'utf-8')).replace(/\r/g, '');
   return { meta: doc, content };
 }
 
@@ -138,7 +154,7 @@ export function extractHeadings(md: string): DocHeading[] {
 
 /** Strips YAML frontmatter (delimited by `---` at start of file) from markdown content. */
 export function stripFrontmatter(md: string): string {
-  return md.replace(/^---[\s\S]*?---\n*/, '');
+  return md.replace(/^---[\s\S]*?---\s*/, '').trimStart();
 }
 
 /**

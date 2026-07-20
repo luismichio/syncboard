@@ -14,8 +14,8 @@ By contributing to this project, you agree to abide by our contribution guidelin
 To ensure that all code in SyncBoard remains open-source and legally unencumbered, we use the **Developer Certificate of Origin (DCO)**. 
 
 By submitting a Pull Request, you certify that:
-1. **You authored the contribution**, or you have the legal right to submit it under the Apache License 2.0.
-2. **You understand and agree** that your contributions will be licensed under the project's **Apache License 2.0** (including its trademark and branding protections).
+1. **You authored the contribution**, or you have the legal right to submit it under the GNU Affero General Public License v3 (AGPL-3.0) and CLA terms.
+2. **You understand and agree** that your contributions will be licensed under the project's **GNU Affero General Public License v3 (AGPL-3.0)** and the repository's Contributor License Agreement (CLA).
 
 To confirm this, please sign off your Git commits by adding a `Signed-off-by` line to your commit messages (or using the `-s` flag):
 ```bash

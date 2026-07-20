@@ -6,6 +6,90 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.8.0] - 2026-07-19
+
+### Added
+- **Event-Driven WebSocket Relay Architecture:** Refactored selection detection and image sync pipelines to eliminate server-side polling loops, reducing Upstash Redis command usage by 90% and Vercel serverless execution time by 95%.
+  - **Direct Selection Transport (0 Redis Commands):** Figma and Penpot companion plugins publish selection details (`id`, `name`, `fileKey`) directly over Ably WebSockets to the Miro plugin sidebar, bypassing Redis entirely.
+  - **Hybrid Image Export (3 Redis Commands):** Heavy base64 image exports are uploaded to Vercel/Redis, followed by publishing a tiny `'result-ready'` event notification over Ably. Miro receives the WebSocket event and reads/deletes the image payload in a single `GET /api/relay/response` call.
+- **Client-Side Ably Bridge in Miro:** Integrated direct Ably WebSocket client connections inside the Miro plugin sidebar to listen for companion response events in real-time.
+- **Unified Companion Relay Client:** Renamed `penpotMcpClient.ts` to `companionRelayClient.ts` to reflect its unified role as the Cloud Relay client for both Figma and Penpot companions.
+
+### Fixed
+- **Ably Publish Capability Permission:** Updated `generateAblyToken` in `src/lib/relayAbly.ts` to grant `['publish', 'subscribe', 'presence']` capabilities on pairing channels, resolving Ably `40160: Unable to publish message due to lacking publish capability` errors.
+- **Subscription Race Condition:** Restructured `callRelay` inside `companionRelayClient.ts` to subscribe to Ably events and set up early-results buffering *before* sending HTTP trigger requests to Vercel, completely resolving 10-second timeout errors.
+- **Penpot Export Shape Lookup:** Updated `findShapeById` in `public/penpot-companion-plugin.js` to prioritize active selection (`penpot.selection[0]`) and native `findShape` API methods, resolving `Penpot export API unavailable in this runtime` and `unknown-file` ID fallbacks.
+- **Direct Cloud Relay Routing:** Removed legacy `http://127.0.0.1:3845/mcp` fetch fallbacks in `useFigmaImporter.ts`, eliminating browser Private Network Access (PNA) CORS warnings and 2-second connection delays on HTTPS.
+
+### Security
+- **Header-based Token Transmission:** Refactored `/api/miro/update-image` and `/api/oauth/refresh` to receive sensitive tokens via HTTP headers (`Authorization: Bearer`, `X-Figma-Token`, `X-Refresh-Token`) instead of POST body, preventing credential leakage in proxy/WAF logs.
+- **Tauri Webview CSP Hardening:** Replaced disabled CSP (`null`) with a strict policy restricting scripts, styles, images, and connections to `'self'` only, mitigating XSS and code injection in the local bridge webview.
+
+---
+
+## [0.7.1] - 2026-07-18
+
+### Added
+- **Document-Level Figma Pairing:** Implemented a document-level linking system to support syncing from multiple different Figma files to a single Miro board without credential collisions.
+  - Refactored `figma-plugin/code.js` to save and read pairing keys using document metadata storage APIs (`figma.root.setPluginData` / `figma.root.getPluginData`).
+  - Added an inline **"Pair Figma Design File"** input box inside the hosted companion panel (`public/figma-companion-ui.html`) that prompts the user exactly once per file and links the document permanently.
+  - Dynamically propagates the saved file key via query parameters when loading the companion iframe.
+- **Limitation Documentation:** Documented the Figma public API security limitations (blocking automated `figma.fileKey` reads in Community plugins) and how self-hosters can enable it automatically using the `enablePrivatePluginApi` manifest flag in `doc/architecture.md` and `doc/faq.md`.
+
+### Fixed
+- **Ably Selection Bridge Sync:** 
+  - Corrected Ably event subscription from `'select'` to `'command'` in `public/figma-companion-ui.html` to align with the backend router protocol.
+  - Appended the `pairingId` query parameters to the `/api/ably/token` token request inside the companion UI, resolving the HTTP 400 Bad Request error.
+  - Prefixed the Ably channel key with `'penpot:'` to align with backend security tokens.
+  - Propagated the server security key (`?key=...`) inside `submitResult` queries, authorizing REST selections callback triggers on protected deployments.
+
+---
+
+## [0.7.0] - 2026-07-17
+
+### Added
+- **Figma Companion Plugin (Cloud Relay):** Built a Figma companion plugin that enables real-time selection auto-detect over the cloud relay using Ably.
+  - Created `figma-plugin/` directory containing `manifest.json`, local sandbox controller `code.js`, and `ui.html` message relay bridge.
+  - Implemented the hosted `public/figma-companion-ui.html` static asset with pairing connection status indicators, Ably subscriptions, and parent window message listeners.
+  - Added a configuration panel in the local plugin UI so self-hosts can easily point the companion to their own deployed SyncBoard domain URL.
+  - Refactored `useFigmaImporter.ts` to fallback to Cloud Relay queries (Figma Companion) if the local Tauri MCP server/SyncBridge is not running.
+- **White-Labeling & Marketplace Setup Docs:** Updated setup and architectural guides detailing the plug-and-play Community installation paths from official marketplaces, alongside a customization guide for renaming plugins, updating brand logo icons, and adjusting CSS theme variables.
+
+---
+
+## [0.6.2] - 2026-07-17
+
+### Added
+- **Ably and Upstash Badges:** Added Ably Realtime and Upstash Redis status badges to the top of `README.md`.
+
+### Fixed
+- **Penpot Shape Export Lookup:** Replaced the non-existent `penpot.currentPage.getShapeById(...)` method inside `public/penpot-companion-plugin.js` with a recursive helper `findShapeById(id)` that traverses `currentPage.root.children` to reliably locate shapes by ID.
+- **Companion Status Layout Simplification:** Renamed status labels to clearly distinguish between local and cloud connections, and removed the redundant third "Active Connection" status row from `public/penpot-companion-ui.html`.
+- **Markdown Card Description Fallback Heuristic:** Updated `extractDescription` inside `src/lib/docs.ts` to skip headings, blockquotes, HTML tables, and badge links, allowing repository README card previews on the website to correctly extract the initial text introduction.
+
+---
+
+## [0.6.1] - 2026-07-16
+
+### Added
+- **FAQ Document:** Created a Frequently Asked Questions (FAQ) guide under `doc/faq.md` covering concurrent collaboration rules, metadata signatures, Chrome PNA network blocks, security configurations, and image format options.
+
+### Fixed
+- **Penpot Companion Window Height:** Increased the companion iframe height from `480` to `600` to prevent unnecessary vertical scrollbars in the Penpot editor interface.
+- **Markdown Description Parsing:** Updated description extraction logic to read `description:` from YAML frontmatter first, preventing the FAQ page card from displaying the first question's answer as its description.
+- **CRLF Line Endings Fix:** Refactored `getDocBySlug` to strip all carriage returns (`\r`) from the document content before MDX compilation. This resolves issues where trailing carriage returns (`\r`) in Windows line endings broke the MDX markdown parser, causing links/badges to show as raw text and the License document to render raw ````text`.
+- **Inline Badges Rendering:** Added a CSS override for images in prose paragraphs to render markdown badges inline-block rather than stacking them vertically. Removed the raw `<table>` wrapper from `README.md` that was failing to parse in MDX.
+
+---
+
+## [0.6.0] - 2026-07-15
+### Added
+* **Community Plan Rate Limiting:** Token-based rate limiting that identifies users by their OAuth token hash (or Penpot pairingId) instead of IP, making it immune to VPN cycling. Edge middleware, per-endpoint `withRateLimit()` HOF, and global daily backstop (500 syncs/day all users).
+* **Dual-backend rate limiter:** Auto-detects Redis (`@upstash/ratelimit`) if `UPSTASH_REDIS_REST_URL` is set, otherwise uses in-memory sliding window (persistent infra only). Falls back gracefully on Vercel without Redis.
+* **Configurable via env vars:** 11 `RATE_LIMIT_COMMUNITY_*` variables for all per-endpoint and global limits, plus `RATE_LIMIT_ENABLED=false` to disable entirely.
+* **Setup guide:** Rate limiting section in `doc/setup.md` with env var table and multi-layer explanation.
+* **README callout:** Public demo notice with link to rate limiting docs.
+
 ## [0.5.7] - 2026-07-14
 ### Added
 * **Secure Key Generation:** Migrated pairing ID and OAuth state generation to cryptographically secure random generators using `window.crypto.getRandomValues`.
@@ -44,15 +128,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * **Penpot Import Display Width:** Display width now calculated as naturalWidth x exportScale (not fixed at natural width). Widgets visually scale with export resolution: 1x=400px, 2x=800px, 4x=1600px.
 * **Sync Resize Uses Natural Width:** For Penpot items with stored natural width, display width = naturalWidth x effectiveScale. Propagate changes now resize the widget proportionally.
 * **Export Filename in Miro PATCH:** Image filename sent to Miro uses the actual nodeName instead of hardcoded screenshot.png. Sanitizes invalid filename characters.
-
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
----
-
 
 ## [0.5.5] - 2026-07-11
 

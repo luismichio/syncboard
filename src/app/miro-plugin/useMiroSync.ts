@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { SyncedImage } from './useMiroSelection';
-import { callPenpotMcpTool } from './penpotMcpClient';
+import { callPenpotMcpTool } from './companionRelayClient';
 import { getValidToken } from '@/lib/tokens';
 
 /**
@@ -315,9 +315,10 @@ export function useMiroSync(
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${freshMiroToken}`,
+            ...(figmaToken ? { 'X-Figma-Token': figmaToken } : {}),
           },
           body: JSON.stringify({
-            miroToken: freshMiroToken,
             boardId,
             itemId: item.id,
             fileKey: item.fileKey,

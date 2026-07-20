@@ -15,26 +15,28 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 
 type Platform = 'figma' | 'miro';
 
-function parseRefreshRequest(raw: unknown): { platform: Platform; refreshToken: string } | null {
+function parsePlatform(raw: unknown): Platform | null {
   if (!raw || typeof raw !== 'object') return null;
   const obj = raw as Record<string, unknown>;
-  if ((obj.platform !== 'figma' && obj.platform !== 'miro') || typeof obj.refreshToken !== 'string') {
-    return null;
-  }
-  return { platform: obj.platform, refreshToken: obj.refreshToken };
+  if (obj.platform === 'figma') return 'figma';
+  if (obj.platform === 'miro') return 'miro';
+  return null;
 }
 
 export async function POST(request: Request) {
   try {
-    const payload = parseRefreshRequest(await request.json());
-    if (!payload) {
+    // Read refreshToken from header (backlog #6: header-based token transmission)
+    const refreshToken = request.headers.get('X-Refresh-Token') || '';
+    // Read platform from body (not a secret)
+    const body = await request.json().catch(() => ({}));
+    const platform = parsePlatform(body);
+
+    if (!refreshToken || !platform) {
       return NextResponse.json(
-        { error: 'Missing or invalid platform/refreshToken in request body' },
+        { error: 'Missing or invalid refreshToken (X-Refresh-Token header) or platform (body)' },
         { status: 400 }
       );
     }
-
-    const { platform, refreshToken } = payload;
 
     if (platform === 'figma') {
       const figmaClientId = process.env.FIGMA_CLIENT_ID;

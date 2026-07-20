@@ -3,9 +3,11 @@ import { withRateLimit } from '@/lib/rate-limit';
 
 async function handler(request: Request) {
   try {
+    // Read tokens from headers instead of body (backlog #6: header-based token transmission)
+    const miroToken = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
+    const figmaToken = request.headers.get('X-Figma-Token') || '';
+
     const { 
-      figmaToken, 
-      miroToken, 
       boardId, 
       itemId, 
       fileKey, 
@@ -20,7 +22,7 @@ async function handler(request: Request) {
 
     if (!miroToken || !boardId || !itemId || !fileKey || !nodeId || !nodeName) {
       return NextResponse.json(
-        { error: 'Missing required parameters in request body' },
+        { error: 'Missing required parameters (miroToken via Authorization header, boardId, itemId, fileKey, nodeId, nodeName)' },
         { status: 400 }
       );
     }

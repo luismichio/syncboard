@@ -25,12 +25,18 @@ export function useMiroSelection(isInitMode: boolean | null) {
     if (typeof window === 'undefined') return;
 
     let active = true;
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
     let savedMiro: { board: MiroBoard } | null = null;
     let savedHandler: ((event: unknown) => void) | null = null;
 
+    const clearBootTimers = () => {
+      if (interval) { clearInterval(interval); interval = null; }
+      if (timeout) { clearTimeout(timeout); timeout = null; }
+    };
+
     const initMiro = async () => {
-      const waitForMiro = (): Promise<{ board: MiroBoard }> => {
+      const waitForMiro = (): Promise<{ board: MiroBoard } | null> => {
         return new Promise((resolve) => {
           if (window.miro?.board) {
             resolve({ board: window.miro.board });
@@ -38,14 +44,20 @@ export function useMiroSelection(isInitMode: boolean | null) {
           }
           interval = setInterval(() => {
             if (window.miro?.board) {
-              clearInterval(interval);
+              clearBootTimers();
               resolve({ board: window.miro.board });
             }
           }, 50);
+          timeout = setTimeout(() => {
+            clearBootTimers();
+            console.warn('[MiroSelection] Miro SDK did not load within 8s — giving up');
+            resolve(null);
+          }, 8000);
         });
       };
 
       const miro = await waitForMiro();
+      if (!miro) return; // Miro SDK unavailable — component cannot function
       savedMiro = miro;
       if (!active) return;
 
@@ -185,7 +197,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
 
     return () => {
       active = false;
-      if (interval) clearInterval(interval);
+      clearBootTimers();
       if (savedMiro && savedHandler) {
         try {
           savedMiro.board.ui.off('selection:update', savedHandler);
