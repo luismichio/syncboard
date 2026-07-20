@@ -14,6 +14,7 @@ export interface FigmaNodeInfo {
  */
 export function useFigmaImporter(
   figmaToken: string | null,
+  miroToken: string | null,
   setIsSyncingParent: (val: boolean) => void,
   setSyncStatusParent: (val: string) => void
 ) {
@@ -185,6 +186,32 @@ export function useFigmaImporter(
           scale: resolvedScale,
         });
         await image.sync();
+
+        // Non-blocking background registration of binary File resource on Miro backend
+        // so that right-clicking and downloading the image from Miro uses the frame's actual name.
+        if (miroToken) {
+          miro.board.getInfo().then((boardInfo) => {
+            fetch('/api/miro/update-image', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${miroToken}`,
+              },
+              body: JSON.stringify({
+                boardId: boardInfo.id,
+                itemId: image.id,
+                dataUrl,
+                nodeName: fallbackName,
+                fileKey: figmaNodeInfo.fileKey,
+                nodeId: figmaNodeInfo.nodeId,
+                format,
+                scale: resolvedScale,
+                platform: 'figma',
+              }),
+            }).catch((err) => console.warn('Background filename registration warning:', err));
+          }).catch(() => {});
+        }
+
         setSyncStatusParent('Image placed successfully!');
         setIsSyncingParent(false);
       } catch (metaErr: unknown) {

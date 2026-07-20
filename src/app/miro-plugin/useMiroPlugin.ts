@@ -51,7 +51,7 @@ export function useMiroPlugin(propagate: boolean = false) {
     parseFigmaLink,
     detectLocalFigmaSelection,
     importFigmaScreen,
-  } = useFigmaImporter(figmaToken, setIsSyncing, setSyncStatus);
+  } = useFigmaImporter(figmaToken, miroToken, setIsSyncing, setSyncStatus);
 
   // 4. Penpot Importer Hook
   const {
@@ -61,7 +61,7 @@ export function useMiroPlugin(propagate: boolean = false) {
     parsePenpotLink,
     detectLocalPenpotSelection,
     importPenpotScreen,
-  } = usePenpotImporter(setIsSyncing, setSyncStatus);
+  } = usePenpotImporter(miroToken, setIsSyncing, setSyncStatus);
 
   // 5. Board Sync Hook
   const {
