@@ -13,13 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable Corepack (system Node)
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: yarn
 
-      - name: Enable Corepack
+      - name: Enable Corepack (pinned Node)
         run: corepack enable
 
       - name: Install dependencies
