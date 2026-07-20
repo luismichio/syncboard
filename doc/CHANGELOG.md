@@ -21,6 +21,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Penpot Export Shape Lookup:** Updated `findShapeById` in `public/penpot-companion-plugin.js` to prioritize active selection (`penpot.selection[0]`) and native `findShape` API methods, resolving `Penpot export API unavailable in this runtime` and `unknown-file` ID fallbacks.
 - **Direct Cloud Relay Routing:** Removed legacy `http://127.0.0.1:3845/mcp` fetch fallbacks in `useFigmaImporter.ts`, eliminating browser Private Network Access (PNA) CORS warnings and 2-second connection delays on HTTPS.
 
+### Security
+- **Header-based Token Transmission:** Refactored `/api/miro/update-image` and `/api/oauth/refresh` to receive sensitive tokens via HTTP headers (`Authorization: Bearer`, `X-Figma-Token`, `X-Refresh-Token`) instead of POST body, preventing credential leakage in proxy/WAF logs.
+- **Tauri Webview CSP Hardening:** Replaced disabled CSP (`null`) with a strict policy restricting scripts, styles, images, and connections to `'self'` only, mitigating XSS and code injection in the local bridge webview.
+
 ---
 
 ## [0.7.1] - 2026-07-18
