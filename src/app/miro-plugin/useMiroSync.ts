@@ -19,7 +19,8 @@ export function useMiroSync(
   isSyncing: boolean,
   setIsSyncing: (val: boolean) => void,
   setSyncStatus: (val: string) => void,
-  propagate: boolean = false
+  propagate: boolean = false,
+  preserveSize: boolean = false
 ) {
   const [syncAllCopies, setSyncAllCopies] = useState<boolean>(false);
 
@@ -329,6 +330,7 @@ export function useMiroSync(
             format: item.format || (item.platform === 'penpot' ? 'svg' : 'png'),
             scale: item.scale || 2,
             platform: item.platform || 'figma',
+            preserveSize,
           }),
         });
 
