@@ -49,4 +49,10 @@ interface Window {
   miro?: {
     board: MiroBoard;
   };
+  gtag?: (
+    command: 'event' | 'config' | 'js',
+    action: string,
+    params?: Record<string, unknown>
+  ) => void;
+
 }

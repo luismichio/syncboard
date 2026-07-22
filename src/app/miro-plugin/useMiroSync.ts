@@ -3,6 +3,17 @@ import { SyncedImage } from './useMiroSelection';
 import { callPenpotMcpTool } from './companionRelayClient';
 import { getValidToken } from '@/lib/tokens';
 
+/** Fire a Google Analytics event if gtag is loaded. */
+function trackEvent(action: string, label?: string, value?: number) {
+  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    window.gtag('event', action, {
+      event_label: label,
+      value: value,
+      send_to: 'G-Q4W94QDWWC',
+    });
+  }
+}
+
 /**
  * Handles board sync with support for both Figma and Penpot:
  * - Default: update only the exact selected widget(s)
@@ -39,6 +50,7 @@ export function useMiroSync(
       return;
     }
 
+    trackEvent('sync_start', `items:${selectedItems.length}`);
     setIsSyncing(true);
     try {
       const boardInfo = await miro.board.getInfo();
@@ -368,9 +380,11 @@ export function useMiroSync(
         syncChannel.postMessage({ type: 'SYNC_COMPLETE' });
         syncChannel.close();
       } catch {}
+      trackEvent('sync_complete', `${itemsToSync.length} ${label}`, itemsToSync.length);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setSyncStatus(`Sync failed: ${errMsg}`);
+      trackEvent('sync_error', errMsg);
       try {
         const syncChannel = new BroadcastChannel('figma_miro_sync');
         syncChannel.postMessage({ type: 'SYNC_ERROR', error: errMsg });

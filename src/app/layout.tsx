@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import CookieConsent from "@/components/CookieConsent";
 
 const SITE_URL = "https://syncboard.luiskobayashi.com";
 
@@ -38,6 +39,16 @@ export const metadata: Metadata = {
       "A database-free, self-hosted integration that syncs Figma and Penpot frame screenshots into Miro in-place with zero duplicates.",
     images: ["/syncboard_logo_color.svg"],
   },
+  keywords: [
+    "Figma",
+    "Miro",
+    "Penpot",
+    "sync",
+    "design handoff",
+    "design-to-whiteboard",
+    "self-hosted",
+    "open source",
+  ],
   robots: {
     index: true,
     follow: true,
@@ -106,7 +117,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-bg-page text-text-page">{children}</body>
+      <body className="min-h-full flex flex-col bg-bg-page text-text-page">
+        {children}
+        <CookieConsent />
+      </body>
     </html>
   );
 }

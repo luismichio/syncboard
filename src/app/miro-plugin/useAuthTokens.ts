@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
 import { getValidToken, clearToken, saveToken, TokenData } from '@/lib/tokens';
 
+/** Fire a Google Analytics event if gtag is loaded. */
+function trackEvent(action: string, label?: string) {
+  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    window.gtag('event', action, {
+      event_label: label,
+      send_to: 'G-Q4W94QDWWC',
+    });
+  }
+}
+
 const MIRO_BOOT_WAIT_MS = 8000;
 const MIRO_BOOT_POLL_MS = 50;
 const BOOT_RETRY_DELAY_MS = 5000;
@@ -197,6 +207,7 @@ export function useAuthTokens(isInitMode: boolean | null) {
       }
 
       setTokensLoading(false);
+      trackEvent('oauth_connect', platform);
     };
 
     oauthChannel.onmessage = async (event: MessageEvent) => {
@@ -306,6 +317,7 @@ export function useAuthTokens(isInitMode: boolean | null) {
     );
 
     startPolling('figma', state, popup);
+    trackEvent('oauth_attempt', 'figma');
   };
 
   const connectMiro = () => {
@@ -322,6 +334,7 @@ export function useAuthTokens(isInitMode: boolean | null) {
     );
 
     startPolling('miro', state, popup);
+    trackEvent('oauth_attempt', 'miro');
   };
 
   const disconnectFigma = async () => {
@@ -333,6 +346,7 @@ export function useAuthTokens(isInitMode: boolean | null) {
       const syncChannel = new BroadcastChannel('figma_miro_sync');
       syncChannel.postMessage({ type: 'TOKENS_UPDATED', tokenData: { figmaToken: null } });
       syncChannel.close();
+      trackEvent('oauth_disconnect', 'figma');
     } catch (e) {
       console.error('Failed to disconnect Figma:', e);
     }
@@ -347,6 +361,7 @@ export function useAuthTokens(isInitMode: boolean | null) {
       const syncChannel = new BroadcastChannel('figma_miro_sync');
       syncChannel.postMessage({ type: 'TOKENS_UPDATED', tokenData: { miroToken: null } });
       syncChannel.close();
+      trackEvent('oauth_disconnect', 'miro');
     } catch (e) {
       console.error('Failed to disconnect Miro:', e);
     }
