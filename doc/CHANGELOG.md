@@ -15,6 +15,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Handles aspect ratio shifts by setting Miro's `style.fit: "contain"` property rather than stretching the image.
   - Defaults to unchecked (current resize-on-sync behavior) to avoid surprise.
   - Works independently of "Propagate format & scale".
+- **SEO & Analytics Overhaul:** Made the public site discoverable and measurable.
+  - Added `robots.ts` (disallow `/api/` and `/miro-plugin`) and dynamic `sitemap.ts` covering all docs pages.
+  - Added Open Graph tags (`og:title`, `og:description`, `og:image`, `og:url`, `og:type`) and Twitter Cards (`summary_large_image`).
+  - Added JSON-LD structured data (`WebSite` schema), canonical URL, and `meta keywords`.
+  - Added `generateMetadata()` per doc page for unique titles/descriptions; fixed breadcrumb `<span>` → `<h1>`.
+  - Added Google Analytics (G-Q4W94QDWWC) with gtag tracking for page views.
+  - Added custom event tracking: `sync_start`, `sync_complete`, `sync_error`, `oauth_attempt`, `oauth_connect`, `oauth_disconnect`.
+  - Added CookieConsent banner with accept/decline and GA opt-out flag (hidden inside Miro plugin iframe).
+  - Added `GET /api/health` endpoint returning `{ status, name, version, timestamp, uptime }`.
 
 ## [0.8.0] - 2026-07-19
 
