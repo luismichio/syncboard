@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { compileMDX } from "next-mdx-remote/rsc";
 import rehypeHighlight from "rehype-highlight";
@@ -50,6 +51,35 @@ function rehypeMermaidBlocks() {
 export async function generateStaticParams() {
   const docs = getAllDocs();
   return docs.map((doc) => ({ slug: doc.slug }));
+}
+
+export async function generateMetadata(props: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await props.params;
+  const doc = getDocBySlug(slug);
+  if (!doc) return {};
+
+  const title = `${doc.meta.title} — SyncBoard Docs`;
+  const description = doc.meta.description || "SyncBoard documentation";
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `https://syncboard.luiskobayashi.com/docs/${slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `https://syncboard.luiskobayashi.com/docs/${slug}`,
+      type: "article",
+    },
+    twitter: {
+      title,
+      description,
+    },
+  };
 }
 
 export default async function DocPage(props: { params: Promise<{ slug: string }> }) {
@@ -129,7 +159,7 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
               docs
             </Link>
             <span className="text-text-muted font-mono text-xs shrink-0">/</span>
-            <span className="text-sm font-mono text-accent font-semibold truncate">{doc.meta.filename}</span>
+            <h1 className="text-sm font-mono text-accent font-semibold truncate">{doc.meta.title}</h1>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <a
