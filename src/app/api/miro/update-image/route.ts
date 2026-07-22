@@ -17,7 +17,8 @@ async function handler(request: Request) {
       dataUrl,
       format = 'png',
       scale = 2,
-      platform = 'figma'
+      platform = 'figma',
+      preserveSize = false
     } = await request.json();
 
     if (!miroToken || !boardId || !itemId || !fileKey || !nodeId || !nodeName) {
@@ -105,7 +106,13 @@ async function handler(request: Request) {
     // processing overrides geometry.width when a new resource is supplied.
     const imageForm = new FormData();
     imageForm.append('resource', file);
-    imageForm.append('data', JSON.stringify({ title: titleTag }));
+    // When preserveSize is enabled, include style.fit: "contain" so the image
+    // maintains its aspect ratio within the current widget bounds instead of stretching.
+    const imageData: Record<string, unknown> = { title: titleTag };
+    if (preserveSize) {
+      imageData.style = { fit: 'contain' };
+    }
+    imageForm.append('data', JSON.stringify(imageData));
 
     const imageUrl_ = `https://api.miro.com/v2/boards/${boardId}/images/${itemId}`;
     const imageRes = await fetch(imageUrl_, {
@@ -122,10 +129,11 @@ async function handler(request: Request) {
       );
     }
 
-    // Step 2: Apply geometry via the generic item update endpoint (JSON body).
+    // Step 2: Apply geometry via the generic item update endpoint (JSON body) —
+    // only when preserveSize is NOT active.
     // This endpoint handles geometry differently from the image-specific one —
     // it updates the widget's data model directly without triggering image processing.
-    if (width) {
+    if (width && !preserveSize) {
       const targetWidth = Math.round(Number(width));
       const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
 

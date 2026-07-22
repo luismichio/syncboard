@@ -7,6 +7,7 @@ import { DISPLAY } from '@/lib/version';
 
 export default function MiroPluginPage() {
   const [propagate, setPropagate] = useState<boolean>(false);
+  const [preserveSize, setPreserveSize] = useState<boolean>(false);
 
   const {
     isInitMode,
@@ -38,7 +39,7 @@ export default function MiroPluginPage() {
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
-  } = useMiroPlugin(propagate);
+  } = useMiroPlugin(propagate, preserveSize);
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
   const [importPlatform, setImportPlatform] = useState<'figma' | 'penpot'>('figma');
   const [importFormat, setImportFormat] = useState<'png' | 'svg'>('png');
@@ -443,6 +444,17 @@ export default function MiroPluginPage() {
                     />
                     <span className="text-[10px] text-text-muted font-mono">
                       Also update all board copies
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={preserveSize}
+                      onChange={e => setPreserveSize(e.target.checked)}
+                      className="accent-accent w-3 h-3"
+                    />
+                    <span className="text-[10px] text-text-muted font-mono">
+                      Preserve widget size
                     </span>
                   </label>
                   {syncAllCopies && (
