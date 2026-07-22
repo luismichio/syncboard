@@ -23,13 +23,18 @@ export default function CookieConsent() {
 
   const accept = () => {
     localStorage.setItem(CONSENT_KEY, 'accepted');
+    // Update consent to granted — GA will start tracking
+    if (typeof window.gtag === 'function') {
+      window.gtag('consent', 'update', {
+        analytics_storage: 'granted',
+      });
+    }
     setVisible(false);
   };
 
   const decline = () => {
     localStorage.setItem(CONSENT_KEY, 'declined');
-    // Disable GA — set a flag that the gtag snippet can check
-    (window as unknown as Record<string, boolean>)[`ga-disable-G-Q4W94QDWWC`] = true;
+    // Consent remains denied (already set as default) — no need to update
     setVisible(false);
   };
 

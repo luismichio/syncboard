@@ -50,7 +50,7 @@ interface Window {
     board: MiroBoard;
   };
   gtag?: (
-    command: 'event' | 'config' | 'js',
+    command: 'event' | 'config' | 'js' | 'consent' | 'set',
     action: string,
     params?: Record<string, unknown>
   ) => void;
