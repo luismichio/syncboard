@@ -14,6 +14,11 @@
   --bg-code-inline: #e8e4dc;
   --border-code: #c9c3b6;
 
+  /* Code token colors (light mode) — WCAG AA ≥ 4.5:1 against #e8e4dc */
+  --code-keyword: #005a73;
+  --code-string: #0d6e30;
+  --code-func: #5b1fa8;
+
   --background: var(--bg-page);
   --foreground: var(--text-page);
 }
@@ -33,6 +38,11 @@
     --bg-code-inline: #181818;
     --border-code: #2a2a2a;
 
+    /* Code token colors (dark mode) */
+    --code-keyword: var(--accent);
+    --code-string: #16a34a;
+    --code-func: #7c3aed;
+
     --background: var(--bg-page);
     --foreground: var(--text-page);
   }
@@ -51,6 +61,11 @@
   --bg-code-inline: #181818;
   --border-code: #2a2a2a;
 
+  /* Code token colors (dark mode) */
+  --code-keyword: var(--accent);
+  --code-string: #16a34a;
+  --code-func: #7c3aed;
+
   --background: var(--bg-page);
   --foreground: var(--text-page);
 }
@@ -67,6 +82,11 @@
   --bg-code-block: #e8e4dc;
   --bg-code-inline: #e8e4dc;
   --border-code: #c9c3b6;
+
+  /* Code token colors (light mode) — WCAG AA ≥ 4.5:1 against #e8e4dc */
+  --code-keyword: #005a73;
+  --code-string: #0d6e30;
+  --code-func: #5b1fa8;
 
   --background: var(--bg-page);
   --foreground: var(--text-page);
@@ -144,7 +164,7 @@ html {
 .hljs-selector-tag,
 .hljs-type,
 .hljs-tag {
-  color: var(--accent);
+  color: var(--code-keyword);
 }
 
 /* Strings */
@@ -152,7 +172,7 @@ html {
 .hljs-doctag,
 .hljs-regexp,
 .hljs-addition {
-  color: #16a34a;   /* green — works in both modes */
+  color: var(--code-string);
 }
 
 /* Numbers, booleans */
@@ -174,7 +194,7 @@ html {
 .hljs-title.class_,
 .hljs-attr,
 .hljs-built_in {
-  color: #7c3aed;   /* violet */
+  color: var(--code-func);
 }
 
 /* Punctuation, operators */

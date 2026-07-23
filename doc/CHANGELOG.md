@@ -26,6 +26,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Upgraded to Google Consent Mode v2: default `analytics_storage: 'denied'` before GA loads; grants on accept.
   - Added `GET /api/health` endpoint returning `{ status, name, version, timestamp, uptime }`.
 
+### Fixed
+- **Code block contrast (WCAG AA):** Light-mode syntax highlighting colors now pass 4.5:1 minimum contrast ratio against the cream code background (`#e8e4dc`). Keywords dark teal `#005a73`, strings dark green `#0d6e30`, functions dark violet `#5b1fa8`. Dark mode unchanged.
+
 ## [0.9.0] - 2026-07-20
 
 ### Added
