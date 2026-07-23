@@ -39,6 +39,7 @@ export default function MiroPluginPage() {
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
+    replaceSelectedWidget,
   } = useMiroPlugin(propagate, preserveSize);
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
   const [importPlatform, setImportPlatform] = useState<'figma' | 'penpot'>('figma');
@@ -607,6 +608,17 @@ export default function MiroPluginPage() {
                         >
                           {isSyncing ? 'PLACING...' : 'PLACE ON CANVAS'}
                         </button>
+                        <button
+                          onClick={() => {
+                            if (figmaNodeInfo) {
+                              replaceSelectedWidget('figma', figmaNodeInfo.fileKey, figmaNodeInfo.nodeId, figmaNodeInfo.name, importFormat, importScale);
+                            }
+                          }}
+                          disabled={isSyncing || !figmaNodeInfo}
+                          className="w-full mt-2 font-mono font-bold text-xs py-2 rounded border border-accent text-accent bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          REPLACE SELECTED
+                        </button>
                       </div>
                     )}
                   </div>
@@ -704,6 +716,17 @@ export default function MiroPluginPage() {
                       className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {isSyncing ? 'PLACING...' : 'PLACE ON CANVAS'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (penpotNodeInfo) {
+                          replaceSelectedWidget('penpot', penpotNodeInfo.fileId, penpotNodeInfo.objectId, penpotNodeInfo.name, importFormat, importScale);
+                        }
+                      }}
+                      disabled={isSyncing || !penpotNodeInfo}
+                      className="w-full mt-2 font-mono font-bold text-xs py-2 rounded border border-accent text-accent bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      REPLACE SELECTED
                     </button>
                   </div>
                 )}

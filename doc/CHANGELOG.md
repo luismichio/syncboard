@@ -23,6 +23,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 - **Code block contrast (WCAG AA):** Light-mode syntax highlighting colors now pass 4.5:1 minimum contrast ratio against the cream code background (`#e8e4dc`). Keywords dark teal `#005a73`, strings dark green `#0d6e30`, functions dark violet `#5b1fa8`. Dark mode unchanged.
 
+### Added
+- **"Replace Selected" — Adopt Any Image into SyncBoard:** New button in Import tab that replaces a manually-pasted or third-party image widget with a SyncBoard-managed copy, keeping the widget ID intact to preserve connectors, comments, links, and frame membership.
+  - "Replace selected" button below each Import button (Figma/Penpot), enabled when a frame is selected.
+  - Reads the current Miro board selection and adopts any image-type widgets.
+  - Attaches `syncboard` metadata (adoption) or updates it (re-targeting to a different frame).
+  - Then renders and pushes the new image via the standard sync API.
+  - Non-SyncBoard images become recognised copies; existing SyncBoard widgets can be re-targeted to a different frame.
+
 ## [0.9.0] - 2026-07-20
 
 ### Added

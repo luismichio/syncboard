@@ -4,6 +4,18 @@ import { useMiroSelection } from './useMiroSelection';
 import { useFigmaImporter } from './useFigmaImporter';
 import { usePenpotImporter } from './usePenpotImporter';
 import { useMiroSync } from './useMiroSync';
+import { getValidToken } from '@/lib/tokens';
+
+/** Fire a Google Analytics event if gtag is loaded. */
+function trackEvent(action: string, label?: string, value?: number) {
+  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    window.gtag('event', action, {
+      event_label: label,
+      value: value,
+      send_to: 'G-Q4W94QDWWC',
+    });
+  }
+}
 
 /**
  * Main coordinator hook for the Miro sidebar panel app.
@@ -79,6 +91,168 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
     preserveSize
   );
 
+  /**
+   * Adopt or re-target image widgets on the board to a chosen Figma/Penpot frame.
+   *
+   * - For non-SyncBoard images: attaches syncboard metadata (adoption).
+   * - For existing SyncBoard images: updates syncboard.key (re-targeting).
+   * - Then replaces the image content with the chosen frame render.
+   *
+   * The widget ID never changes → connectors, comments, links, frame membership all survive.
+   */
+  const replaceSelectedWidget = async (
+    platform: 'figma' | 'penpot',
+    fileKey: string,
+    nodeId: string,
+    nodeName: string,
+    format: 'png' | 'svg',
+    scale: number
+  ) => {
+    if (typeof window === 'undefined') return;
+    const miro = window.miro;
+    if (!miro) return;
+
+    setIsSyncing(true);
+    try {
+      const selection = await miro.board.getSelection();
+      const images = selection.filter((w): w is typeof w & { type: 'image' } => w.type === 'image');
+
+      if (images.length === 0) {
+        setSyncStatus('No image widgets selected. Select at least one image on the board.');
+        setIsSyncing(false);
+        return;
+      }
+
+      // Collect adopted items
+      const adoptedItems: {
+        id: string;
+        width?: number;
+      }[] = [];
+
+      for (const img of images) {
+        // Read existing metadata (re-targeting if syncboard already exists)
+        const existingMeta = await (img as any).getMetadata?.() as Record<string, unknown> | undefined;
+        const existingSync = existingMeta?.syncboard as Record<string, unknown> | undefined;
+
+        // Attach/update syncboard metadata with the new frame info
+        const syncMeta: Record<string, unknown> = {
+          fileKey,
+          nodeId,
+          nodeName,
+          format,
+          scale,
+          platform,
+        };
+        // Preserve natural width if it exists (from a previous Penpot import)
+        if (existingSync?.width && typeof existingSync.width === 'number') {
+          syncMeta.width = existingSync.width;
+        }
+
+        await (img as any).setMetadata?.('syncboard', syncMeta);
+        await (img as any).sync?.();
+
+        adoptedItems.push({
+          id: img.id,
+          width: (img as any).width ?? undefined,
+        });
+      }
+
+      // Now sync each adopted widget with the new image content
+      const boardInfo = await miro.board.getInfo();
+      const freshMiroToken = miroToken || await getValidToken('miro');
+      if (!freshMiroToken) {
+        setSyncStatus('Miro token unavailable. Please reconnect Miro.');
+        setIsSyncing(false);
+        return;
+      }
+
+      // Render the frame image once (shared across all adopted copies)
+      let dataUrl: string | null = null;
+
+      if (platform === 'figma') {
+        if (!figmaToken) {
+          throw new Error('Figma token missing. Please connect Figma in Settings.');
+        }
+        const batchRes = await fetch('/api/figma/render-batch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${figmaToken}`,
+          },
+          body: JSON.stringify({ fileKey, nodeIds: [nodeId], format, scale }),
+        });
+        if (!batchRes.ok) {
+          const errData = await batchRes.json().catch(() => ({})) as { error?: string };
+          throw new Error(errData.error || `Figma render failed (HTTP ${batchRes.status})`);
+        }
+        const { images } = await batchRes.json() as { images: Record<string, string | null> };
+        dataUrl = images[nodeId];
+      } else {
+        // Penpot
+        const { callPenpotMcpTool } = await import('./companionRelayClient');
+        const mcpResponse = await callPenpotMcpTool('export_shape', {
+          shapeId: nodeId,
+          format,
+          scale,
+        });
+        if (mcpResponse.content?.[0]) {
+          const content = mcpResponse.content[0];
+          if (format === 'svg' && content.text) {
+            const b64 = btoa(unescape(encodeURIComponent(content.text)));
+            dataUrl = `data:image/svg+xml;base64,${b64}`;
+          } else if (format === 'png' && content.data) {
+            dataUrl = `data:image/png;base64,${content.data}`;
+          }
+        }
+      }
+
+      if (!dataUrl) {
+        throw new Error('Failed to render the selected frame. No image data received.');
+      }
+
+      for (let i = 0; i < adoptedItems.length; i++) {
+        const item = adoptedItems[i];
+        setSyncStatus(`Replacing widget ${i + 1}/${adoptedItems.length}...`);
+
+        if (i > 0) await new Promise(r => setTimeout(r, 500));
+
+        const response = await fetch('/api/miro/update-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${freshMiroToken}`,
+          },
+          body: JSON.stringify({
+            boardId: boardInfo.id,
+            itemId: item.id,
+            fileKey,
+            nodeId,
+            nodeName,
+            width: item.width,
+            dataUrl,
+            format,
+            scale,
+            platform,
+          }),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({})) as { error?: string };
+          throw new Error(errData.error || 'Failed to update image on Miro board');
+        }
+      }
+
+      setSyncStatus(`✓ Replaced ${adoptedItems.length} widget(s) successfully!`);
+      trackEvent('sync_complete', `replace:${adoptedItems.length}`, adoptedItems.length);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setSyncStatus(`Replace failed: ${errMsg}`);
+      trackEvent('sync_error', errMsg);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return {
     isInitMode,
     figmaToken,
@@ -109,5 +283,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
+    // Replace / Adopt
+    replaceSelectedWidget,
   };
 }
