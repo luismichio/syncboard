@@ -7,13 +7,13 @@ async function handler(request: Request) {
     const miroToken = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
     const figmaToken = request.headers.get('X-Figma-Token') || '';
 
-    const { 
-      boardId, 
-      itemId, 
-      fileKey, 
-      nodeId, 
-      nodeName, 
-      width, 
+    const {
+      boardId,
+      itemId,
+      fileKey,
+      nodeId,
+      nodeName,
+      width,
       dataUrl,
       format = 'png',
       scale = 2,
@@ -26,6 +26,32 @@ async function handler(request: Request) {
         { error: 'Missing required parameters (miroToken via Authorization header, boardId, itemId, fileKey, nodeId, nodeName)' },
         { status: 400 }
       );
+    }
+
+    // ── Preserve Size: snapshot current geometry BEFORE upload ──
+    // Miro's image PATCH recalculates widget dimensions when a new resource is supplied,
+    // so we must read and restore the original geometry to keep the widget unchanged.
+    let originalWidth: number | null = null;
+    let originalHeight: number | null = null;
+
+    if (preserveSize) {
+      try {
+        const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
+        const itemRes = await fetch(itemUrl, {
+          headers: { Authorization: `Bearer ${miroToken}` },
+        });
+        if (itemRes.ok) {
+          const itemData = await itemRes.json();
+          // Miro returns geometry in two forms depending on the item type.
+          // Images store width/height at the top level (data.width / data.height)
+          // and also in data.geometry.
+          const data = itemData.data || itemData;
+          originalWidth = data.geometry?.width ?? data.width ?? null;
+          originalHeight = data.geometry?.height ?? data.height ?? null;
+        }
+      } catch (err) {
+        console.warn('Failed to snapshot widget geometry before image update:', err);
+      }
     }
 
     let arrayBuffer: ArrayBuffer;
@@ -43,7 +69,7 @@ async function handler(request: Request) {
 
       const scaleQuery = format === 'svg' ? '' : `&scale=${scale ? Number(scale) : 2}`;
       const figmaApiUrl = `https://api.figma.com/v1/images/${fileKey}?ids=${nodeId}${scaleQuery}&format=${format}`;
-      
+
       const figmaResponse = await fetch(figmaApiUrl, {
         headers: { Authorization: `Bearer ${figmaToken}` },
       });
@@ -55,7 +81,6 @@ async function handler(request: Request) {
         const planTier = figmaResponse.headers.get('X-Figma-Plan-Tier');
         const limitType = figmaResponse.headers.get('X-Figma-Rate-Limit-Type');
         const baseError = figmaData.err || figmaData.message || 'Rate limit exceeded';
-        
         return NextResponse.json(
           {
             error: baseError,
@@ -86,30 +111,23 @@ async function handler(request: Request) {
       arrayBuffer = await imageResponse.arrayBuffer();
     }
 
-    // Build multipart form data for Miro image PATCH
-    const formData = new FormData();
-    
     const mimeType = format === 'svg' ? 'image/svg+xml' : 'image/png';
     const safeName = nodeName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'screenshot';
     const fileName = format === 'svg' ? `${safeName}.svg` : `${safeName}.png`;
-    
     const file = new File([arrayBuffer], fileName, { type: mimeType });
-    formData.append('resource', file);
 
     const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
     const titleTag = `${nodeName} [${tag}|${fileKey}|${nodeId}]`;
-
     const authHeaders = { Authorization: `Bearer ${miroToken}` };
 
     // Step 1: Upload the image via the image-specific multipart endpoint.
-    // Title is included here; geometry is NOT sent because Miro's image
-    // processing overrides geometry.width when a new resource is supplied.
     const imageForm = new FormData();
     imageForm.append('resource', file);
-    // When preserveSize is enabled, include style.fit: "contain" so the image
-    // maintains its aspect ratio within the current widget bounds instead of stretching.
+
     const imageData: Record<string, unknown> = { title: titleTag };
     if (preserveSize) {
+      // style.fit controls how the image renders within the widget bounds.
+      // "contain" prevents stretching when the new image has a different aspect ratio.
       imageData.style = { fit: 'contain' };
     }
     imageForm.append('data', JSON.stringify(imageData));
@@ -129,19 +147,43 @@ async function handler(request: Request) {
       );
     }
 
-    // Step 2: Apply geometry via the generic item update endpoint (JSON body) —
-    // only when preserveSize is NOT active.
-    // This endpoint handles geometry differently from the image-specific one —
-    // it updates the widget's data model directly without triggering image processing.
-    if (width && !preserveSize) {
-      const targetWidth = Math.round(Number(width));
-      const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
+    // Step 2a: When preserveSize is active, restore the original geometry.
+    // Miro's image PATCH recalculates widget dimensions on resource upload,
+    // so we must explicitly set them back to the pre-snapshot values.
+    if (preserveSize && (originalWidth || originalHeight)) {
+      const geometry: Record<string, number> = {};
+      if (originalWidth) geometry.width = Math.round(originalWidth);
+      if (originalHeight) geometry.height = Math.round(originalHeight);
 
+      const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
       const geometryRes = await fetch(itemUrl, {
         method: 'PATCH',
         headers: {
-          ...authHeaders,
           'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify({
+          data: {
+            geometry,
+          },
+        }),
+      });
+
+      if (!geometryRes.ok) {
+        const errData = await geometryRes.json().catch(() => ({}));
+        console.warn('Failed to restore original geometry after preserveSize upload:', errData.message);
+      }
+    }
+
+    // Step 2b: When preserveSize is NOT active, apply the requested geometry.
+    if (width && !preserveSize) {
+      const targetWidth = Math.round(Number(width));
+      const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
+      const geometryRes = await fetch(itemUrl, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({
           data: {

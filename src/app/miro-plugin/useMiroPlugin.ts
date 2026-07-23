@@ -229,7 +229,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
             fileKey,
             nodeId,
             nodeName,
-            ...(preserveSize ? {} : { width: item.width }),
+            width: item.width,
             dataUrl,
             format,
             scale,
