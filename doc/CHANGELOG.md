@@ -9,12 +9,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.10.0] - 2026-07-20
 
 ### Added
-- **"Preserve Widget Size" Option on Sync:** Added a checkbox in the Sync panel that allows users to refresh image content only — without resizing the widget — preserving any manual crop, scale, or layout adjustments made in Miro.
-  - New "Preserve widget size" checkbox in the sync panel, positioned between "Also update all board copies" and "Propagate format & scale".
-  - When checked, the API skips the geometry PATCH (Step 2) and only uploads the image.
-  - Handles aspect ratio shifts by setting Miro's `style.fit: "contain"` property rather than stretching the image.
-  - Defaults to unchecked (current resize-on-sync behavior) to avoid surprise.
-  - Works independently of "Propagate format & scale".
 - **SEO & Analytics Overhaul:** Made the public site discoverable and measurable.
   - Added `robots.ts` (disallow `/api/` and `/miro-plugin`) and dynamic `sitemap.ts` covering all docs pages.
   - Added Open Graph tags (`og:title`, `og:description`, `og:image`, `og:url`, `og:type`) and Twitter Cards (`summary_large_image`).
