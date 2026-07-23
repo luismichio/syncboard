@@ -28,35 +28,6 @@ async function handler(request: Request) {
       );
     }
 
-    // ── Preserve Size: snapshot current widget properties BEFORE upload ──
-    // Miro's image PATCH recalculates widget dimensions and resets style.crop
-    // when a new resource is supplied. To prevent this, we capture the current
-    // geometry + style and include them in the image PATCH data field so Miro
-    // applies them atomically with the upload — no race conditions possible.
-    let originalGeometry: { width: number; height: number } | null = null;
-
-    if (preserveSize) {
-      try {
-        const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
-        const itemRes = await fetch(itemUrl, {
-          headers: { Authorization: `Bearer ${miroToken}` },
-        });
-        if (itemRes.ok) {
-          const itemData = await itemRes.json();
-          // geometry is at the top level of the Miro API response
-          if (itemData.geometry?.width) {
-            originalGeometry = {
-              width: Math.round(itemData.geometry.width),
-              height: itemData.geometry.height ? Math.round(itemData.geometry.height) : Math.round(itemData.geometry.width),
-            };
-          }
-    
-        }
-      } catch (err) {
-        console.warn('Failed to snapshot widget geometry before image update:', err);
-      }
-    }
-
     let arrayBuffer: ArrayBuffer;
 
     if (dataUrl) {
@@ -124,23 +95,19 @@ async function handler(request: Request) {
     const authHeaders = { Authorization: `Bearer ${miroToken}` };
 
     // Step 1: Upload the image via the image-specific multipart endpoint.
-    // When preserveSize is active, include the original geometry and style
-    // in the data field so Miro applies them atomically with the resource
-    // upload — no separate restore call needed, no race condition.
+    // When preserveSize is active, include style.fit: "contain" so the new image
+    // renders within the current widget bounds without stretching.
+    // NOTE: We do NOT send geometry here — Miro's image PATCH may recalculate
+    // widget dimensions when a new resource is supplied, and sending geometry
+    // with height causes a 400 error.
     const imageForm = new FormData();
     imageForm.append('resource', file);
 
     const imageData: Record<string, unknown> = { title: titleTag };
-    if (preserveSize && originalGeometry) {
-      // Miro's image PATCH only accepts geometry.width for images;
-      // height is auto-calculated from aspect ratio. Sending height
-      // causes 400 'Invalid parameters'.
-      imageData.geometry = { width: originalGeometry.width };
-      // Send only style.fit (not the full captured style) to avoid
-      // conflicts with Miro's resource processing. Crop is preserved
-      // because we only set fit, leaving all other style fields untouched.
+    if (preserveSize) {
       imageData.style = { fit: 'contain' };
     }
+    imageForm.append('data', JSON.stringify(imageData));
 
     const imageUrl_ = `https://api.miro.com/v2/boards/${boardId}/images/${itemId}`;
     const imageRes = await fetch(imageUrl_, {
@@ -157,7 +124,8 @@ async function handler(request: Request) {
       );
     }
 
-    // Step 2: When preserveSize is NOT active, apply the requested geometry.
+    // Step 2: Apply geometry via the generic item update endpoint (JSON body) —
+    // only when preserveSize is NOT active.
     if (width && !preserveSize) {
       const targetWidth = Math.round(Number(width));
       const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
@@ -177,43 +145,6 @@ async function handler(request: Request) {
       if (!geometryRes.ok) {
         const errData = await geometryRes.json().catch(() => ({}));
         console.warn('Miro item geometry update failed (image already uploaded):', errData.message);
-      }
-    } else if (preserveSize && originalGeometry) {
-      // Step 2a: Verify geometry stuck, retry if Miro's async processing overrode it
-      const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 600));
-
-        const verifyRes = await fetch(itemUrl, {
-          headers: authHeaders,
-        });
-        if (!verifyRes.ok) continue;
-
-        const verifyData = await verifyRes.json();
-        const currentW = verifyData.geometry?.width;
-        const currentH = verifyData.geometry?.height;
-
-        if (
-          currentW === originalGeometry.width &&
-          currentH === originalGeometry.height
-        ) {
-          break; // Geometry confirmed
-        }
-
-        // Geometry doesn't match — restore it again
-        const geometryRes = await fetch(itemUrl, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...authHeaders,
-          },
-          body: JSON.stringify({
-            data: { geometry: originalGeometry },
-          }),
-        });
-        if (!geometryRes.ok) {
-          console.warn(`Attempt ${attempt + 1}/3: failed to restore geometry`);
-        }
       }
     }
 
