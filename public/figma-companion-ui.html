@@ -337,7 +337,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const secretKey = urlParams.get('key');
         
-        let tokenUrl = `${RELAY_URL}/api/ably/token?pairingId=${encodeURIComponent(pairingId)}`;
+        let tokenUrl = `${RELAY_URL}/api/ably/token?pairingId=${encodeURIComponent(pairingId)}&platform=figma`;
         if (secretKey) {
           tokenUrl += `&key=${encodeURIComponent(secretKey)}`;
         }
@@ -356,7 +356,7 @@
           recover: false
         });
 
-        ablyChannel = ablyClient.channels.get('penpot:' + pairingId);
+        ablyChannel = ablyClient.channels.get('figma:' + pairingId);
 
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => reject(new Error('WebSocket connection timed out.')), 10000);

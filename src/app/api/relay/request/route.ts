@@ -12,6 +12,7 @@ import {
 
 interface RelayRequestBody {
   pairingId?: string;
+  platform?: 'figma' | 'penpot';
   action?: 'select' | 'export';
   shapeId?: string;
   format?: 'svg' | 'png';
@@ -72,17 +73,19 @@ async function handler(request: Request) {
       return NextResponse.json({ error: 'action is required and must be select or export.' }, { status: 400 });
     }
 
-    const online = await isPenpotOnlineAbly(pairingId);
+    const platform = body.platform || 'penpot';
+    const online = await isPenpotOnlineAbly(pairingId, platform);
     if (!online) {
+      const platformName = platform === 'figma' ? 'Figma' : 'Penpot';
       return NextResponse.json(
-        { error: 'SyncBoard companion is offline. Open your Figma or Penpot companion plugin and connect using this pairing ID.' },
+        { error: `SyncBoard companion is offline. Open your ${platformName} companion plugin and connect using this pairing ID.` },
         { status: 404 }
       );
     }
 
     const requestId = `req_${crypto.randomUUID().replace(/-/g, '')}`;
     const command = buildCommand(body, requestId);
-    await publishPenpotCommand(pairingId, command);
+    await publishPenpotCommand(pairingId, command, platform);
 
     if (body.async) {
       return NextResponse.json({

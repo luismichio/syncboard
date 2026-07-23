@@ -101,6 +101,7 @@ export function useFigmaImporter(
 
         const data = await callRelay({
           pairingId,
+          platform: 'figma',
           action: 'select',
           timeoutMs: 8_000,
         });

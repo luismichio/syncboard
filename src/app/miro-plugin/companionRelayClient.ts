@@ -7,6 +7,7 @@ export type RelayJson = null | boolean | number | string | RelayJson[] | { [key:
 
 export interface RelayRequestBody {
   pairingId: string;
+  platform?: 'figma' | 'penpot';
   action: 'select' | 'export';
   shapeId?: string;
   format?: 'svg' | 'png';
@@ -46,7 +47,8 @@ let globalAblyClient: Ably.Realtime | null = null;
 let globalAblyChannel: Ably.RealtimeChannel | null = null;
 let currentConnectedPairingId: string | null = null;
 
-async function getAblyConnection(pairingId: string): Promise<Ably.RealtimeChannel> {
+async function getAblyConnection(pairingId: string, platform: 'figma' | 'penpot' = 'penpot'): Promise<Ably.RealtimeChannel> {
+  const prefix = platform === 'figma' ? 'figma' : 'penpot';
   if (globalAblyClient && currentConnectedPairingId === pairingId && globalAblyChannel) {
     return globalAblyChannel;
   }
@@ -62,11 +64,11 @@ async function getAblyConnection(pairingId: string): Promise<Ably.RealtimeChanne
   }
 
   globalAblyClient = new Ably.Realtime({
-    authUrl: `/api/ably/token?pairingId=${encodeURIComponent(pairingId)}`,
+    authUrl: `/api/ably/token?pairingId=${encodeURIComponent(pairingId)}&platform=${platform}`,
     authMethod: 'GET',
   });
 
-  globalAblyChannel = globalAblyClient.channels.get(`penpot:${pairingId}`);
+  globalAblyChannel = globalAblyClient.channels.get(`${prefix}:${pairingId}`);
   currentConnectedPairingId = pairingId;
 
   await new Promise<void>((resolve, reject) => {
@@ -86,7 +88,8 @@ async function getAblyConnection(pairingId: string): Promise<Ably.RealtimeChanne
 
 export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
   const pairingId = body.pairingId;
-  const channel = await getAblyConnection(pairingId);
+  const platform = body.platform || 'penpot';
+  const channel = await getAblyConnection(pairingId, platform);
 
   return new Promise<RelayJson>((resolve, reject) => {
     let isResolved = false;
@@ -207,6 +210,7 @@ export async function callPenpotMcpTool(
   if (toolName === 'execute_code') {
     const data = await callRelay({
       pairingId,
+      platform: 'penpot',
       action: 'select',
       timeoutMs: 8_000,
     });
@@ -230,6 +234,7 @@ export async function callPenpotMcpTool(
 
     const data = await callRelay({
       pairingId,
+      platform: 'penpot',
       action: 'export',
       shapeId,
       format,
