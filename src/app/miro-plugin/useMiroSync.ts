@@ -277,7 +277,10 @@ export function useMiroSync(
                 const content = mcpResponse.content[0];
                 const cacheKey = `${target.fileKey}|${target.nodeId}`;
                 // Update name from export response if present
-                if (content.name && typeof content.name === 'string') {
+                // Only use the export name if it's meaningful — reject
+                // placeholders that would overwrite the widget's real name.
+                if (content.name && typeof content.name === 'string' &&
+                    content.name !== 'Selected Frame') {
                   nameCache.set(cacheKey, content.name);
                 }
                 // Include format in render cache key to prevent race conditions

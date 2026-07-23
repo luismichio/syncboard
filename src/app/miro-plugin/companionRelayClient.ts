@@ -46,10 +46,11 @@ import Ably from 'ably';
 let globalAblyClient: Ably.Realtime | null = null;
 let globalAblyChannel: Ably.RealtimeChannel | null = null;
 let currentConnectedPairingId: string | null = null;
+let currentConnectedPlatform: 'figma' | 'penpot' | null = null;
 
 async function getAblyConnection(pairingId: string, platform: 'figma' | 'penpot' = 'penpot'): Promise<Ably.RealtimeChannel> {
   const prefix = platform === 'figma' ? 'figma' : 'penpot';
-  if (globalAblyClient && currentConnectedPairingId === pairingId && globalAblyChannel) {
+  if (globalAblyClient && currentConnectedPairingId === pairingId && currentConnectedPlatform === platform && globalAblyChannel) {
     return globalAblyChannel;
   }
 
@@ -70,6 +71,7 @@ async function getAblyConnection(pairingId: string, platform: 'figma' | 'penpot'
 
   globalAblyChannel = globalAblyClient.channels.get(`${prefix}:${pairingId}`);
   currentConnectedPairingId = pairingId;
+  currentConnectedPlatform = platform;
 
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Ably connection timed out.')), 10000);

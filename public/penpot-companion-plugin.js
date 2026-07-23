@@ -140,7 +140,10 @@ penpot.ui.onMessage(async (message) => {
 
       // Get the shape name and natural dimensions so the Miro plugin can
       // create the widget at the correct display size regardless of scale.
-      let shapeName = 'Selected Frame';
+      // When the shape is not found on the current page, omit the name (null)
+      // so the Miro plugin preserves the existing widget name rather than
+      // overwriting it with a placeholder.
+      let shapeName = null;
       let shapeWidth = 0;
       let shapeHeight = 0;
       try {
@@ -154,7 +157,7 @@ penpot.ui.onMessage(async (message) => {
           }
         }
       } catch (e) {
-        // Silently fall back to default name
+        // Silently fall back — name stays null, Miro plugin uses existing widget name
       }
 
       const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);

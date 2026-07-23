@@ -107,9 +107,11 @@ export function usePenpotImporter(
         throw new Error('Penpot relay returned empty export response.');
       }
 
-      // Update the node name from the relay response if available
+      // Update the node name from the relay response if available.
+      // Reject 'Selected Frame' placeholder — it means the shape was
+      // not found on the current Penpot page.
       const responseName = mcpResponse.content[0]?.name;
-      if (responseName && typeof responseName === 'string') {
+      if (responseName && typeof responseName === 'string' && responseName !== 'Selected Frame') {
         setPenpotNodeInfo((prev) =>
           prev ? { ...prev, name: responseName } : prev
         );
@@ -133,7 +135,9 @@ export function usePenpotImporter(
       const naturalWidth = mcpResponse.content[0]?.width;
       const naturalHeight = mcpResponse.content[0]?.height;
 
-      const resolvedName = responseName || penpotNodeInfo.name;
+      const resolvedName = (responseName && responseName !== 'Selected Frame')
+        ? responseName
+        : penpotNodeInfo.name;
       // Snapshot Penpot node info in local variables to prevent stale-closure
       // bugs in the async background fetch below. Without this, the .then()
       // callback may read an updated state from a subsequent import.
