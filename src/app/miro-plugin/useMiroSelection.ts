@@ -16,9 +16,11 @@ export interface SyncedImage {
  * Manages the global window.miro SDK registration, selection:update listeners,
  * and releases listeners cleanly on unmount to prevent duplicate triggers.
  * Reads image-specific format/scale preferences and platform from Miro widget metadata.
+ * Also exposes isAnyImageSelected — true when any image widget (even non-SyncBoard) is selected.
  */
 export function useMiroSelection(isInitMode: boolean | null) {
   const [selectedItems, setSelectedItems] = useState<SyncedImage[]>([]);
+  const [isAnyImageSelected, setIsAnyImageSelected] = useState<boolean>(false);
 
   useEffect(() => {
     if (isInitMode === null) return;
@@ -59,6 +61,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
       const miro = await waitForMiro();
       if (!miro) return; // Miro SDK unavailable — component cannot function
       savedMiro = miro;
+
       if (!active) return;
 
       if (isInitMode === true) {
@@ -74,6 +77,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
           try {
             const selection = await miro.board.getSelection();
             const synced: SyncedImage[] = [];
+            const hasAnyImage = selection.some(item => item.type === 'image');
 
             for (const item of selection) {
               if (item.type === 'image') {
@@ -95,7 +99,6 @@ export function useMiroSelection(isInitMode: boolean | null) {
                     } catch (metaErr) {
                       console.error("Failed to read metadata for item:", item.id, metaErr);
                     }
-
                     synced.push({
                       id: item.id,
                       title: item.title,
@@ -121,7 +124,6 @@ export function useMiroSelection(isInitMode: boolean | null) {
                     } catch (metaErr) {
                       console.error("Failed to read metadata for item:", item.id, metaErr);
                     }
-
                     synced.push({
                       id: item.id,
                       title: item.title,
@@ -140,19 +142,17 @@ export function useMiroSelection(isInitMode: boolean | null) {
                 // 2. Fallback to metadata query (if title is empty or modified)
                 try {
                   const metadata = (await item.getMetadata()) as Record<string, unknown> | undefined;
-                  const syncData = metadata?.syncboard as { 
-                    fileKey?: string; 
-                    nodeId?: string; 
+                  const syncData = metadata?.syncboard as {
+                    fileKey?: string;
+                    nodeId?: string;
                     nodeName?: string;
                     format?: 'png' | 'svg';
                     scale?: number;
                     platform?: 'figma' | 'penpot';
                   } | undefined;
-                  
                   if (syncData?.fileKey && syncData?.nodeId) {
                     const platform = syncData.platform || 'figma';
                     const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
-
                     synced.push({
                       id: item.id,
                       title: `${syncData.nodeName || 'Unnamed Screen'} [${tag}|${syncData.fileKey}|${syncData.nodeId}]`,
@@ -173,6 +173,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
 
             if (!active) return;
             setSelectedItems(synced);
+            setIsAnyImageSelected(hasAnyImage);
 
             // Broadcast selection updates to the external dashboard tab
             try {
@@ -211,5 +212,6 @@ export function useMiroSelection(isInitMode: boolean | null) {
   return {
     selectedItems,
     setSelectedItems,
+    isAnyImageSelected,
   };
 }

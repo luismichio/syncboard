@@ -35,9 +35,8 @@ async function findShapeById(shapeId) {
   if (penpot.selection && penpot.selection.length > 0) {
     const selMatch = penpot.selection.find((s) => s && s.id === shapeId);
     if (selMatch) return selMatch;
-    if (penpot.selection.length === 1 && penpot.selection[0]) {
-      return penpot.selection[0];
-    }
+    // Do NOT fall back to the current selection if shapeId doesn't match.
+    // The stored nodeId in SyncBoard metadata is the source of truth.
   }
 
   // 2. Try native findShape method on current page

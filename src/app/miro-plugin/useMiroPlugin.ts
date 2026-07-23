@@ -53,6 +53,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
   const {
     selectedItems,
     setSelectedItems,
+    isAnyImageSelected,
   } = useMiroSelection(isInitMode);
 
   // 3. Figma Importer Hook
@@ -131,7 +132,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
 
       for (const img of images) {
         // Read existing metadata (re-targeting if syncboard already exists)
-        const existingMeta = await (img as any).getMetadata?.() as Record<string, unknown> | undefined;
+        const existingMeta = await img.getMetadata() as Record<string, unknown> | undefined;
         const existingSync = existingMeta?.syncboard as Record<string, unknown> | undefined;
 
         // Attach/update syncboard metadata with the new frame info
@@ -148,12 +149,12 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
           syncMeta.width = existingSync.width;
         }
 
-        await (img as any).setMetadata?.('syncboard', syncMeta);
-        await (img as any).sync?.();
+        await img.setMetadata('syncboard', syncMeta);
+        await img.sync();
 
         adoptedItems.push({
           id: img.id,
-          width: (img as any).width ?? undefined,
+          width: img.width ?? undefined,
         });
       }
 
@@ -228,11 +229,12 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
             fileKey,
             nodeId,
             nodeName,
-            width: item.width,
+            ...(preserveSize ? {} : { width: item.width }),
             dataUrl,
             format,
             scale,
             platform,
+            preserveSize,
           }),
         });
 
@@ -283,6 +285,8 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
+    // Selection state
+    isAnyImageSelected,
     // Replace / Adopt
     replaceSelectedWidget,
   };

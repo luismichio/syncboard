@@ -39,6 +39,9 @@ export default function MiroPluginPage() {
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
+    // Selection state
+    isAnyImageSelected,
+    // Replace / Adopt
     replaceSelectedWidget,
   } = useMiroPlugin(propagate, preserveSize);
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
@@ -608,13 +611,27 @@ export default function MiroPluginPage() {
                         >
                           {isSyncing ? 'PLACING...' : 'PLACE ON CANVAS'}
                         </button>
+                        {/* Preserve widget size — shown in Import tab when an image is selected */}
+                        {isAnyImageSelected && (
+                          <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={preserveSize}
+                              onChange={e => setPreserveSize(e.target.checked)}
+                              className="accent-accent w-3 h-3"
+                            />
+                            <span className="text-[10px] text-text-muted font-mono">
+                              Preserve widget size
+                            </span>
+                          </label>
+                        )}
                         <button
                           onClick={() => {
                             if (figmaNodeInfo) {
                               replaceSelectedWidget('figma', figmaNodeInfo.fileKey, figmaNodeInfo.nodeId, figmaNodeInfo.name, importFormat, importScale);
                             }
                           }}
-                          disabled={isSyncing || !figmaNodeInfo}
+                          disabled={isSyncing || !figmaNodeInfo || !isAnyImageSelected}
                           className="w-full mt-2 font-mono font-bold text-xs py-2 rounded border border-accent text-accent bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           REPLACE SELECTED
@@ -717,13 +734,27 @@ export default function MiroPluginPage() {
                     >
                       {isSyncing ? 'PLACING...' : 'PLACE ON CANVAS'}
                     </button>
+                    {/* Preserve widget size — shown in Import tab when an image is selected */}
+                    {isAnyImageSelected && (
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={preserveSize}
+                          onChange={e => setPreserveSize(e.target.checked)}
+                          className="accent-accent w-3 h-3"
+                        />
+                        <span className="text-[10px] text-text-muted font-mono">
+                          Preserve widget size
+                        </span>
+                      </label>
+                    )}
                     <button
                       onClick={() => {
                         if (penpotNodeInfo) {
                           replaceSelectedWidget('penpot', penpotNodeInfo.fileId, penpotNodeInfo.objectId, penpotNodeInfo.name, importFormat, importScale);
                         }
                       }}
-                      disabled={isSyncing || !penpotNodeInfo}
+                      disabled={isSyncing || !penpotNodeInfo || !isAnyImageSelected}
                       className="w-full mt-2 font-mono font-bold text-xs py-2 rounded border border-accent text-accent bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       REPLACE SELECTED
