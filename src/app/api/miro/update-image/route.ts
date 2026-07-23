@@ -34,7 +34,6 @@ async function handler(request: Request) {
     // geometry + style and include them in the image PATCH data field so Miro
     // applies them atomically with the upload — no race conditions possible.
     let originalGeometry: { width: number; height: number } | null = null;
-    let originalStyle: Record<string, unknown> | null = null;
 
     if (preserveSize) {
       try {
@@ -51,10 +50,7 @@ async function handler(request: Request) {
               height: itemData.geometry.height ? Math.round(itemData.geometry.height) : Math.round(itemData.geometry.width),
             };
           }
-          // Capture full style object so crop, borders, fill, etc. survive
-          if (itemData.style) {
-            originalStyle = { ...itemData.style };
-          }
+    
         }
       } catch (err) {
         console.warn('Failed to snapshot widget geometry before image update:', err);
