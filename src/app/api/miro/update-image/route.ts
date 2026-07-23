@@ -136,14 +136,15 @@ async function handler(request: Request) {
 
     const imageData: Record<string, unknown> = { title: titleTag };
     if (preserveSize && originalGeometry) {
-      imageData.geometry = originalGeometry;
-      // Merge original style with fit: 'contain' so crop, borders, fill survive
-      imageData.style = {
-        ...(originalStyle ?? {}),
-        fit: 'contain',
-      };
+      // Miro's image PATCH only accepts geometry.width for images;
+      // height is auto-calculated from aspect ratio. Sending height
+      // causes 400 'Invalid parameters'.
+      imageData.geometry = { width: originalGeometry.width };
+      // Send only style.fit (not the full captured style) to avoid
+      // conflicts with Miro's resource processing. Crop is preserved
+      // because we only set fit, leaving all other style fields untouched.
+      imageData.style = { fit: 'contain' };
     }
-    imageForm.append('data', JSON.stringify(imageData));
 
     const imageUrl_ = `https://api.miro.com/v2/boards/${boardId}/images/${itemId}`;
     const imageRes = await fetch(imageUrl_, {
