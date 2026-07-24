@@ -474,12 +474,12 @@ export default function MiroPluginPage() {
                     </label>
                   )}
                   {getGroupedItems().length > 3 && (
-                    <div className="flex items-start gap-2 p-2.5 mt-2 rounded-md bg-orange-900/25 border border-orange-600/40">
-                      <svg className="w-4 h-4 shrink-0 mt-0.5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <div className="flex items-start gap-2 p-2.5 mt-2 rounded-md bg-amber-500/10 border border-amber-500/30">
+                      <svg className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                       </svg>
-                      <span className="text-[10px] text-orange-300 font-mono leading-relaxed">
-                        Limit of 3 items. Deselect some or only the first 3 will be synced.
+                      <span className="text-[11px] text-amber-300/90 font-mono leading-relaxed">
+                        Only 3 items can be synced at once. Deselect some to continue.
                       </span>
                     </div>
                   )}
