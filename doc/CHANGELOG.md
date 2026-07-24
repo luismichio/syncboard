@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.12.0] - 2026-08-05
+
+### Added
+- **Proactive Token Keep-Alive (Miro Plugin):** New 25-minute background interval in `useAuthTokens.ts` silently refreshes both Figma and Miro tokens before they reach the 5-minute expiry buffer. Prevents the "token expired mid-session" cascade that forced users to reconnect.
+- **Figma Token Validation on Startup:** After loading tokens, the plugin now calls `GET /api/figma/verify` (lightweight `/v1/me` check) to detect server-side revocation. If the token is invalid, the UI state clears immediately (gray icon) instead of staying green until the first sync failure.
+- **New `/api/figma/verify` Endpoint:** Proxies a call to Figma's `/v1/me` endpoint with 5s timeout. Returns `{ valid: true }` on success, 401 on invalid/expired token.
+
+### Changed
+- **Token Refresh Timeout:** `REFRESH_TIMEOUT_MS` in `src/lib/tokens.ts` increased from 7s to 15s, and `PROVIDER_TIMEOUT_MS` in the refresh API route increased from 8s to 15s. Provides sufficient runway for Vercel cold starts (~3-5s) plus OAuth provider latency without timing out.
+- **Headless SDK Wait:** Miro SDK detection timeout in `useMiroSelection.ts` increased from 8s to 20s for headless (app icon) mode, with up to 3 retries at 5s intervals. Panel mode uses the original 8s timeout with a single attempt. Mirrors the same retry pattern already proven in `useAuthTokens`.
+
+### Fixed
+- **Connection Stability Cascade:** The combination of longer timeouts, proactive keep-alive, and startup validation addresses the interconnected failure chain documented in v0.11.0 investigation:
+  - Token refresh no longer races against cold-start serverless execution (15s > 10s Vercel max on cold boot).
+  - Background keep-alive keeps Vercel instances warm for sync-initiated refreshes.
+  - Startup validation catches server-side revoked tokens without waiting for a user action.
+
 ## [0.11.0] - 2026-07-24
 
 ### Added

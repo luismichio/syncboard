@@ -15,6 +15,7 @@ const MIRO_BOOT_WAIT_MS = 8000;
 const MIRO_BOOT_POLL_MS = 50;
 const BOOT_RETRY_DELAY_MS = 5000;
 const MAX_BOOT_RETRIES = 3;
+const KEEPALIVE_INTERVAL_MS = 25 * 60 * 1000;
 
 function generateSecureState(prefix: string): string {
   try {
@@ -127,6 +128,22 @@ export function useAuthTokens(isInitMode: boolean | null) {
         if (!active) return;
         setFigmaToken(fToken);
         setMiroToken(mToken);
+
+        // Startup Figma token validation: if we have a token, verify it's
+        // actually accepted by Figma's API (catches server-side revocation).
+        // Silently clears the UI state on failure — stored token is preserved
+        // for retry on next page load (Issue 4 safety).
+        if (fToken) {
+          fetch('/api/figma/verify', {
+            headers: { Authorization: `Bearer ${fToken}` },
+          }).then(res => {
+            if (!res.ok && active) {
+              setFigmaToken(null);
+            }
+          }).catch(() => {
+            // Network error — ignore, token might still be valid
+          });
+        }
       } catch (err) {
         console.error('Failed to load credentials:', err);
       } finally {
@@ -171,6 +188,16 @@ export function useAuthTokens(isInitMode: boolean | null) {
 
   useEffect(() => {
     if (isInitMode !== false) return;
+
+    // Proactive keep-alive: silently refresh tokens every 25 minutes
+    // so they never hit the 5-minute expiry buffer unexpectedly.
+    // This keeps Vercel instances warm and avoids 7s timeout races.
+    const keepAliveId = setInterval(async () => {
+      const freshFigma = await getValidToken('figma');
+      const freshMiro = await getValidToken('miro');
+      if (freshFigma !== null) setFigmaToken(freshFigma);
+      if (freshMiro !== null) setMiroToken(freshMiro);
+    }, KEEPALIVE_INTERVAL_MS);
 
     const syncChannel = new BroadcastChannel('figma_miro_sync');
     const oauthChannel = new BroadcastChannel('oauth_callback');
@@ -246,6 +273,7 @@ export function useAuthTokens(isInitMode: boolean | null) {
     window.addEventListener('message', handlePopupMessage);
 
     return () => {
+      clearInterval(keepAliveId);
       syncChannel.close();
       oauthChannel.close();
       window.removeEventListener('message', handlePopupMessage);

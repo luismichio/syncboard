@@ -833,32 +833,17 @@ export default function MiroPluginPage() {
                   )}
                 </div>
 
-                {/* SyncBridge Status Card */}
-                <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
+                {/* SyncBridge — greyd out, not fully implemented */}
+                <div className="p-3 rounded-lg bg-bg-card/50 border border-border-card/50 flex justify-between items-center opacity-50 select-none">
                   <div>
                     <div className="text-xs font-semibold text-text-page">SyncBridge</div>
                     <div className="text-[10px] text-text-muted">
-                      {useTauri ? 'Local HTTPS loopback active' : 'Disabled (Penpot cloud relay mode)'}
+                      Local desktop bridge — coming soon
                     </div>
                   </div>
-                  {useTauri ? (
-                    <div className="flex items-center gap-3">
-                      <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                      <button
-                        onClick={() => handleTauriToggle(false)}
-                        className="text-[9px] font-mono font-bold tracking-wider text-text-muted hover:text-accent uppercase underline bg-transparent cursor-pointer"
-                      >
-                        Disconnect
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleTauriToggle(true)}
-                      className="text-[10px] font-mono tracking-wider font-semibold border border-accent text-accent rounded px-2.5 py-1 bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer"
-                    >
-                      CONNECT
-                    </button>
-                  )}
+                  <span className="text-[8px] font-mono uppercase tracking-wider text-text-muted/50">
+                    Future
+                  </span>
                 </div>
 
                 {/* Sync Pairing ID Card */}
@@ -913,6 +898,21 @@ export default function MiroPluginPage() {
                   <ThemeToggle />
                 </div>
               </div>
+            </div>
+            {/* Documentation Link */}
+            <div className="mt-6 pt-4 border-t border-border-card">
+              <a
+                href="https://syncboard.luiskobayashi.com/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-text-muted hover:text-accent transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                Documentation
+              </a>
             </div>
           </div>
         )}

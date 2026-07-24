@@ -37,8 +37,13 @@ export function useMiroSelection(isInitMode: boolean | null) {
       if (timeout) { clearTimeout(timeout); timeout = null; }
     };
 
+    const HEADLESS_SDK_TIMEOUT_MS = 20000;
+    const HEADLESS_RETRY_DELAY_MS = 5000;
+    const MAX_HEADLESS_RETRIES = 3;
+
     const initMiro = async () => {
-      const waitForMiro = (): Promise<{ board: MiroBoard } | null> => {
+      const waitForMiro = (timeoutMs: number): Promise<{ board: MiroBoard } | null> => {
+        clearBootTimers();
         return new Promise((resolve) => {
           if (window.miro?.board) {
             resolve({ board: window.miro.board });
@@ -52,14 +57,31 @@ export function useMiroSelection(isInitMode: boolean | null) {
           }, 50);
           timeout = setTimeout(() => {
             clearBootTimers();
-            console.warn('[MiroSelection] Miro SDK did not load within 8s — giving up');
             resolve(null);
-          }, 8000);
+          }, timeoutMs);
         });
       };
 
-      const miro = await waitForMiro();
-      if (!miro) return; // Miro SDK unavailable — component cannot function
+      // Retry loop: the Miro SDK may take multiple seconds to inject
+      // window.miro after the iframe loads (cold start, slow board).
+      // Headless mode gets a longer timeout and retries.
+      let miro: { board: MiroBoard } | null = null;
+      const effectiveTimeout = isInitMode === true ? HEADLESS_SDK_TIMEOUT_MS : 8000;
+      const maxAttempts = isInitMode === true ? MAX_HEADLESS_RETRIES : 1;
+
+      for (let attempt = 0; attempt <= maxAttempts; attempt++) {
+        if (!active) return;
+        miro = await waitForMiro(effectiveTimeout);
+        if (miro) break;
+        if (attempt < maxAttempts) {
+          await new Promise(r => { const t = setTimeout(r, HEADLESS_RETRY_DELAY_MS); if (!active) clearTimeout(t); });
+        }
+      }
+
+      if (!miro) {
+        console.warn('[MiroSelection] Miro SDK did not load after retries — giving up');
+        return;
+      }
       savedMiro = miro;
 
       if (!active) return;

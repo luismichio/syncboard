@@ -34,7 +34,7 @@ const STORAGE_KEYS = {
 };
 
 const MIRO_STORAGE_TIMEOUT_MS = 1500;
-const REFRESH_TIMEOUT_MS = 7000;
+const REFRESH_TIMEOUT_MS = 15000;
 
 type MiroStorageApi = {
   get: (key: string) => Promise<string | undefined>;
