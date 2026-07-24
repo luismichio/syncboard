@@ -143,17 +143,47 @@ Unlike Figma, Penpot does **not** provide a public REST API that can render desi
 * **Hybrid Image Storage (Single-Read Redis):** Heavy PNG/SVG renders are posted to `/api/relay/penpot/result` (stored in Redis with a 45s TTL) and a tiny `'result-ready'` notification event is published over Ably. The Miro plugin receives the WebSocket event and reads/deletes the image with a single `GET /api/relay/response` call (3 Redis commands total per export: 1 SET, 1 GET, 1 DEL).
 * **Flow & Scale:** All communication travels over public WebSockets and HTTPS --- zero polling loops required. Each active pairing consumes 2–3 connections (Miro sidebar + Figma/Penpot companion), comfortably supporting up to ~100 simultaneous users on Ably's Free Tier (200 connections max).
 
-#### Penpot Export Performance
+#### Penpot Export Freeze — Root Cause
 
-Penpot's `penpot.export()` runs on the **main thread of the browser tab** and blocks UI interaction while rendering. Export speed varies significantly depending on context:
+Penpot's `penpot.export()` blocks the browser's main thread for the entire duration of the render. This is **not** a SyncBoard limitation — it is inherent to Penpot's WASM renderer architecture.
 
-| Context | Speed | Reason |
-|---------|-------|--------|
-| **Shape actively selected** | Fastest (&lt;1s) | Penpot keeps the selected shape in a hot render state |
-| **Shape on current page** | Fast (&lt;1-5s) | Page is already laid out and rendered in the viewport |
-| **Shape on another page** | Slowest (10-60s+) | Penpot must render the shape off-screen; the cross-page search (`findShapeById` step 4) finds it, but the export itself is CPU-bound |
+**How rendering works internally** (from Penpot source, `app.render-wasm.api`):
 
-No caching is performed — every sync calls `penpot.export()` unconditionally to guarantee freshness. The companion plugin console logs the export path (`shapeFromPage.export()` vs `penpot.export` fallback) for debugging.
+All shape rendering goes through a synchronous WebAssembly call:
+```clojure
+;; app/render_wasm/api.cljs
+(defn render-shape-pixels [shape-id scale]
+  (h/call wasm/internal-module "_render_shape_pixels"
+          (uuid/get-u32 shape-id) scale)
+  ...)
+```
+
+The WASM module (`_render_shape_pixels`) keeps only the **current page's shape tree** loaded in its linear memory. When asked to render a shape from a **different page**, it must synchronously load and deserialize that entire page's data into WASM heap before it can render — all on the main thread. This is the freeze.
+
+**Export path depends on format:**
+
+| Format | Render Path | Behavior |
+|--------|------------|----------|
+| **PNG** | `wasm.api/render-shape-pixels` (local WASM) | Synchronous, blocks main thread. Fast for current page, 10-60s for other pages (WASM loads page data first) |
+| **SVG** | Server RPC (`rp/cmd! :export`) | Goes through Penpot server. Includes persistence flush + server round-trip. Slower than WASM path |
+
+**Why `copy-as-image` feels faster:** Penpot's built-in "Copy as Image" uses the **exact same** `wasm.api/render-shape-pixels` function. The only reason it feels faster is that it's only accessible on shapes visible on the current page (you must right-click the shape) — where WASM already has the data loaded. It would freeze identically for shapes on other pages, but there is no UI to trigger it for off-page shapes.
+
+**Plugin limitations (no workaround available):**
+- `penpot.currentPage` is **read-only** in the plugin API (`app.plugins.api.cljs` line 102-105) — the companion plugin cannot navigate to a different page to preload its data into WASM.
+- There is no API to preload a page's shape tree into the WASM renderer.
+- `penpot.export()` is the only rendering API exposed to plugins.
+- The freeze is unavoidable for shapes not on the currently active Penpot page.
+
+**Performance summary:**
+
+| Context | Export time | Why |
+|---------|------------|------|
+| **Shape selected on current page** | &lt;1s | Shape data already in WASM linear memory; hot render state |
+| **Shape on current page, not selected** | ~1-5s | Page data in WASM; shape needs locating and rasterizing |
+| **Shape on another page (PNG)** | 10-60s+ | WASM must load entire other page's shape tree synchronously, then render |
+| **Shape on another page (SVG)** | 10-60s+ | Server RPC path (persistence flush + render round-trip) |
+| **Re-sync within same session** | Same as first sync | No caching — `penpot.export()` always re-renders from scratch to guarantee freshness |
 
 ### D. Operational Limits Summary
 
