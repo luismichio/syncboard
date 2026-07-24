@@ -82,24 +82,26 @@ async function findShapeById(shapeId) {
   // 4. Cross-page fallback — search all pages in the current file.
   // The shape may be on a different page than the one currently open.
   const allPages = penpot.pages || (penpot.currentFile && penpot.currentFile.pages);
+  console.log('[SyncBoard] cross-page search, penpot.pages:', typeof allPages, allPages ? `length=${allPages.length}` : 'null');
   if (allPages && Array.isArray(allPages)) {
     for (const page of allPages) {
       if (page === penpot.currentPage) continue;
       if (page.root) {
         const found = search(page.root);
-        if (found) return found;
+        if (found) { console.log('[SyncBoard] found via cross-page root search'); return found; }
       }
       if (page.children) {
         for (const child of page.children) {
           const found = search(child);
-          if (found) return found;
+          if (found) { console.log('[SyncBoard] found via cross-page children search'); return found; }
         }
       }
       const found = search(page);
-      if (found) return found;
+      if (found) { console.log('[SyncBoard] found via cross-page page search'); return found; }
     }
   }
 
+  console.log('[SyncBoard] findShapeById returning null — shape not found on any page');
   return null;
 }
 
@@ -107,14 +109,17 @@ async function exportShapeBuffer(shapeId, format, scale) {
   const shapeFromPage = await findShapeById(shapeId);
 
   if (shapeFromPage && typeof shapeFromPage.export === 'function') {
+    console.log('[SyncBoard] exporting via shapeFromPage.export()');
     return shapeFromPage.export({ type: format, scale });
   }
 
   if (shapeFromPage && typeof shapeFromPage.exportShape === 'function') {
+    console.log('[SyncBoard] exporting via shapeFromPage.exportShape()');
     return shapeFromPage.exportShape({ format, scale });
   }
 
   if (typeof penpot.export === 'function') {
+    console.log('[SyncBoard] exporting via penpot.export(shapeId) fallback');
     return penpot.export(shapeId, { format, scale });
   }
 
