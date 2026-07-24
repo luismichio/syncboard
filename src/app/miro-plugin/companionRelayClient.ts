@@ -241,7 +241,7 @@ export async function callPenpotMcpTool(
       shapeId,
       format,
       scale,
-      timeoutMs: 18_000,
+      timeoutMs: 30_000,
     });
 
     const payload = data as { svg?: string; base64?: string; name?: string; width?: number; height?: number } | null;

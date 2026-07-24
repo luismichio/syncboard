@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 - **"Place on Canvas" & "Replace Selected" Status Feedback:** Both features now properly use the color-coded status bar. Success messages have `✓` prefix (green success), and progress messages are shown during the render/export phase before the image is placed or replaced. Figma and Penpot import flows both report "Rendering Figma frame..." / "Exporting Penpot frame..." while the server generates the image.
 - **Penpot Cross-Page Shape Search:** `findShapeById` in `public/penpot-companion-plugin.js` now falls back to searching all pages (`penpot.pages`) when a shape is not found on the current page. Previously, syncing a Penpot image only worked if the original frame was on the page currently open in Penpot — shapes on other pages caused a hard sync failure. Also fixed a latent bug where `findShapeById` was called without `await` in the export-shape handler.
+- **Penpot Export Timeout:** Increased relay timeout for `export_shape` from 18s to 30s in `companionRelayClient.ts`. Complex Penpot shapes can take 15-20s to export, and the tight 18s window left no margin for network jitter.
 
 ### Added
 - **Proactive Token Keep-Alive (Miro Plugin):** New 25-minute background interval in `useAuthTokens.ts` silently refreshes both Figma and Miro tokens before they reach the 5-minute expiry buffer. Prevents the "token expired mid-session" cascade that forced users to reconnect.
