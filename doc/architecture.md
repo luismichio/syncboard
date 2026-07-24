@@ -149,8 +149,8 @@ Penpot's `penpot.export()` runs on the **main thread of the browser tab** and bl
 
 | Context | Speed | Reason |
 |---------|-------|--------|
-| **Shape actively selected** | Fastest (<1s) | Penpot keeps the selected shape in a hot render state |
-| **Shape on current page** | Fast (~1-5s) | Page is already laid out and rendered in the viewport |
+| **Shape actively selected** | Fastest (&lt;1s) | Penpot keeps the selected shape in a hot render state |
+| **Shape on current page** | Fast (&lt;1-5s) | Page is already laid out and rendered in the viewport |
 | **Shape on another page** | Slowest (10-60s+) | Penpot must render the shape off-screen; the cross-page search (`findShapeById` step 4) finds it, but the export itself is CPU-bound |
 
 A **session-level in-memory render cache** is maintained in the companion plugin (`renderCache`). Re-syncing the same shape (`shapeId|format|scale`) within the same Penpot tab session returns the cached buffer instantly, avoiding the freeze on repeated syncs. The cache is lost when the Penpot tab is reloaded.
