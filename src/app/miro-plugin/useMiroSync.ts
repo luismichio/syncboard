@@ -29,7 +29,7 @@ export function useMiroSync(
   selectedItems: SyncedImage[],
   isSyncing: boolean,
   setIsSyncing: (val: boolean) => void,
-  setSyncStatus: (val: string) => void,
+  setSyncStatus: (val: string, type?: 'success' | 'error' | 'progress' | 'info') => void,
   propagate: boolean = false,
   preserveSize: boolean = false
 ) {
@@ -53,6 +53,8 @@ export function useMiroSync(
     trackEvent('sync_start', `items:${selectedItems.length}`);
     setIsSyncing(true);
     try {
+      setSyncStatus('Preparing items for sync...', 'progress');
+
       const boardInfo = await miro.board.getInfo();
       const boardId = boardInfo.id;
 

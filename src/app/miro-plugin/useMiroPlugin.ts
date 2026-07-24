@@ -17,6 +17,13 @@ function trackEvent(action: string, label?: string, value?: number) {
   }
 }
 
+export type SyncStatusType = 'success' | 'error' | 'progress' | 'info';
+
+export interface SyncStatus {
+  message: string;
+  type: SyncStatusType;
+}
+
 /**
  * Main coordinator hook for the Miro sidebar panel app.
  * Integrates single-responsibility sub-hooks (Figma & Penpot) to provide a unified API.
@@ -36,7 +43,23 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
   }, []);
 
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [syncStatus, setSyncStatus] = useState<string>('');
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+
+  // Backward-compatible wrapper: accepts (string) for old-style calls
+  // with type inferred from content, or (message, type) for explicit typing.
+  const updateSyncStatus = (message: string, type?: SyncStatusType) => {
+    if (type) {
+      setSyncStatus({ message, type });
+    } else {
+      // Infer type from message content
+      const inferred: SyncStatusType =
+        message.startsWith('✓') ? 'success' :
+        message.startsWith('✗') || message.toLowerCase().includes('fail') ? 'error' :
+        message.startsWith('Updating') || message.includes('...') ? 'progress' :
+        'info';
+      setSyncStatus({ message, type: inferred });
+    }
+  };
 
   // 1. Auth Hook
   const {
@@ -64,7 +87,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
     parseFigmaLink,
     detectLocalFigmaSelection,
     importFigmaScreen,
-  } = useFigmaImporter(figmaToken, miroToken, setIsSyncing, setSyncStatus);
+  } = useFigmaImporter(figmaToken, miroToken, setIsSyncing, updateSyncStatus);
 
   // 4. Penpot Importer Hook
   const {
@@ -74,7 +97,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
     parsePenpotLink,
     detectLocalPenpotSelection,
     importPenpotScreen,
-  } = usePenpotImporter(miroToken, setIsSyncing, setSyncStatus);
+  } = usePenpotImporter(miroToken, setIsSyncing, updateSyncStatus);
 
   // 5. Board Sync Hook
   const {
@@ -87,7 +110,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
     selectedItems,
     isSyncing,
     setIsSyncing,
-    setSyncStatus,
+    updateSyncStatus,
     propagate,
     preserveSize
   );
@@ -114,12 +137,13 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
     if (!miro) return;
 
     setIsSyncing(true);
+
     try {
       const selection = await miro.board.getSelection();
       const images = selection.filter((w): w is typeof w & { type: 'image' } => w.type === 'image');
 
       if (images.length === 0) {
-        setSyncStatus('No image widgets selected. Select at least one image on the board.');
+        updateSyncStatus('No image widgets selected. Select at least one image on the board.', 'error');
         setIsSyncing(false);
         return;
       }
@@ -144,6 +168,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
           scale,
           platform,
         };
+
         // Preserve natural width if it exists (from a previous Penpot import)
         if (existingSync?.width && typeof existingSync.width === 'number') {
           syncMeta.width = existingSync.width;
@@ -161,8 +186,9 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
       // Now sync each adopted widget with the new image content
       const boardInfo = await miro.board.getInfo();
       const freshMiroToken = miroToken || await getValidToken('miro');
+
       if (!freshMiroToken) {
-        setSyncStatus('Miro token unavailable. Please reconnect Miro.');
+        updateSyncStatus('Miro token unavailable. Please reconnect Miro.', 'error');
         setIsSyncing(false);
         return;
       }
@@ -174,6 +200,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
         if (!figmaToken) {
           throw new Error('Figma token missing. Please connect Figma in Settings.');
         }
+
         const batchRes = await fetch('/api/figma/render-batch', {
           method: 'POST',
           headers: {
@@ -182,10 +209,12 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
           },
           body: JSON.stringify({ fileKey, nodeIds: [nodeId], format, scale }),
         });
+
         if (!batchRes.ok) {
           const errData = await batchRes.json().catch(() => ({})) as { error?: string };
           throw new Error(errData.error || `Figma render failed (HTTP ${batchRes.status})`);
         }
+
         const { images } = await batchRes.json() as { images: Record<string, string | null> };
         dataUrl = images[nodeId];
       } else {
@@ -196,6 +225,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
           format,
           scale,
         });
+
         if (mcpResponse.content?.[0]) {
           const content = mcpResponse.content[0];
           if (format === 'svg' && content.text) {
@@ -213,9 +243,8 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
 
       for (let i = 0; i < adoptedItems.length; i++) {
         const item = adoptedItems[i];
-        setSyncStatus(`Replacing widget ${i + 1}/${adoptedItems.length}...`);
-
         if (i > 0) await new Promise(r => setTimeout(r, 500));
+        updateSyncStatus(`Replacing widget ${i + 1}/${adoptedItems.length}...`, 'progress');
 
         const response = await fetch('/api/miro/update-image', {
           method: 'POST',
@@ -244,11 +273,11 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
         }
       }
 
-      setSyncStatus(`✓ Replaced ${adoptedItems.length} widget(s) successfully!`);
+      updateSyncStatus(`✓ Replaced ${adoptedItems.length} widget(s) successfully!`, 'success');
       trackEvent('sync_complete', `replace:${adoptedItems.length}`, adoptedItems.length);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      setSyncStatus(`Replace failed: ${errMsg}`);
+      updateSyncStatus(`Replace failed: ${errMsg}`, 'error');
       trackEvent('sync_error', errMsg);
     } finally {
       setIsSyncing(false);

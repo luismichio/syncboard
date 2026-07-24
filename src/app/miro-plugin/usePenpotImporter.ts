@@ -16,7 +16,7 @@ export interface PenpotNodeInfo {
 export function usePenpotImporter(
   miroToken: string | null,
   setIsSyncingParent: (val: boolean) => void,
-  setSyncStatusParent: (val: string) => void
+  setSyncStatusParent: (val: string, type?: 'success' | 'error' | 'progress' | 'info') => void
 ) {
   const [penpotInput, setPenpotInput] = useState<string>('');
   const [penpotNodeInfo, setPenpotNodeInfo] = useState<PenpotNodeInfo | null>(null);

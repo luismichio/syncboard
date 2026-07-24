@@ -16,7 +16,7 @@ export function useFigmaImporter(
   figmaToken: string | null,
   miroToken: string | null,
   setIsSyncingParent: (val: boolean) => void,
-  setSyncStatusParent: (val: string) => void
+  setSyncStatusParent: (val: string, type?: 'success' | 'error' | 'progress' | 'info') => void
 ) {
   const [figmaInput, setFigmaInput] = useState<string>('');
   const [figmaNodeInfo, setFigmaNodeInfo] = useState<FigmaNodeInfo | null>(null);
