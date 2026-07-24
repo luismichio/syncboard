@@ -282,10 +282,10 @@ export default function MiroPluginPage() {
     <div className="flex flex-col min-h-screen p-5 bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page transition-colors duration-200">
       {/* App Header */}
       <header className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* SyncBoard Logo */}
+        <div className="flex items-start gap-2.5">
+          {/* SyncBoard Logo — aligned with first line of text */}
           <div
-            className="w-6 h-6 bg-accent"
+            className="w-6 h-6 mt-0.5 bg-accent shrink-0"
             style={{
               maskImage: 'url(/syncboard_logo.svg)',
               WebkitMaskImage: 'url(/syncboard_logo.svg)',
@@ -297,7 +297,6 @@ export default function MiroPluginPage() {
           <div>
             <h2 className="text-xl font-bold tracking-tight text-accent leading-none">SyncBoard</h2>
             <p className="text-[10px] text-text-muted mt-0.5">Stateless Design-Miro Pipeline</p>
-            <span className="text-[8px] font-mono text-text-muted/50">{DISPLAY}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -313,10 +312,10 @@ export default function MiroPluginPage() {
               maskPosition: 'center',
             }}
           />
-          {/* Miro Status Indicator */}
+          {/* Miro Status Indicator — 4px larger for legibility */}
           <div
             title={tokensLoading ? 'Connecting...' : miroToken ? 'Miro Connected' : 'Miro Disconnected'}
-            className={`w-4 h-4 transition duration-200 ${tokensLoading ? 'bg-yellow-500/50' : miroToken ? 'bg-accent' : 'bg-text-muted/30'}`}
+            className={`w-[18px] h-[18px] transition duration-200 ${tokensLoading ? 'bg-yellow-500/50' : miroToken ? 'bg-accent' : 'bg-text-muted/30'}`}
             style={{
               maskImage: 'url(/Miro.svg)',
               WebkitMaskImage: 'url(/Miro.svg)',
@@ -918,6 +917,11 @@ export default function MiroPluginPage() {
           </div>
         )}
       </section>
+
+      {/* Version & Tier — centered above status */}
+      <footer className="mt-4 pt-3 border-t border-border-card">
+        <p className="text-center text-[9px] font-mono text-text-muted/50">{DISPLAY}</p>
+      </footer>
 
       {/* Logger Board Status — color-coded with auto-clear */}
       <BoardStatusFooter status={syncStatus} />

@@ -24,6 +24,7 @@ const PLAN = pkg.plan || "community";
 const PLAN_DISPLAY = PLAN.charAt(0).toUpperCase() + PLAN.slice(1);
 
 const files = [
+  "public/figma-companion-ui.html",
   "public/penpot-companion-ui.html",
   "tauri-bridge/index.html",
   "tauri-bridge/dist/index.html",
