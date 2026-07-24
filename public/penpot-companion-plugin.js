@@ -76,7 +76,31 @@ async function findShapeById(shapeId) {
     }
   }
 
-  return search(penpot.currentPage);
+  const foundHere = search(penpot.currentPage);
+  if (foundHere) return foundHere;
+
+  // 4. Cross-page fallback — search all pages in the current file.
+  // The shape may be on a different page than the one currently open.
+  const allPages = penpot.pages || (penpot.currentFile && penpot.currentFile.pages);
+  if (allPages && Array.isArray(allPages)) {
+    for (const page of allPages) {
+      if (page === penpot.currentPage) continue;
+      if (page.root) {
+        const found = search(page.root);
+        if (found) return found;
+      }
+      if (page.children) {
+        for (const child of page.children) {
+          const found = search(child);
+          if (found) return found;
+        }
+      }
+      const found = search(page);
+      if (found) return found;
+    }
+  }
+
+  return null;
 }
 
 async function exportShapeBuffer(shapeId, format, scale) {
@@ -147,7 +171,7 @@ penpot.ui.onMessage(async (message) => {
       let shapeWidth = 0;
       let shapeHeight = 0;
       try {
-        const shapeFromPage = findShapeById(message.shapeId);
+        const shapeFromPage = await findShapeById(message.shapeId);
         if (shapeFromPage) {
           if (shapeFromPage.name) shapeName = shapeFromPage.name;
           // selrect gives the shape's natural dimensions (before scale multiplication)
