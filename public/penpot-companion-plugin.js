@@ -97,14 +97,15 @@ async function findShapeById(shapeId) {
 async function exportShapeBuffer(shapeId, format, scale) {
   // Preload: if the shape is on a different page, navigate there so WASM
   // has the shape data cached and export is instant (<1s) instead of a
-  // 10-60s main-thread freeze. The user's Penpot view will briefly switch
-  // pages and stay there after the export (we don't navigate back).
-  // This is safe only for sequential exports (not concurrent Promise.all).
+  // 10-60s main-thread freeze. After export, navigate back to the original
+  // page so the user's workspace is not disrupted.
+  let originalPage = null;
   if (typeof penpot.openPage === 'function' && penpot.currentPage) {
+    originalPage = penpot.currentPage;
     const allPages = penpot.pages || (penpot.currentFile && penpot.currentFile.pages);
     if (allPages && Array.isArray(allPages)) {
       for (const page of allPages) {
-        if (page === penpot.currentPage) continue;
+        if (page === originalPage) continue;
         if (typeof page.getShapeById === 'function') {
           const found = page.getShapeById(shapeId);
           if (found) {
@@ -117,24 +118,32 @@ async function exportShapeBuffer(shapeId, format, scale) {
     }
   }
 
-  const shapeFromPage = await findShapeById(shapeId);
+  try {
+    const shapeFromPage = await findShapeById(shapeId);
 
-  if (shapeFromPage && typeof shapeFromPage.export === 'function') {
-    console.log('[SyncBoard] exporting via shapeFromPage.export()');
-    return shapeFromPage.export({ type: format, scale });
+    if (shapeFromPage && typeof shapeFromPage.export === 'function') {
+      console.log('[SyncBoard] exporting via shapeFromPage.export()');
+      return shapeFromPage.export({ type: format, scale });
+    }
+
+    if (shapeFromPage && typeof shapeFromPage.exportShape === 'function') {
+      console.log('[SyncBoard] exporting via shapeFromPage.exportShape()');
+      return shapeFromPage.exportShape({ format, scale });
+    }
+
+    if (typeof penpot.export === 'function') {
+      console.log('[SyncBoard] exporting via penpot.export(shapeId) fallback');
+      return penpot.export(shapeId, { format, scale });
+    }
+
+    throw new Error(`Penpot shape "${shapeId}" export API unavailable. Ensure a valid frame or shape is selected in Penpot.`);
+  } finally {
+    // Always navigate back to the original page, even if export fails.
+    if (originalPage && typeof penpot.openPage === 'function') {
+      console.log('[SyncBoard] navigating back to original page');
+      await penpot.openPage(originalPage).catch(() => {});
+    }
   }
-
-  if (shapeFromPage && typeof shapeFromPage.exportShape === 'function') {
-    console.log('[SyncBoard] exporting via shapeFromPage.exportShape()');
-    return shapeFromPage.exportShape({ format, scale });
-  }
-
-  if (typeof penpot.export === 'function') {
-    console.log('[SyncBoard] exporting via penpot.export(shapeId) fallback');
-    return penpot.export(shapeId, { format, scale });
-  }
-
-  throw new Error(`Penpot shape "${shapeId}" export API unavailable. Ensure a valid frame or shape is selected in Penpot.`);
 }
 
 // Listen to messages from the UI Iframe

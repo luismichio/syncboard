@@ -176,9 +176,9 @@ Penpot's Plugin API exposes `penpot.openPage(page)` (`app.plugins.api.cljs` line
 1. Before export, iterate all pages via `page.getShapeById(shapeId)` to find the shape's page
 2. If it's not the current page, call `await penpot.openPage(targetPage)` — WASM loads that page's shape tree during the 0.2-2s navigation
 3. Export the shape — data is now in WASM memory, takes &lt;1s
-4. The user's Penpot tab stays on the export page (no navigate back), which is acceptable since sync is triggered from Miro
+4. The companion navigates back to the original page via a `finally` block so the user's workspace is restored even if the export fails.
 
-**Trade-off:** The user's Penpot tab briefly switches pages. For batch syncs, the experience is a single page switch at the start — subsequent exports on the same page are instant. The companion plugin does NOT navigate back, so the user's last-exported page remains visible.
+**Trade-off:** The user's Penpot tab briefly switches pages and back (~0.5-2s each way). For batch syncs with items on the same page, each sequential item navigates there and back, adding overhead but keeping the user's workspace intact.
 
 **Plugin limitations:**
 - `penpot.currentPage` is **read-only** in the plugin API (`app.plugins.api.cljs` line 102-105) — cannot read current page ID without the proxy object.
