@@ -201,6 +201,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
           throw new Error('Figma token missing. Please connect Figma in Settings.');
         }
 
+        updateSyncStatus('Rendering Figma frame...', 'progress');
         const batchRes = await fetch('/api/figma/render-batch', {
           method: 'POST',
           headers: {
@@ -219,6 +220,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
         dataUrl = images[nodeId];
       } else {
         // Penpot
+        updateSyncStatus('Exporting Penpot frame...', 'progress');
         const { callPenpotMcpTool } = await import('./companionRelayClient');
         const mcpResponse = await callPenpotMcpTool('export_shape', {
           shapeId: nodeId,

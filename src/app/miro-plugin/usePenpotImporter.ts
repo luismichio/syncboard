@@ -96,6 +96,8 @@ export function usePenpotImporter(
       const x = viewport.x + viewport.width / 2;
       const y = viewport.y + viewport.height / 2;
 
+      setSyncStatusParent('Exporting Penpot frame...', 'progress');
+
       // Fetch shape data from Companion relay
       const mcpResponse = await callPenpotMcpTool('export_shape', {
         shapeId: penpotNodeInfo.objectId,
@@ -210,7 +212,7 @@ export function usePenpotImporter(
         }).catch(() => {});
       }
 
-      setSyncStatusParent('Penpot vector screen placed successfully!');
+      setSyncStatusParent('✓ Penpot vector screen placed successfully!', 'success');
       setIsSyncingParent(false);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);

@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [0.12.0] - 2026-08-05
 
+### Fixed
+- **"Place on Canvas" & "Replace Selected" Status Feedback:** Both features now properly use the color-coded status bar. Success messages have `✓` prefix (green success), and progress messages are shown during the render/export phase before the image is placed or replaced. Figma and Penpot import flows both report "Rendering Figma frame..." / "Exporting Penpot frame..." while the server generates the image.
+
 ### Added
 - **Proactive Token Keep-Alive (Miro Plugin):** New 25-minute background interval in `useAuthTokens.ts` silently refreshes both Figma and Miro tokens before they reach the 5-minute expiry buffer. Prevents the "token expired mid-session" cascade that forced users to reconnect.
 - **Figma Token Validation on Startup:** After loading tokens, the plugin now calls `GET /api/figma/verify` (lightweight `/v1/me` check) to detect server-side revocation. If the token is invalid, the UI state clears immediately (gray icon) instead of staying green until the first sync failure.

@@ -141,6 +141,8 @@ export function useFigmaImporter(
       // Read default scale settings from user's global settings configuration
       const resolvedScale = scale ?? (typeof window !== 'undefined' ? Number(localStorage.getItem('default_png_scale') || '2') : 2);
 
+      setSyncStatusParent('Rendering Figma frame...', 'progress');
+
       // Use the same render-batch endpoint as sync to guarantee identical image data handling
       const batchRes = await fetch('/api/figma/render-batch', {
         method: 'POST',
@@ -213,7 +215,7 @@ export function useFigmaImporter(
           }).catch(() => {});
         }
 
-        setSyncStatusParent('Image placed successfully!');
+        setSyncStatusParent('✓ Image placed successfully!', 'success');
         setIsSyncingParent(false);
       } catch (metaErr: unknown) {
         const metaMsg = metaErr instanceof Error ? metaErr.message : String(metaErr);
