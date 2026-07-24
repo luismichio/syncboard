@@ -95,6 +95,28 @@ async function findShapeById(shapeId) {
 }
 
 async function exportShapeBuffer(shapeId, format, scale) {
+  // Preload: if the shape is on a different page, navigate there so WASM
+  // has the shape data cached and export is instant (<1s) instead of a
+  // 10-60s main-thread freeze. The user's Penpot view will briefly switch
+  // pages and stay there after the export (we don't navigate back).
+  // This is safe only for sequential exports (not concurrent Promise.all).
+  if (typeof penpot.openPage === 'function' && penpot.currentPage) {
+    const allPages = penpot.pages || (penpot.currentFile && penpot.currentFile.pages);
+    if (allPages && Array.isArray(allPages)) {
+      for (const page of allPages) {
+        if (page === penpot.currentPage) continue;
+        if (typeof page.getShapeById === 'function') {
+          const found = page.getShapeById(shapeId);
+          if (found) {
+            console.log('[SyncBoard] navigating to shape page for fast export');
+            await penpot.openPage(page);
+            break;
+          }
+        }
+      }
+    }
+  }
+
   const shapeFromPage = await findShapeById(shapeId);
 
   if (shapeFromPage && typeof shapeFromPage.export === 'function') {

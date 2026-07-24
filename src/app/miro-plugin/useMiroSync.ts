@@ -186,6 +186,14 @@ export function useMiroSync(
         return;
       }
 
+      // Limit batch to 3 items for performance and relability
+      const MAX_BATCH_SIZE = 3;
+      if (itemsToSync.length > MAX_BATCH_SIZE) {
+        const total = itemsToSync.length;
+        itemsToSync = itemsToSync.slice(0, MAX_BATCH_SIZE);
+        setSyncStatus(`Syncing first ${MAX_BATCH_SIZE} of ${total} items.`);
+      }
+
       // renderCache: "fileKey|nodeId|format" -> base64 data URL
       // Format is included in the key to prevent race conditions when copies have different formats
       const renderCache = new Map<string, string>();
@@ -261,51 +269,52 @@ export function useMiroSync(
         }
       }
 
-      // --- Penpot Batch Rendering ---
+      // --- Penpot Batch Rendering (sequential, grouped by page via companion) ---
       if (penpotTargets.length > 0) {
         setSyncStatus(`Requesting ${penpotTargets.length} frame(s) from Penpot Companion relay...`);
-        
-        await Promise.all(
-          penpotTargets.map(async (target) => {
-            const format = target.format || 'svg';
-            try {
-              const mcpResponse = await callPenpotMcpTool('export_shape', {
-                shapeId: target.nodeId,
-                format: format,
-                scale: target.scale || 2,
-              });
 
-              if (mcpResponse.content && mcpResponse.content.length > 0) {
-                const content = mcpResponse.content[0];
-                const cacheKey = `${target.fileKey}|${target.nodeId}`;
-                // Update name from export response if present
-                // Only use the export name if it's meaningful — reject
-                // placeholders that would overwrite the widget's real name.
-                if (content.name && typeof content.name === 'string' &&
-                    content.name !== 'Selected Frame') {
-                  nameCache.set(cacheKey, content.name);
-                }
-                // Include format in render cache key to prevent race conditions
-                // when copies have different formats
-                const renderKey = `${target.fileKey}|${target.nodeId}|${format}|${target.scale || 2}`;
-                if (format === 'svg' && content.text) {
-                  const base64 = btoa(unescape(encodeURIComponent(content.text)));
-                  const dataUrl = `data:image/svg+xml;base64,${base64}`;
-                  renderCache.set(renderKey, dataUrl);
-                } else if (format === 'png' && content.data) {
-                  const dataUrl = `data:image/png;base64,${content.data}`;
-                  renderCache.set(renderKey, dataUrl);
-                }
-              } else {
-                throw new Error('Penpot relay returned an empty payload.');
+        // Sequential per-item — the companion plugin handles page navigation
+        // (openPage) within each export so the WASM cache is hot.
+        for (const target of penpotTargets) {
+          const format = target.format || 'svg';
+          try {
+            setSyncStatus(`Exporting Penpot frame: ${target.nodeName}...`);
+            const mcpResponse = await callPenpotMcpTool('export_shape', {
+              shapeId: target.nodeId,
+              format: format,
+              scale: target.scale || 2,
+            });
+
+            if (mcpResponse.content && mcpResponse.content.length > 0) {
+              const content = mcpResponse.content[0];
+              const cacheKey = `${target.fileKey}|${target.nodeId}`;
+              // Update name from export response if present
+              // Only use the export name if it's meaningful — reject
+              // placeholders that would overwrite the widget's real name.
+              if (content.name && typeof content.name === 'string' &&
+                  content.name !== 'Selected Frame') {
+                nameCache.set(cacheKey, content.name);
               }
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err);
-              console.error(`Penpot export failed for node ${target.nodeId}:`, err);
-              throw new Error(`Penpot sync failed for '${target.nodeName}': ${msg}. Make sure Penpot is open and the Companion Plugin is connected with the same Pairing ID.`);
+              // Include format in render cache key to prevent race conditions
+              // when copies have different formats
+              const renderKey = `${target.fileKey}|${target.nodeId}|${format}|${target.scale || 2}`;
+              if (format === 'svg' && content.text) {
+                const base64 = btoa(unescape(encodeURIComponent(content.text)));
+                const dataUrl = `data:image/svg+xml;base64,${base64}`;
+                renderCache.set(renderKey, dataUrl);
+              } else if (format === 'png' && content.data) {
+                const dataUrl = `data:image/png;base64,${content.data}`;
+                renderCache.set(renderKey, dataUrl);
+              }
+            } else {
+              throw new Error('Penpot relay returned an empty payload.');
             }
-          })
-        );
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`Penpot export failed for node ${target.nodeId}:`, err);
+            throw new Error(`Penpot sync failed for '${target.nodeName}': ${msg}. Make sure Penpot is open and the Companion Plugin is connected with the same Pairing ID.`);
+          }
+        }
       }
 
       // --- STEP 2: Update each board widget using the cached data URLs ---
