@@ -169,11 +169,21 @@ The WASM module (`_render_shape_pixels`) keeps only the **current page's shape t
 
 **Why `copy-as-image` feels faster:** Penpot's built-in "Copy as Image" uses the **exact same** `wasm.api/render-shape-pixels` function. The only reason it feels faster is that it's only accessible on shapes visible on the current page (you must right-click the shape) — where WASM already has the data loaded. It would freeze identically for shapes on other pages, but there is no UI to trigger it for off-page shapes.
 
-**Plugin limitations (no workaround available):**
-- `penpot.currentPage` is **read-only** in the plugin API (`app.plugins.api.cljs` line 102-105) — the companion plugin cannot navigate to a different page to preload its data into WASM.
-- There is no API to preload a page's shape tree into the WASM renderer.
+**Plugin workaround — `penpot.openPage()`:**
+
+Penpot's Plugin API exposes `penpot.openPage(page)` (`app.plugins.api.cljs` line 605), which navigates to a page and returns a Promise that resolves when the page's WASM data has fully loaded (`::dwpg/initialized` event). SyncBoard uses this to work around the freeze:
+
+1. Before export, iterate all pages via `page.getShapeById(shapeId)` to find the shape's page
+2. If it's not the current page, call `await penpot.openPage(targetPage)` — WASM loads that page's shape tree during the 0.2-2s navigation
+3. Export the shape — data is now in WASM memory, takes &lt;1s
+4. The user's Penpot tab stays on the export page (no navigate back), which is acceptable since sync is triggered from Miro
+
+**Trade-off:** The user's Penpot tab briefly switches pages. For batch syncs, the experience is a single page switch at the start — subsequent exports on the same page are instant. The companion plugin does NOT navigate back, so the user's last-exported page remains visible.
+
+**Plugin limitations:**
+- `penpot.currentPage` is **read-only** in the plugin API (`app.plugins.api.cljs` line 102-105) — cannot read current page ID without the proxy object.
+- There is no hidden or background page preload API. The WASM module is single-instance and single-threaded.
 - `penpot.export()` is the only rendering API exposed to plugins.
-- The freeze is unavoidable for shapes not on the currently active Penpot page.
 
 **Performance summary:**
 
@@ -181,8 +191,9 @@ The WASM module (`_render_shape_pixels`) keeps only the **current page's shape t
 |---------|------------|------|
 | **Shape selected on current page** | &lt;1s | Shape data already in WASM linear memory; hot render state |
 | **Shape on current page, not selected** | ~1-5s | Page data in WASM; shape needs locating and rasterizing |
-| **Shape on another page (PNG)** | 10-60s+ | WASM must load entire other page's shape tree synchronously, then render |
-| **Shape on another page (SVG)** | 10-60s+ | Server RPC path (persistence flush + render round-trip) |
+| **Shape on another page (PNG, no workaround)** | 10-60s+ | WASM must load entire other page's shape tree synchronously, then render |
+| **Shape on another page (SVG, no workaround)** | 10-60s+ | Server RPC path (persistence flush + render round-trip) |
+| **Shape on another page (with `openPage` preload)** | ~1-3s | 0.2-2s navigation + &lt;1s WASM export from hot cache |
 | **Re-sync within same session** | Same as first sync | No caching — `penpot.export()` always re-renders from scratch to guarantee freshness |
 
 ### D. Operational Limits Summary

@@ -8,11 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [0.13.0] - 2026-07-24
 
+### Added
+- **Batch limit of 3:** Sync now limits to 3 items per operation. The UI shows a warning banner and disables the Sync button when more than 3 items are selected, preventing silent truncation mid-process.
+- **`penpot.openPage()` preload for cross-page exports:** When exporting a Penpot shape from a different page, the companion plugin navigates to that page before export via `await penpot.openPage(page)`. This preloads the shape data into WASM memory, reducing the export freeze from 10-60s to ~1-3s (navigation flicker instead of main-thread freeze). The companion does not navigate back.
+- **Sequential Penpot batch processing:** Changed from `Promise.all` (concurrent) to `for...of` (sequential) to allow each export to benefit from the previous `openPage` navigation when shapes share the same page.
+- **UI card stack height:** Increased from 300px to 360px so 3 cards fit without scrolling.
+
 ### Changed
 - **Penpot `findShapeById` — Official API:** Replaced the manual recursive tree walk with Penpot's official `page.getShapeById(shapeId)` API (O(1) internal map lookup by UUID) for both current-page and cross-page shape search. The tree walk is kept as a fallback for older Penpot instances. The new path is faster and more robust.
 
 ### Documentation
 - **Penpot Export Freeze Root Cause:** Documented the actual freeze mechanism — Penpot's WASM `_render_shape_pixels` loads other page's shape tree into linear memory synchronously. `penpot.currentPage` is read-only from the plugin API, preventing page preloading. Both WASM (PNG) and server (SVG) paths freeze for off-page shapes.
+- **`penpot.openPage()` workaround:** Documented the `openPage` navigation preload as a mitigation for the freeze (fast page switch instead of frozen UI).
+- **Batch limit rationale:** Batch limited to 3 items due to Miro API rate limits, relay round-trip latency, and WASM page-load overhead per unique page.
 
 ## [0.12.0] - 2026-07-24
 
