@@ -13,8 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Penpot Cross-Page Shape Search:** `findShapeById` in `public/penpot-companion-plugin.js` now falls back to searching all pages (`penpot.pages`) when a shape is not found on the current page. Previously, syncing a Penpot image only worked if the original frame was on the page currently open in Penpot — shapes on other pages caused a hard sync failure. Also fixed a latent bug where `findShapeById` was called without `await` in the export-shape handler.
 - **Penpot Export Timeout:** Increased relay timeout for `export_shape` from 18s to 120s in `companionRelayClient.ts`. Some complex Penpot shapes take up to 66s to export — the previous 30s window was still too tight.
 - **Companion Plugin Logging:** Added `[SyncBoard]` console logs to `findShapeById` and `exportShapeBuffer` to distinguish which search path succeeds (selection, current page, cross-page, or `penpot.export` fallback) and how `penpot.pages` behaves.
-- **Penpot Render Cache (Session-Level):** Added an in-memory `renderCache` Map in the companion plugin. Re-syncing the same shape (`shapeId|format|scale`) within the same Penpot tab session now returns the cached buffer instantly instead of re-exporting, avoiding the 10-60s freeze on repeated syncs.
-- **Documentation:** Added note in `doc/architecture.md` about Penpot export performance characteristics (selection fastest → same page → other page slowest) and the session-level render cache.
+- **Documentation:** Added Penpot export performance characteristics to `doc/architecture.md` (selection fastest → same page → other page slowest). Removed session-level render cache to prevent stale image data on re-sync.
 
 ### Documentation
 

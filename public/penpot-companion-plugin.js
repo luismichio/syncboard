@@ -105,11 +105,6 @@ async function findShapeById(shapeId) {
   return null;
 }
 
-// In-memory render cache: avoids re-exporting the same shape within a session.
-// The companion plugin reloads when Penpot refreshes, so this never goes stale
-// across page reloads. Key format: "shapeId|format|scale".
-const renderCache = new Map();
-
 async function exportShapeBuffer(shapeId, format, scale) {
   const shapeFromPage = await findShapeById(shapeId);
 
@@ -170,20 +165,7 @@ penpot.ui.onMessage(async (message) => {
     try {
       const format = message.format === 'png' ? 'png' : 'svg';
       const scale = typeof message.scale === 'number' && Number.isFinite(message.scale) ? message.scale : 2;
-      const cacheKey = `${message.shapeId}|${format}|${scale}`;
-
-      // Check in-memory cache before attempting a full export.
-      // The companion plugin session persists as long as the Penpot tab is open,
-      // so re-syncing the same shape within a session avoids the 10-60s freeze.
-      let buffer = renderCache.get(cacheKey);
-      if (buffer) {
-        console.log('[SyncBoard] render cache HIT for', cacheKey);
-      } else {
-        console.log('[SyncBoard] render cache MISS for', cacheKey, '— exporting...');
-        buffer = await exportShapeBuffer(message.shapeId, format, scale);
-        renderCache.set(cacheKey, buffer);
-        console.log('[SyncBoard] render cache stored');
-      }
+      const buffer = await exportShapeBuffer(message.shapeId, format, scale);
 
       // Get the shape name and natural dimensions so the Miro plugin can
       // create the widget at the correct display size regardless of scale.
