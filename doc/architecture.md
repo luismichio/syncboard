@@ -143,6 +143,18 @@ Unlike Figma, Penpot does **not** provide a public REST API that can render desi
 * **Hybrid Image Storage (Single-Read Redis):** Heavy PNG/SVG renders are posted to `/api/relay/penpot/result` (stored in Redis with a 45s TTL) and a tiny `'result-ready'` notification event is published over Ably. The Miro plugin receives the WebSocket event and reads/deletes the image with a single `GET /api/relay/response` call (3 Redis commands total per export: 1 SET, 1 GET, 1 DEL).
 * **Flow & Scale:** All communication travels over public WebSockets and HTTPS --- zero polling loops required. Each active pairing consumes 2–3 connections (Miro sidebar + Figma/Penpot companion), comfortably supporting up to ~100 simultaneous users on Ably's Free Tier (200 connections max).
 
+#### Penpot Export Performance
+
+Penpot's `penpot.export()` runs on the **main thread of the browser tab** and blocks UI interaction while rendering. Export speed varies significantly depending on context:
+
+| Context | Speed | Reason |
+|---------|-------|--------|
+| **Shape actively selected** | Fastest (<1s) | Penpot keeps the selected shape in a hot render state |
+| **Shape on current page** | Fast (~1-5s) | Page is already laid out and rendered in the viewport |
+| **Shape on another page** | Slowest (10-60s+) | Penpot must render the shape off-screen; the cross-page search (`findShapeById` step 4) finds it, but the export itself is CPU-bound |
+
+A **session-level in-memory render cache** is maintained in the companion plugin (`renderCache`). Re-syncing the same shape (`shapeId|format|scale`) within the same Penpot tab session returns the cached buffer instantly, avoiding the freeze on repeated syncs. The cache is lost when the Penpot tab is reloaded.
+
 ### D. Operational Limits Summary
 
 | Metric | Limit | Impact |
