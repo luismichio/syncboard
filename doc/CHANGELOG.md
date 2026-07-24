@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.13.0] - 2026-08-06
+
+### Changed
+- **Penpot `findShapeById` — Official API:** Replaced the manual recursive tree walk with Penpot's official `page.getShapeById(shapeId)` API (O(1) internal map lookup by UUID) for both current-page and cross-page shape search. The tree walk is kept as a fallback for older Penpot instances. The new path is faster and more robust.
+
+### Documentation
+- **Penpot Export Freeze Root Cause:** Documented the actual freeze mechanism — Penpot's WASM `_render_shape_pixels` loads other page's shape tree into linear memory synchronously. `penpot.currentPage` is read-only from the plugin API, preventing page preloading. Both WASM (PNG) and server (SVG) paths freeze for off-page shapes.
+
 ## [0.12.0] - 2026-08-05
 
 ### Fixed

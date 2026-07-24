@@ -39,19 +39,29 @@ async function findShapeById(shapeId) {
     // The stored nodeId in SyncBoard metadata is the source of truth.
   }
 
-  // 2. Try native findShape method on current page
-  if (penpot.currentPage && typeof penpot.currentPage.findShape === 'function') {
-    try {
-      const found = await penpot.currentPage.findShape({ id: shapeId });
-      if (found) return found;
-    } catch (e) {
-      // Ignore
+  // 2. Use official getShapeById API on current page (O(1) internal map lookup)
+  //    This is synchronous and much faster than tree walking.
+  if (penpot.currentPage && typeof penpot.currentPage.getShapeById === 'function') {
+    const found = penpot.currentPage.getShapeById(shapeId);
+    if (found) return found;
+  }
+
+  // 3. Cross-page search via official getShapeById API (O(1) per page)
+  const allPages = penpot.pages || (penpot.currentFile && penpot.currentFile.pages);
+  if (allPages && Array.isArray(allPages)) {
+    for (const page of allPages) {
+      if (page === penpot.currentPage) continue;
+      if (typeof page.getShapeById === 'function') {
+        const found = page.getShapeById(shapeId);
+        if (found) {
+          console.log('[SyncBoard] found via cross-page getShapeById');
+          return found;
+        }
+      }
     }
   }
 
-  // 3. Fall back to recursive page tree search
-  if (!penpot.currentPage) return null;
-
+  // 4. Fallback: recursive tree walk (for older Penpot instances without getShapeById)
   function search(node) {
     if (!node) return null;
     if (node.id === shapeId) return node;
@@ -64,40 +74,19 @@ async function findShapeById(shapeId) {
     return null;
   }
 
-  if (penpot.currentPage.root) {
+  if (penpot.currentPage && penpot.currentPage.root) {
     const found = search(penpot.currentPage.root);
     if (found) return found;
   }
 
-  if (penpot.currentPage.children) {
-    for (const child of penpot.currentPage.children) {
-      const found = search(child);
-      if (found) return found;
-    }
-  }
-
-  const foundHere = search(penpot.currentPage);
-  if (foundHere) return foundHere;
-
-  // 4. Cross-page fallback — search all pages in the current file.
-  // The shape may be on a different page than the one currently open.
-  const allPages = penpot.pages || (penpot.currentFile && penpot.currentFile.pages);
-  console.log('[SyncBoard] cross-page search, penpot.pages:', typeof allPages, allPages ? `length=${allPages.length}` : 'null');
   if (allPages && Array.isArray(allPages)) {
     for (const page of allPages) {
-      if (page === penpot.currentPage) continue;
-      if (page.root) {
-        const found = search(page.root);
-        if (found) { console.log('[SyncBoard] found via cross-page root search'); return found; }
+      if (page === penpot.currentPage || !page.root) continue;
+      const found = search(page.root);
+      if (found) {
+        console.log('[SyncBoard] found via fallback cross-page search');
+        return found;
       }
-      if (page.children) {
-        for (const child of page.children) {
-          const found = search(child);
-          if (found) { console.log('[SyncBoard] found via cross-page children search'); return found; }
-        }
-      }
-      const found = search(page);
-      if (found) { console.log('[SyncBoard] found via cross-page page search'); return found; }
     }
   }
 
