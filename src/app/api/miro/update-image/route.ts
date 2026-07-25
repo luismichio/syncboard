@@ -41,7 +41,6 @@ async function handler(request: Request) {
       dataUrl,
       format = 'png',
       scale = 2,
-      platform = 'figma',
       preserveSize = false
     } = await request.json();
 
