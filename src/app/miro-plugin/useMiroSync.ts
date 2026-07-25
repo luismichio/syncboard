@@ -187,20 +187,17 @@ export function useMiroSync(
       }
 
       // Enforce batch limit of 3 unique export groups.
-      // The UI already prevents the sync button when >3 groups are selected,
-      // so this is a defensive check — silently truncating would hide bugs.
+      // Enforce batch limit of 3 unique images (different fileKey + nodeId).
+      // Copies at different scales of the same image are NOT counted separately.
+      // The UI already blocks the sync button when >3 groups are selected, so this
+      // is a defensive check — silently truncating would hide bugs.
       const MAX_BATCH_SIZE = 3;
-      const groupMap = new Map<string, SyncTarget[]>();
-      for (const item of itemsToSync) {
-        const gk = `${item.fileKey}|${item.nodeId}|${item.format}|${item.scale}|${item.platform}`;
-        if (!groupMap.has(gk)) groupMap.set(gk, []);
-        groupMap.get(gk)!.push(item);
-      }
-      if (groupMap.size > MAX_BATCH_SIZE) {
+      const uniqueImages = new Set(itemsToSync.map(i => `${i.fileKey}|${i.nodeId}`));
+      if (uniqueImages.size > MAX_BATCH_SIZE) {
         throw new Error(`Can only sync up to ${MAX_BATCH_SIZE} different images at once. Deselect some to continue.`);
       }
       if (itemsToSync.length > MAX_BATCH_SIZE) {
-        setSyncStatus(`Syncing ${itemsToSync.length} widget(s) across ${groupMap.size} frame(s)`);
+        setSyncStatus(`Syncing ${itemsToSync.length} widget(s) across ${uniqueImages.size} image(s)`);
       }
 
       // renderCache: "fileKey|nodeId|format" -> base64 data URL

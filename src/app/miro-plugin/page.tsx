@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useMiroPlugin, SyncStatus } from './useMiroPlugin';
 import ThemeToggle from '@/components/ThemeToggle';
-import { DISPLAY } from '@/lib/version';
+import { DISPLAY, PLAN } from '@/lib/version';
 
 export default function MiroPluginPage() {
   const [propagate, setPropagate] = useState<boolean>(false);
@@ -47,6 +47,9 @@ export default function MiroPluginPage() {
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
   const [importPlatform, setImportPlatform] = useState<'figma' | 'penpot'>('figma');
   const [importFormat, setImportFormat] = useState<'png' | 'svg'>('png');
+  const MAX_SCALE = PLAN === 'community' ? 2 : 4;
+  const AVAILABLE_SCALES = Array.from({ length: MAX_SCALE }, (_, i) => i + 1);
+
   const [importScale, setImportScale] = useState<number>(2);
   const [defaultPngScale, setDefaultPngScale] = useState<number>(2);
   const [useTauri, setUseTauri] = useState<boolean>(false);
@@ -59,7 +62,7 @@ export default function MiroPluginPage() {
     const rafId = window.requestAnimationFrame(() => {
       const savedScaleRaw = localStorage.getItem('default_png_scale');
       const parsedScale = savedScaleRaw ? Number(savedScaleRaw) : 2;
-      const safeScale = Number.isFinite(parsedScale) && parsedScale >= 1 && parsedScale <= 4
+      const safeScale = Number.isFinite(parsedScale) && parsedScale >= 1 && parsedScale <= MAX_SCALE
         ? parsedScale
         : 2;
       setDefaultPngScale(safeScale);
@@ -426,10 +429,9 @@ export default function MiroPluginPage() {
                                 onChange={(e) => handleGroupSettingChange(group.widgets.map(w => w.id), 'scale', Number(e.target.value))}
                                 className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
                               >
-                                <option value="1">1x</option>
-                                <option value="2">2x</option>
-                                <option value="3">3x</option>
-                                <option value="4">4x</option>
+                                {AVAILABLE_SCALES.map(s => (
+                                  <option key={s} value={s}>{s}x</option>
+                                ))}
                               </select>
                             </div>
                           )}
@@ -465,7 +467,10 @@ export default function MiroPluginPage() {
                       <input
                         type="checkbox"
                         checked={propagate}
-                        onChange={e => setPropagate(e.target.checked)}
+                        onChange={e => {
+                            setPropagate(e.target.checked);
+                            if (e.target.checked) setPreserveSize(false);
+                          }}
                         className="accent-accent w-3 h-3"
                       />
                       <span className="text-[10px] text-text-muted font-mono">
@@ -605,10 +610,9 @@ export default function MiroPluginPage() {
                                 onChange={(e) => setImportScale(Number(e.target.value))}
                                 className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
                               >
-                                <option value="1">1x</option>
-                                <option value="2">2x</option>
-                                <option value="3">3x</option>
-                                <option value="4">4x</option>
+                                {AVAILABLE_SCALES.map(s => (
+                                  <option key={s} value={s}>{s}x</option>
+                                ))}
                               </select>
                             </div>
                           )}
@@ -728,10 +732,9 @@ export default function MiroPluginPage() {
                             onChange={(e) => setImportScale(Number(e.target.value))}
                             className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
                           >
-                            <option value="1">1x</option>
-                            <option value="2">2x</option>
-                            <option value="3">3x</option>
-                            <option value="4">4x</option>
+                            {AVAILABLE_SCALES.map(s => (
+                              <option key={s} value={s}>{s}x</option>
+                            ))}
                           </select>
                         </div>
                       )}
@@ -897,10 +900,9 @@ export default function MiroPluginPage() {
                     onChange={(e) => handleDefaultPngScaleChange(Number(e.target.value))}
                     className="bg-bg-page border border-border-card text-xs rounded px-2 py-1 focus:outline-none focus:border-accent text-text-page cursor-pointer"
                   >
-                    <option value="1">1x</option>
-                    <option value="2">2x</option>
-                    <option value="3">3x</option>
-                    <option value="4">4x</option>
+                    {AVAILABLE_SCALES.map(s => (
+                      <option key={s} value={s}>{s}x</option>
+                    ))}
                   </select>
                 </div>
                 <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">

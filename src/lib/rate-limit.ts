@@ -59,12 +59,12 @@ export interface PlanConfig {
 // ─── Community plan defaults ─────────────────────────────────────────────
 
 const COMMUNITY_PLAN: PlanConfig = {
-  figmaPerMin: envInt("RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN", 5),
+  figmaPerMin: envInt("RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN", 12),
   figmaPerDay: envInt("RATE_LIMIT_COMMUNITY_FIGMA_PER_DAY", 50),
   relayPerMin: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_MIN", 5),
   relayPerHour: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR", 30),
   relayPerDay: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_DAY", 100),
-  updateImagePerMin: envInt("RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN", 10),
+  updateImagePerMin: envInt("RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN", 30),
   ablyTokenPerMin: envInt("RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN", 5),
   globalSyncsPerDay: envInt("RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY", 500),
   globalBandwidthMbPerDay: envInt("RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY", 500),

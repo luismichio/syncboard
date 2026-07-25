@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Changed
 - **Batch limit counts unique exports, not total widgets:** The batch limit of 3 now applies to unique `(fileKey, nodeId, format, scale, platform)` groups — i.e., distinct Figma/Penpot exports. Widget copies of the same frame share the render cache and are NOT counted against the limit. When `syncAllCopies` is enabled, all copies of the first 3 frames sync without consuming extra export slots. The sync function no longer silently truncates; if called with >3 unique groups it throws an error (defense-in-depth, since the UI already blocks the button).
 
+### Changed
+- **Community plan scale limit (1x, 2x only):** The scale selector now limits options to 1x and 2x for the Community plan (self-host deployments keep 1x–4x). This caps the worst-case export count at 3 frames × 2 scales = 6 renders per sync, protecting free-tier infrastructure (Ably 200k msg/mo, Upstash 10k cmd/day) from accidental overuse.
+- **Rate limit defaults bumped:** `RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN` 5→12, `RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN` 10→30. Community users can now run 2 full batches per minute (6 renders + copy updates).
+- **Propagate now unchecks Preserve Size:** When "Propagate format & scale to all copies" is checked, "Preserve widget size" is automatically unchecked — prevents 1x image in a 4x box (pixelated).
+
 ### Added
 - **Version injection via generated file:** Changed `src/lib/version.ts` from `require('../../package.json')` (subject to bundler caching) to importing from `src/lib/version.generated.ts` — a file written by `scripts/inject-version.mjs` with hardcoded strings. The inject script now runs before `yarn dev` as well as `yarn build`, ensuring the displayed version always matches `package.json` regardless of Turbopack/Webpack caching.
 
