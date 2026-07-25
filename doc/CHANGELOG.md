@@ -21,6 +21,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Rate-limit identifier correctness:** `miro:update-image` now keys limits by Authorization bearer token instead of attempting to read a body token that no longer exists.
 - **HTML entity decode for frame names:** Names containing HTML entities (e.g. `Expanded&#61;True`) now display correctly as their actual characters (`Expanded=True`). Created `src/lib/decodeHtmlEntities.ts` and applied at all name entry points — relay response (`companionRelayClient.ts`), Penpot selection/export (`usePenpotImporter.ts`), Figma REST API and companion selection (`useFigmaImporter.ts`), sync name cache (`useMiroSync.ts`), and display components (`SyncTab.tsx`, `ImportTab.tsx`).
 
+### Added
+- **Pairing ID masking with eye toggle:** All three Pairing ID fields (Miro plugin Settings, Figma companion, Penpot companion) now default to hidden (`type="password"`, shown as `********`) with an eye icon button to reveal. Protects against screen recording and shoulder surfing.
+- **Pairing ID rotation:** Added `REGENERATE` button in Miro plugin Settings that generates a new random `sb_xxx` ID via `rotatePairingId()` in `src/lib/pairingId.ts`, overwriting the stored value. Existing companion connections will need the new ID.
+- **Documentation of rate limits, batch limit, and scale cap:** Added default rate limit table (9 endpoints with env variable names), batch size limit (3 unique images), and community scale cap (1x/2x) to `doc/faq.md` and `doc/architecture.md`.
+
 ### Changed
 - **Miro plugin panel decomposition:** Split `src/app/miro-plugin/page.tsx` monolith into focused components (`AppHeader`, `TabNav`, `SyncTab`, `ImportTab`, `SettingsTab`, `BoardStatusFooter`, shared types), reducing `page.tsx` from ~970 lines to ~319 lines.
 - **Selection grouping performance:** Replaced repeated `getGroupedItems()` render calls with memoized grouped state.
