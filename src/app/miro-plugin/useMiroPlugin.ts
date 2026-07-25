@@ -6,6 +6,7 @@ import { usePenpotImporter } from './usePenpotImporter';
 import { useMiroSync } from './useMiroSync';
 import { getValidToken } from '@/lib/tokens';
 import { trackEvent } from '@/lib/analytics';
+import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 
 export type SyncStatusType = 'success' | 'error' | 'progress' | 'info';
 
@@ -262,6 +263,19 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
         if (!response.ok) {
           const errData = await response.json().catch(() => ({})) as { error?: string };
           throw new Error(errData.error || 'Failed to update image on Miro board');
+        }
+
+        // Update widget title via SDK to reflect the new frame name
+        try {
+          const widget = await miro.board.getById(item.id);
+          if (widget) {
+            const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
+            const titleTag = `${decodeHtmlEntities(nodeName)} [${tag}|${fileKey}|${nodeId}]`;
+            widget.title = titleTag;
+            await widget.sync();
+          }
+        } catch {
+          // SDK title assignment may fail silently
         }
       }
 

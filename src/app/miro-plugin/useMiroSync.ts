@@ -361,8 +361,9 @@ export function useMiroSync(
           throw new Error(errData.error || 'Failed to update image on Miro board');
         }
 
-        // Update widget metadata so format/scale dropdown reflects the new values
-        // (preserve natural width/height from Penpot import if present)
+        // Update widget metadata and title via the Miro SDK.
+        // Title is updated via the SDK (not the REST API PATCH) to avoid
+        // HTML entity encoding differences between the two Miro interfaces.
         try {
           const widget = await miro.board.getById(item.id);
           if (widget && 'setMetadata' in widget && typeof widget.setMetadata === 'function') {
@@ -379,9 +380,15 @@ export function useMiroSync(
               ...(existingSyncboard?.width ? { width: existingSyncboard.width } : {}),
               ...(existingSyncboard?.height ? { height: existingSyncboard.height } : {}),
             });
+
+            // Update widget title to reflect the live frame name
+            const tag = item.platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
+            const titleTag = `${decodeHtmlEntities(liveName)} [${tag}|${item.fileKey}|${item.nodeId}]`;
+            widget.title = titleTag;
+            await widget.sync();
           }
         } catch (metaErr) {
-          console.warn('Failed to update widget metadata:', metaErr);
+          console.warn('Failed to update widget metadata/title:', metaErr);
         }
       }
 
