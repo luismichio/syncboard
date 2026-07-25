@@ -1,9 +1,33 @@
 import { NextResponse } from 'next/server';
 import { withRateLimit } from '@/lib/rate-limit';
 
+function decodeHtmlEntities(value: string): string {
+  const NAMED_ENTITIES: Record<string, string> = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+  };
+  let result = value;
+  for (const [entity, char] of Object.entries(NAMED_ENTITIES)) {
+    result = result.split(entity).join(char);
+  }
+  result = result.replace(/&#(\d+);/g, (_match, dec) => {
+    const code = parseInt(dec, 10);
+    if (code < 32 && code !== 10 && code !== 13) return _match;
+    return String.fromCharCode(code);
+  });
+  result = result.replace(/&#x([0-9a-fA-F]+);/g, (_match, hex) => {
+    const code = parseInt(hex, 16);
+    if (code < 32 && code !== 10 && code !== 13) return _match;
+    return String.fromCharCode(code);
+  });
+  return result;
+}
+
 async function handler(request: Request) {
   try {
-    // Read tokens from headers instead of body (backlog #6: header-based token transmission)
     const miroToken = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
     const figmaToken = request.headers.get('X-Figma-Token') || '';
 
@@ -31,12 +55,12 @@ async function handler(request: Request) {
     let arrayBuffer: ArrayBuffer;
 
     if (dataUrl) {
-      // --- Fast path: client pre-fetched the image, skip the Figma API call entirely ---
+      // Fast path: client pre-fetched the image
       const base64 = (dataUrl as string).split(',')[1];
       const binary = Buffer.from(base64, 'base64');
       arrayBuffer = binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength) as ArrayBuffer;
     } else {
-      // --- Fallback: fetch render URL from Figma (single-image imports) ---
+      // Fallback: fetch render URL from Figma (single-image imports)
       if (!figmaToken) {
         return NextResponse.json({ error: 'Missing Figma token' }, { status: 401 });
       }
@@ -85,26 +109,25 @@ async function handler(request: Request) {
       arrayBuffer = await imageResponse.arrayBuffer();
     }
 
+    // Decode nodeName for safe filename and title
+    const decodedNodeName = decodeHtmlEntities(String(nodeName));
+    const safeName = decodedNodeName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'screenshot';
     const mimeType = format === 'svg' ? 'image/svg+xml' : 'image/png';
-    const safeName = nodeName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'screenshot';
     const fileName = format === 'svg' ? `${safeName}.svg` : `${safeName}.png`;
     const file = new File([arrayBuffer], fileName, { type: mimeType });
 
-    const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
-    const decodedNodeName = decodeHtmlEntities(String(nodeName));
-    const titleTag = `${decodedNodeName} [${tag}|${fileKey}|${nodeId}]`;
     const authHeaders = { Authorization: `Bearer ${miroToken}` };
 
-    // Step 1: Upload the image via the image-specific multipart endpoint.
-    // When preserveSize is active, include style.fit: "contain" so the new image
-    // renders within the current widget bounds without stretching.
-    // NOTE: We do NOT send geometry here — Miro's image PATCH may recalculate
-    // widget dimensions when a new resource is supplied, and sending geometry
-    // with height causes a 400 error.
+    // Step 1: Upload the image resource.
+    // NOTE: title is deliberately NOT sent here — Miro's REST API may HTML-encode
+    // title strings differently from the Miro SDK. The widget title is set exclusively
+    // via miro.board.createImage({ title }) during import and preserved here by omitting
+    // it from the PATCH. This prevents the "flicker" where the title briefly shows
+    // correctly then reverts to an HTML-encoded form.
     const imageForm = new FormData();
     imageForm.append('resource', file);
 
-    const imageData: Record<string, unknown> = { title: titleTag };
+    const imageData: Record<string, unknown> = {};
     if (preserveSize) {
       imageData.style = { fit: 'contain' };
     }
@@ -125,7 +148,7 @@ async function handler(request: Request) {
       );
     }
 
-    // Step 2: Apply geometry via the generic item update endpoint (JSON body) —
+    // Step 2: Apply geometry via the generic item update endpoint (JSON body)
     // only when preserveSize is NOT active.
     if (width && !preserveSize) {
       const targetWidth = Math.round(Number(width));
@@ -154,31 +177,6 @@ async function handler(request: Request) {
     console.error('Error during Miro image update:', err);
     return NextResponse.json({ error: 'Internal Server Error during Miro image update' }, { status: 500 });
   }
-}
-
-function decodeHtmlEntities(value: string): string {
-  const NAMED_ENTITIES: Record<string, string> = {
-    '&amp;': '&',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    "&#39;": "'",
-  };
-  let result = value;
-  for (const [entity, char] of Object.entries(NAMED_ENTITIES)) {
-    result = result.split(entity).join(char);
-  }
-  result = result.replace(/&#(\d+);/g, (_match, dec) => {
-    const code = parseInt(dec, 10);
-    if (code < 32 && code !== 10 && code !== 13) return _match;
-    return String.fromCharCode(code);
-  });
-  result = result.replace(/&#x([0-9a-fA-F]+);/g, (_match, hex) => {
-    const code = parseInt(hex, 16);
-    if (code < 32 && code !== 10 && code !== 13) return _match;
-    return String.fromCharCode(code);
-  });
-  return result;
 }
 
 export const POST = withRateLimit({ endpoint: "miro:update-image" })(handler);
