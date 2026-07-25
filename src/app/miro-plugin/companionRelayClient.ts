@@ -195,7 +195,7 @@ export async function callPenpotMcpTool(
   if (toolName === 'export_shape') {
     const shapeId = toolArgs.shapeId as string;
     const format = (toolArgs.format as 'svg' | 'png' | undefined) ?? 'svg';
-    const scale = (toolArgs.scale as number | undefined) ?? 2;
+    const scale = (toolArgs.scale as number | undefined) ?? 1;
 
     if (!shapeId) {
       throw new Error('shapeId is required for export_shape.');

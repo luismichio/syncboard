@@ -110,13 +110,13 @@ export function useMiroSelection(isInitMode: boolean | null) {
 
                   if (figmaMatch) {
                     let format: 'png' | 'svg' = 'png';
-                    let scale = 2;
+                    let scale = 1;
                     try {
                       const metadata = (await item.getMetadata()) as Record<string, unknown> | undefined;
                       const syncData = metadata?.syncboard as { format?: 'png' | 'svg'; scale?: number } | undefined;
                       if (syncData) {
                         format = syncData.format || 'png';
-                        scale = syncData.scale || 2;
+                        scale = syncData.scale || 1;
                       }
                     } catch (metaErr) {
                       console.error("Failed to read metadata for item:", item.id, metaErr);
@@ -135,13 +135,13 @@ export function useMiroSelection(isInitMode: boolean | null) {
                     continue;
                   } else if (penpotMatch) {
                     let format: 'png' | 'svg' = 'svg';
-                    let scale = 2;
+                    let scale = 1;
                     try {
                       const metadata = (await item.getMetadata()) as Record<string, unknown> | undefined;
                       const syncData = metadata?.syncboard as { format?: 'png' | 'svg'; scale?: number } | undefined;
                       if (syncData) {
                         format = syncData.format || 'svg';
-                        scale = syncData.scale || 2;
+                        scale = syncData.scale || 1;
                       }
                     } catch (metaErr) {
                       console.error("Failed to read metadata for item:", item.id, metaErr);

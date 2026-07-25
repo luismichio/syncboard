@@ -77,7 +77,7 @@ export function usePenpotImporter(
     }
   };
 
-  const importPenpotScreen = async (format: 'png' | 'svg' = 'svg', scale: number = 2) => {
+  const importPenpotScreen = async (format: 'png' | 'svg' = 'svg', scale: number = 1) => {
     if (!penpotNodeInfo) return;
     if (typeof window === 'undefined') return;
     const miro = window.miro;

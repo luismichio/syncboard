@@ -80,8 +80,8 @@ export default function MiroPluginPage() {
   const [activeTab, setActiveTab] = useState<MiroPluginTab>('sync');
   const [importPlatform, setImportPlatform] = useState<ImportPlatform>('figma');
   const [importFormat, setImportFormat] = useState<'png' | 'svg'>('png');
-  const [importScale, setImportScale] = useState<number>(2);
-  const [defaultPngScale, setDefaultPngScale] = useState<number>(2);
+  const [importScale, setImportScale] = useState<number>(1);
+  const [defaultPngScale, setDefaultPngScale] = useState<number>(1);
   const [useTauri, setUseTauri] = useState<boolean>(false);
   const [pairingId, setPairingId] = useState<string>('');
   const [copiedPairing, setCopiedPairing] = useState<boolean>(false);
@@ -91,10 +91,10 @@ export default function MiroPluginPage() {
 
     const rafId = window.requestAnimationFrame(() => {
       const savedScaleRaw = localStorage.getItem('default_png_scale');
-      const parsedScale = savedScaleRaw ? Number(savedScaleRaw) : 2;
+      const parsedScale = savedScaleRaw ? Number(savedScaleRaw) : 1;
       const safeScale = Number.isFinite(parsedScale) && parsedScale >= 1 && parsedScale <= MAX_SCALE
         ? parsedScale
-        : 2;
+        : 1;
 
       setDefaultPngScale(safeScale);
       setImportScale(safeScale);

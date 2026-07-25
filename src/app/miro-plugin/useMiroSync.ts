@@ -104,7 +104,7 @@ export function useMiroSync(
 
           for (const match of matches) {
             let format: 'png' | 'svg' = selected.format || (selected.platform === 'penpot' ? 'svg' : 'png');
-            let scale = selected.scale || 2;
+            let scale = selected.scale || 1;
             let platform = selected.platform || 'figma';
 
             let storedWidth: number | undefined;
@@ -119,7 +119,7 @@ export function useMiroSync(
               } | undefined;
               if (syncData) {
                 format = syncData.format || (syncData.platform === 'penpot' ? 'svg' : 'png');
-                scale = syncData.scale || 2;
+                scale = syncData.scale || 1;
                 platform = syncData.platform || 'figma';
                 if (typeof syncData.width === 'number' && syncData.width > 0) storedWidth = syncData.width;
               }
@@ -129,7 +129,7 @@ export function useMiroSync(
 
             // When propagate is enabled, override each copy's format/scale with the selected item's values
             const effectiveFormat = propagate ? (selected.format || (selected.platform === 'penpot' ? 'svg' : 'png')) : format;
-            const effectiveScale = propagate ? (selected.scale || 2) : scale;
+            const effectiveScale = propagate ? (selected.scale || 1) : scale;
 
             // Calculate new display width.
             // For Penpot items with stored natural width: displayWidth = naturalWidth * effectiveScale.
@@ -209,7 +209,7 @@ export function useMiroSync(
         const groups = new Map<string, Set<string>>();
         for (const item of figmaTargets) {
           const format = item.format || 'png';
-          const scale = item.scale || 2;
+          const scale = item.scale || 1;
           const groupKey = `${item.fileKey}|${format}|${scale}`;
           if (!groups.has(groupKey)) {
             groups.set(groupKey, new Set());

@@ -140,7 +140,7 @@ export function useFigmaImporter(
       const y = viewport.y + viewport.height / 2;
 
       // Read default scale settings from user's global settings configuration
-      const resolvedScale = scale ?? (typeof window !== 'undefined' ? Number(localStorage.getItem('default_png_scale') || '2') : 2);
+      const resolvedScale = scale ?? (typeof window !== 'undefined' ? Number(localStorage.getItem('default_png_scale') || '1') : 1);
 
       setSyncStatusParent('Rendering Figma frame...', 'progress');
 
