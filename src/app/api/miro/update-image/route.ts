@@ -91,7 +91,8 @@ async function handler(request: Request) {
     const file = new File([arrayBuffer], fileName, { type: mimeType });
 
     const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
-    const titleTag = `${nodeName} [${tag}|${fileKey}|${nodeId}]`;
+    const decodedNodeName = decodeHtmlEntities(String(nodeName));
+    const titleTag = `${decodedNodeName} [${tag}|${fileKey}|${nodeId}]`;
     const authHeaders = { Authorization: `Bearer ${miroToken}` };
 
     // Step 1: Upload the image via the image-specific multipart endpoint.
@@ -153,6 +154,31 @@ async function handler(request: Request) {
     console.error('Error during Miro image update:', err);
     return NextResponse.json({ error: 'Internal Server Error during Miro image update' }, { status: 500 });
   }
+}
+
+function decodeHtmlEntities(value: string): string {
+  const NAMED_ENTITIES: Record<string, string> = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    "&#39;": "'",
+  };
+  let result = value;
+  for (const [entity, char] of Object.entries(NAMED_ENTITIES)) {
+    result = result.split(entity).join(char);
+  }
+  result = result.replace(/&#(\d+);/g, (_match, dec) => {
+    const code = parseInt(dec, 10);
+    if (code < 32 && code !== 10 && code !== 13) return _match;
+    return String.fromCharCode(code);
+  });
+  result = result.replace(/&#x([0-9a-fA-F]+);/g, (_match, hex) => {
+    const code = parseInt(hex, 16);
+    if (code < 32 && code !== 10 && code !== 13) return _match;
+    return String.fromCharCode(code);
+  });
+  return result;
 }
 
 export const POST = withRateLimit({ endpoint: "miro:update-image" })(handler);

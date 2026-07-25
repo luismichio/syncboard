@@ -186,7 +186,7 @@ export function useFigmaImporter(
         await image.setMetadata('syncboard', {
           fileKey: figmaNodeInfo.fileKey,
           nodeId: figmaNodeInfo.nodeId,
-          nodeName: figmaNodeInfo.name,
+          nodeName: safeName,
           format,
           scale: resolvedScale,
         });

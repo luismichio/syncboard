@@ -166,7 +166,7 @@ export function usePenpotImporter(
       await image.setMetadata('syncboard', {
         fileKey: capturedFileId,
         nodeId: capturedObjectId,
-        nodeName: capturedName,
+        nodeName: resolvedName,
         format,
         scale,
         platform: 'penpot',
@@ -187,7 +187,7 @@ export function usePenpotImporter(
               boardId: boardInfo.id,
               itemId: image.id,
               dataUrl,
-              nodeName: capturedName ? decodeHtmlEntities(capturedName) : 'Penpot Screen',
+              nodeName: resolvedName,
               fileKey: capturedFileId,
               nodeId: capturedObjectId,
               format,
