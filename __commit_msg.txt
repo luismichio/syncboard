@@ -1,8 +1,8 @@
-chore: bump to v0.13.0, update changelog, fix stale version display
+chore: bump to v0.13.1, update changelog, fix stale version display
 
-- Bump package.json to 0.13.0 (was 0.12.0, changelog already at 0.13.0)
+- Bump package.json to 0.13.1
 - Add changelog entries for: Figma offline_access scope fix, token storage
-  fix, version injection fix
+  localStorage fix, version injection fix
 - Refactor src/lib/version.ts to import from version.generated.ts
   instead of require('../../package.json'), avoiding bundler caching issues
 - inject-version.mjs now writes src/lib/version.generated.ts on every run

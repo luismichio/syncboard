@@ -15,7 +15,7 @@ interface VersionInfo {
 function loadVersion(): VersionInfo {
   // Prefer the generated file (written by inject-version.mjs during dev/build)
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
     const generated = require('./version.generated') as { VERSION: string; PLAN: string };
     return { version: generated.VERSION, plan: generated.PLAN };
   } catch {

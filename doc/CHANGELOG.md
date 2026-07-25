@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [0.13.0] - 2026-07-24
+## [0.13.1] - 2026-07-25
 
 ### Fixed
 - **Figma OAuth missing refresh token:** The Figma auth URL only requested `file_content:read` scope — missing `offline_access`. Without it, Figma's token exchange never returned a `refresh_token`, so the access token (1h lifetime) could never be renewed silently. Every reload after ~1h required re-authentication. Added `offline_access` scope; Figma now issues a refresh token valid ~90 days, and `getValidToken()` auto-refreshes on each page load. Users must re-connect Figma once after deploy to obtain a token with a refresh token.
@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 - **Version injection via generated file:** Changed `src/lib/version.ts` from `require('../../package.json')` (subject to bundler caching) to importing from `src/lib/version.generated.ts` — a file written by `scripts/inject-version.mjs` with hardcoded strings. The inject script now runs before `yarn dev` as well as `yarn build`, ensuring the displayed version always matches `package.json` regardless of Turbopack/Webpack caching.
+
+## [0.13.0] - 2026-07-24
+
+### Added
 - **Batch limit of 3:** Sync now limits to 3 items per operation. The UI shows a warning banner and disables the Sync button when more than 3 items are selected, preventing silent truncation mid-process.
 - **`penpot.openPage()` preload for cross-page exports:** When exporting a Penpot shape from a different page, the companion plugin navigates to that page before export via `await penpot.openPage(page)`. This preloads the shape data into WASM memory, reducing the export freeze from 10-60s to ~1-3s (navigation flicker instead of main-thread freeze). The companion does not navigate back.
 - **Sequential Penpot batch processing:** Changed from `Promise.all` (concurrent) to `for...of` (sequential) to allow each export to benefit from the previous `openPage` navigation when shapes share the same page.
