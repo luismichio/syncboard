@@ -58,10 +58,12 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const state = searchParams.get('state') || crypto.randomBytes(16).toString('hex');
 
-  // We request 'file_content:read' scope to fetch the file structure and render screenshots
+  // We request 'file_content:read' scope to fetch the file structure and render screenshots.
+  // 'offline_access' is required so Figma returns a refresh_token, allowing silent
+  // re-authentication across sessions without user interaction.
   const authUrl = `https://www.figma.com/oauth?client_id=${figmaClientId}&redirect_uri=${encodeURIComponent(
     redirectUri
-  )}&scope=file_content:read&state=${state}&response_type=code`;
+  )}&scope=file_content:read%20offline_access&state=${state}&response_type=code`;
 
   const response = NextResponse.redirect(authUrl);
   response.cookies.set('figma_oauth_state', state, {
