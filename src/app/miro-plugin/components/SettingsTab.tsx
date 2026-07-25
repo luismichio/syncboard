@@ -12,6 +12,7 @@ interface SettingsTabProps {
   copiedPairing: boolean;
   pairingId: string;
   copyPairingId: () => void;
+  onRegeneratePairingId: () => void;
   useTauri: boolean;
   defaultPngScale: number;
   onDefaultPngScaleChange: (value: number) => void;
@@ -29,6 +30,7 @@ export function SettingsTab({
   copiedPairing,
   pairingId,
   copyPairingId,
+  onRegeneratePairingId,
   useTauri,
   defaultPngScale,
   onDefaultPngScaleChange,
@@ -111,12 +113,21 @@ export function SettingsTab({
           <div className="p-3 rounded-lg bg-bg-card border border-border-card flex flex-col gap-2 animate-fade-in">
             <div className="flex justify-between items-center">
               <span className="text-xs font-semibold text-text-page">Miro Pairing ID</span>
-              <button
-                onClick={copyPairingId}
-                className="text-[9px] font-mono font-bold tracking-wider text-accent border border-accent/40 rounded px-1.5 py-0.5 bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer"
-              >
-                {copiedPairing ? 'COPIED!' : 'COPY ID'}
-              </button>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={onRegeneratePairingId}
+                  className="text-[9px] font-mono font-bold tracking-wider text-text-muted border border-border-card rounded px-1.5 py-0.5 bg-transparent hover:bg-bg-card hover:text-text-page transition cursor-pointer"
+                  title="Generate a new pairing ID. Existing companion connections will need the new ID."
+                >
+                  REGENERATE
+                </button>
+                <button
+                  onClick={copyPairingId}
+                  className="text-[9px] font-mono font-bold tracking-wider text-accent border border-accent/40 rounded px-1.5 py-0.5 bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer"
+                >
+                  {copiedPairing ? 'COPIED!' : 'COPY ID'}
+                </button>
+              </div>
             </div>
             <div className="relative">
               <input

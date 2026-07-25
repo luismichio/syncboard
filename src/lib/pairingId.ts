@@ -41,3 +41,15 @@ export function getOrCreatePairingId(): string {
   localStorage.setItem(PAIRING_ID_STORAGE_KEY, newId);
   return newId;
 }
+
+export function rotatePairingId(): string {
+  let newId: string;
+  try {
+    newId = generateSecurePairingId();
+  } catch {
+    newId = generateFallbackPairingId();
+  }
+
+  localStorage.setItem(PAIRING_ID_STORAGE_KEY, newId);
+  return newId;
+}

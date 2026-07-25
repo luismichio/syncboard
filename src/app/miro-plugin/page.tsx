@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMiroPlugin } from './useMiroPlugin';
 import { SyncedImage } from './useMiroSelection';
 import { DISPLAY, PLAN } from '@/lib/version';
-import { getOrCreatePairingId } from '@/lib/pairingId';
+import { getOrCreatePairingId, rotatePairingId } from '@/lib/pairingId';
 import { AppHeader } from './components/AppHeader';
 import { TabNav } from './components/TabNav';
 import { BoardStatusFooter } from './components/BoardStatusFooter';
@@ -301,6 +301,11 @@ export default function MiroPluginPage() {
             copiedPairing={copiedPairing}
             pairingId={pairingId}
             copyPairingId={copyPairingId}
+            onRegeneratePairingId={() => {
+              const newId = rotatePairingId();
+              setPairingId(newId);
+              setCopiedPairing(false);
+            }}
             useTauri={useTauri}
             defaultPngScale={defaultPngScale}
             onDefaultPngScaleChange={handleDefaultPngScaleChange}
