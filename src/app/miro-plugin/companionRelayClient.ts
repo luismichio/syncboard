@@ -1,3 +1,6 @@
+import Ably from 'ably';
+import { getOrCreatePairingId } from '@/lib/pairingId';
+
 export interface PenpotMcpResponse {
   content: { type: string; text?: string; data?: string; mimeType?: string; name?: string; width?: number; height?: number }[];
   isError?: boolean;
@@ -15,50 +18,33 @@ export interface RelayRequestBody {
   timeoutMs?: number;
 }
 
-export function getOrCreatePairingId(): string {
-  if (typeof window === 'undefined') return '';
-  let id = localStorage.getItem('syncboard_pairing_id');
-  if (!id) {
-    if (id === null) {
-      try {
-        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-        const array = new Uint8Array(16);
-        window.crypto.getRandomValues(array);
-        let secureId = 'sb_';
-        for (let i = 0; i < 16; i++) {
-          secureId += chars[array[i] % chars.length];
-        }
-        id = secureId;
-      } catch {
-        id =
-          'sb_' +
-          Math.random().toString(36).substring(2, 10) +
-          Math.random().toString(36).substring(2, 10);
-      }
-      localStorage.setItem('syncboard_pairing_id', id);
-    }
-  }
-  return id || '';
-}
-
-import Ably from 'ably';
+export { getOrCreatePairingId };
 
 let globalAblyClient: Ably.Realtime | null = null;
 let globalAblyChannel: Ably.RealtimeChannel | null = null;
 let currentConnectedPairingId: string | null = null;
 let currentConnectedPlatform: 'figma' | 'penpot' | null = null;
 
-async function getAblyConnection(pairingId: string, platform: 'figma' | 'penpot' = 'penpot'): Promise<Ably.RealtimeChannel> {
+async function getAblyConnection(
+  pairingId: string,
+  platform: 'figma' | 'penpot' = 'penpot'
+): Promise<Ably.RealtimeChannel> {
   const prefix = platform === 'figma' ? 'figma' : 'penpot';
-  if (globalAblyClient && currentConnectedPairingId === pairingId && currentConnectedPlatform === platform && globalAblyChannel) {
+
+  if (
+    globalAblyClient &&
+    globalAblyChannel &&
+    currentConnectedPairingId === pairingId &&
+    currentConnectedPlatform === platform
+  ) {
     return globalAblyChannel;
   }
 
   if (globalAblyClient) {
     try {
       globalAblyClient.close();
-    } catch (e) {
-      // Ignore
+    } catch {
+      // ignore stale close errors
     }
     globalAblyClient = null;
     globalAblyChannel = null;
@@ -75,10 +61,12 @@ async function getAblyConnection(pairingId: string, platform: 'figma' | 'penpot'
 
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Ably connection timed out.')), 10000);
+
     globalAblyClient!.connection.once('connected', () => {
       clearTimeout(timeout);
       resolve();
     });
+
     globalAblyClient!.connection.once('failed', (state) => {
       clearTimeout(timeout);
       reject(new Error(state.reason?.message || 'Ably connection failed'));
@@ -94,27 +82,20 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
   const channel = await getAblyConnection(pairingId, platform);
 
   return new Promise<RelayJson>((resolve, reject) => {
-    let isResolved = false;
+    let resolved = false;
     let targetRequestId: string | null = null;
     const earlyResults = new Map<string, Record<string, unknown>>();
 
     const cleanup = () => {
-      isResolved = true;
+      resolved = true;
       try {
         channel.unsubscribe('result', onResult);
         channel.unsubscribe('result-ready', onResultReady);
-      } catch (e) {
-        // Ignore
+      } catch {
+        // ignore
       }
       clearTimeout(timeout);
     };
-
-    const timeout = setTimeout(() => {
-      if (!isResolved) {
-        cleanup();
-        reject(new Error('Relay timed out waiting for companion response.'));
-      }
-    }, body.timeoutMs || 10000);
 
     const processResultData = (msgData: Record<string, unknown>) => {
       cleanup();
@@ -128,40 +109,44 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
     const onResult = (msg: Ably.Message) => {
       const msgData = msg.data as Record<string, unknown> | null;
       const reqId = typeof msgData?.requestId === 'string' ? msgData.requestId : null;
-      if (reqId && msgData) {
-        if (targetRequestId && reqId === targetRequestId) {
-          processResultData(msgData);
-        } else {
-          earlyResults.set(reqId, msgData);
-        }
+      if (!reqId || !msgData) return;
+
+      if (targetRequestId && reqId === targetRequestId) {
+        processResultData(msgData);
+      } else {
+        earlyResults.set(reqId, msgData);
       }
     };
 
     const onResultReady = async (msg: Ably.Message) => {
       const msgData = msg.data as Record<string, unknown> | null;
       const reqId = typeof msgData?.requestId === 'string' ? msgData.requestId : null;
-      if (reqId && targetRequestId && reqId === targetRequestId) {
-        cleanup();
-        try {
-          const fetchRes = await fetch(`/api/relay/response?requestId=${targetRequestId}`);
-          if (!fetchRes.ok) {
-            const errData = await fetchRes.json().catch(() => ({}));
-            throw new Error(errData.error || `HTTP ${fetchRes.status}`);
-          }
-          const fetchPayload = await fetchRes.json();
-          resolve((fetchPayload.data as RelayJson) ?? null);
-        } catch (fetchErr: unknown) {
-          const errorMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-          reject(new Error(`Failed to retrieve relay response: ${errorMsg}`));
+      if (!reqId || !targetRequestId || reqId !== targetRequestId) return;
+
+      cleanup();
+      try {
+        const fetchRes = await fetch(`/api/relay/response?requestId=${targetRequestId}`);
+        if (!fetchRes.ok) {
+          const errData = await fetchRes.json().catch(() => ({})) as { error?: string };
+          throw new Error(errData.error || `HTTP ${fetchRes.status}`);
         }
+        const fetchPayload = await fetchRes.json() as { data?: RelayJson };
+        resolve(fetchPayload.data ?? null);
+      } catch (fetchErr: unknown) {
+        const errorMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        reject(new Error(`Failed to retrieve relay response: ${errorMsg}`));
       }
     };
 
-    // 1. Subscribe to Ably events BEFORE triggering backend HTTP request
+    const timeout = setTimeout(() => {
+      if (resolved) return;
+      cleanup();
+      reject(new Error('Relay timed out waiting for companion response.'));
+    }, body.timeoutMs || 10000);
+
     channel.subscribe('result', onResult);
     channel.subscribe('result-ready', onResultReady);
 
-    // 2. Trigger async request on backend
     fetch('/api/relay/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -175,26 +160,25 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
         if (!res.ok || payload.error || !payload.data?.requestId) {
           throw new Error(payload.error || `Relay request failed with HTTP ${res.status}`);
         }
+
         targetRequestId = payload.data.requestId;
 
-        // Check if an early result arrived while HTTP trigger was in flight
         if (earlyResults.has(targetRequestId)) {
-          const early = earlyResults.get(targetRequestId)!;
-          processResultData(early);
+          const early = earlyResults.get(targetRequestId);
+          if (early) {
+            processResultData(early);
+          }
         }
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         cleanup();
-        reject(err);
+        reject(err instanceof Error ? err : new Error(String(err)));
       });
   });
 }
 
-
-
 /**
  * Penpot bridge abstraction:
- * - SyncBridge mode (local HTTPS + Tauri), when enabled in settings.
  * - Cloud relay mode (default), routed through /api/relay/* endpoints.
  */
 export async function callPenpotMcpTool(
@@ -206,24 +190,6 @@ export async function callPenpotMcpTool(
   }
 
   const pairingId = getOrCreatePairingId();
-
-
-
-  if (toolName === 'execute_code') {
-    const data = await callRelay({
-      pairingId,
-      platform: 'penpot',
-      action: 'select',
-      timeoutMs: 8_000,
-    });
-
-    return {
-      content: [{
-        type: 'text',
-        text: data ? JSON.stringify(data) : 'null',
-      }],
-    };
-  }
 
   if (toolName === 'export_shape') {
     const shapeId = toolArgs.shapeId as string;
@@ -251,15 +217,32 @@ export async function callPenpotMcpTool(
       if (!svgText) {
         throw new Error('Penpot relay returned empty SVG export data.');
       }
-      return { content: [{ type: 'text', text: svgText, name: payload?.name, width: payload?.width, height: payload?.height }] };
+
+      return {
+        content: [{
+          type: 'text',
+          text: svgText,
+          name: payload?.name,
+          width: payload?.width,
+          height: payload?.height,
+        }],
+      };
     }
 
     const base64Data = payload?.base64;
     if (!base64Data) {
       throw new Error('Penpot relay returned empty PNG export data.');
     }
+
     return {
-      content: [{ type: 'image', data: base64Data, mimeType: 'image/png', name: payload?.name, width: payload?.width, height: payload?.height }],
+      content: [{
+        type: 'image',
+        data: base64Data,
+        mimeType: 'image/png',
+        name: payload?.name,
+        width: payload?.width,
+        height: payload?.height,
+      }],
     };
   }
 
@@ -280,7 +263,9 @@ export async function callFigmaSelectionTauri(): Promise<{ id: string; name: str
       headers: { 'Content-Type': 'application/json' },
       targetAddressSpace: 'loopback',
     } as unknown as RequestInit);
+
     if (!res.ok) return null;
+
     const payload = (await res.json()) as { error?: string; data?: { id: string; name: string; fileKey: string } | null };
     return payload.data || null;
   } catch {

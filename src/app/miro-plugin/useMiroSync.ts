@@ -2,17 +2,7 @@ import { useState } from 'react';
 import { SyncedImage } from './useMiroSelection';
 import { callPenpotMcpTool } from './companionRelayClient';
 import { getValidToken } from '@/lib/tokens';
-
-/** Fire a Google Analytics event if gtag is loaded. */
-function trackEvent(action: string, label?: string, value?: number) {
-  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
-    window.gtag('event', action, {
-      event_label: label,
-      value: value,
-      send_to: 'G-Q4W94QDWWC',
-    });
-  }
-}
+import { trackEvent } from '@/lib/analytics';
 
 /**
  * Handles board sync with support for both Figma and Penpot:
@@ -186,7 +176,6 @@ export function useMiroSync(
         return;
       }
 
-      // Enforce batch limit of 3 unique export groups.
       // Enforce batch limit of 3 unique images (different fileKey + nodeId).
       // Copies at different scales of the same image are NOT counted separately.
       // The UI already blocks the sync button when >3 groups are selected, so this
@@ -379,6 +368,9 @@ export function useMiroSync(
             const existingMeta = await widget.getMetadata().catch(() => ({})) as Record<string, unknown>;
             const existingSyncboard = existingMeta?.syncboard as Record<string, unknown> | undefined;
             await widget.setMetadata('syncboard', {
+              fileKey: item.fileKey,
+              nodeId: item.nodeId,
+              nodeName: liveName,
               format: item.format || (item.platform === 'penpot' ? 'svg' : 'png'),
               scale: item.scale || 2,
               platform: item.platform || 'figma',

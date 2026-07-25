@@ -5,17 +5,7 @@ import { useFigmaImporter } from './useFigmaImporter';
 import { usePenpotImporter } from './usePenpotImporter';
 import { useMiroSync } from './useMiroSync';
 import { getValidToken } from '@/lib/tokens';
-
-/** Fire a Google Analytics event if gtag is loaded. */
-function trackEvent(action: string, label?: string, value?: number) {
-  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
-    window.gtag('event', action, {
-      event_label: label,
-      value: value,
-      send_to: 'G-Q4W94QDWWC',
-    });
-  }
-}
+import { trackEvent } from '@/lib/analytics';
 
 export type SyncStatusType = 'success' | 'error' | 'progress' | 'info';
 

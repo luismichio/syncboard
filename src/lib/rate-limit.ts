@@ -49,8 +49,11 @@ export interface PlanConfig {
   relayPerMin: number;
   relayPerHour: number;
   relayPerDay: number;
+  relayResponsePerMin: number;
   updateImagePerMin: number;
   ablyTokenPerMin: number;
+  oauthStoreGetPerMin: number;
+  oauthStorePostPerMin: number;
   globalSyncsPerDay: number;
   globalBandwidthMbPerDay: number;
   maxCompanionPairs: number;
@@ -64,8 +67,11 @@ const COMMUNITY_PLAN: PlanConfig = {
   relayPerMin: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_MIN", 5),
   relayPerHour: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR", 30),
   relayPerDay: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_DAY", 100),
+  relayResponsePerMin: envInt("RATE_LIMIT_COMMUNITY_RELAY_RESPONSE_PER_MIN", 20),
   updateImagePerMin: envInt("RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN", 30),
   ablyTokenPerMin: envInt("RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN", 5),
+  oauthStoreGetPerMin: envInt("RATE_LIMIT_COMMUNITY_OAUTH_STORE_GET_PER_MIN", 40),
+  oauthStorePostPerMin: envInt("RATE_LIMIT_COMMUNITY_OAUTH_STORE_POST_PER_MIN", 12),
   globalSyncsPerDay: envInt("RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY", 500),
   globalBandwidthMbPerDay: envInt("RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY", 500),
   maxCompanionPairs: envInt("RATE_LIMIT_COMMUNITY_MAX_COMPANION_PAIRS", 1),
@@ -126,16 +132,10 @@ const IDENTIFIER_EXTRACTORS: Record<string, IdentifierExtractor> = {
     const token = extractBearerToken(req);
     return token ? `tok:${hashId(token)}` : null;
   },
-  // Miro update-image: miroToken is in the JSON body; clone to avoid consuming it
-  "miro:update-image": async (req) => {
-    const cloned = req.clone();
-    try {
-      const body = await cloned.json();
-      const token = body.miroToken;
-      return token ? `tok:${hashId(token)}` : null;
-    } catch {
-      return null;
-    }
+  // Miro update-image: token is sent in Authorization header
+  "miro:update-image": (req) => {
+    const token = extractBearerToken(req);
+    return token ? `tok:${hashId(token)}` : null;
   },
   // Relay request: pairingId in the JSON body
   "relay:request": async (req) => {
@@ -153,6 +153,36 @@ const IDENTIFIER_EXTRACTORS: Record<string, IdentifierExtractor> = {
     try {
       const body = await cloned.json();
       return body.requestId ? `relay:${hashId(body.requestId)}` : null;
+    } catch {
+      return null;
+    }
+  },
+  // Relay response: requestId in query string
+  "relay:response": (req) => {
+    try {
+      const url = new URL(req.url);
+      const requestId = url.searchParams.get("requestId");
+      return requestId ? `relay:${hashId(requestId)}` : null;
+    } catch {
+      return null;
+    }
+  },
+  // OAuth store polling: state in query string
+  "oauth:store:get": (req) => {
+    try {
+      const url = new URL(req.url);
+      const state = url.searchParams.get("state");
+      return state ? `oauth:${hashId(state)}` : null;
+    } catch {
+      return null;
+    }
+  },
+  // OAuth store write: state in request body
+  "oauth:store:post": async (req) => {
+    const cloned = req.clone();
+    try {
+      const body = await cloned.json();
+      return body.state ? `oauth:${hashId(String(body.state))}` : null;
     } catch {
       return null;
     }
@@ -180,6 +210,9 @@ const ENDPOINT_LIMITS: Record<string, RateLimitConfig | MultiWindowConfig> = {
   "figma:node-info": { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
   "relay:request": { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
   "relay:result": { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
+  "relay:response": { limit: COMMUNITY_PLAN.relayResponsePerMin, window: 60 },
+  "oauth:store:get": { limit: COMMUNITY_PLAN.oauthStoreGetPerMin, window: 60 },
+  "oauth:store:post": { limit: COMMUNITY_PLAN.oauthStorePostPerMin, window: 60 },
   "miro:update-image": { limit: COMMUNITY_PLAN.updateImagePerMin, window: 60 },
   "ably:token": { limit: COMMUNITY_PLAN.ablyTokenPerMin, window: 60 },
 };

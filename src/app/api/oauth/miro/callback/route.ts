@@ -63,6 +63,15 @@ const HTML_HEAD = `
 </head>
 `;
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
@@ -78,10 +87,11 @@ export async function GET(request: NextRequest) {
   const redirectUri = `${appUrl}/api/oauth/miro/callback`;
 
   // 1. Verify CSRF State
-  // Note: Miro's developer dashboard "Install app" button bypasses our auth endpoint,
-  // resulting in an empty state parameter. We permit an empty state only if no state cookie
-  // was set (indicating a direct installation flow from the developer console).
-  const isDirectInstall = !stateCookie && !stateParam;
+  // Controlled bypass policy:
+  // - Default secure behavior: require state match.
+  // - Optional legacy compatibility for marketplace/direct install can be enabled via env.
+  const allowDirectInstallNoState = process.env.MIRO_ALLOW_DIRECT_INSTALL_NO_STATE === 'true';
+  const isDirectInstall = allowDirectInstallNoState && !stateCookie && !stateParam;
 
   if (!isDirectInstall && stateCookie !== stateParam) {
     const csrfResponse = new NextResponse(
@@ -103,6 +113,7 @@ ${HTML_HEAD}
   }
 
   if (error || !code) {
+    const safeError = escapeHtml(error || 'No authorization code returned.');
     const errorResponse = new NextResponse(
       `<!DOCTYPE html>
 <html>
@@ -110,7 +121,7 @@ ${HTML_HEAD}
 <body>
   <div class="container">
     <h3>Authentication Failed</h3>
-    <p class="error-msg">${error || 'No authorization code returned.'}</p>
+    <p class="error-msg">${safeError}</p>
     <button onclick="window.close()">Close Window</button>
   </div>
 </body>
@@ -238,6 +249,7 @@ ${HTML_HEAD}
     return response;
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
+    const safeError = escapeHtml(errorMsg);
     const errResponse = new NextResponse(
       `<!DOCTYPE html>
 <html>
@@ -245,7 +257,7 @@ ${HTML_HEAD}
 <body>
   <div class="container">
     <h3>Error during Token Exchange</h3>
-    <p class="error-msg">${errorMsg}</p>
+    <p class="error-msg">${safeError}</p>
     <button onclick="window.close()">Close Window</button>
   </div>
 </body>
