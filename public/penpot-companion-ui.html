@@ -85,7 +85,35 @@
       display: flex;
       gap: 8px;
     }
-    input[type="text"] {
+    .pairing-input-wrap {
+      position: relative;
+      flex: 1;
+    }
+    .pairing-input-wrap input {
+      width: 100%;
+      padding-right: 28px;
+      box-sizing: border-box;
+    }
+    .pairing-eye-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none !important;
+      border: none !important;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .pairing-eye-btn:hover {
+      color: var(--text-page);
+      opacity: 1 !important;
+    }
+    input[type="text"], input[type="password"] {
       flex: 1;
       background-color: var(--bg-page);
       border: 1px solid var(--border-card);

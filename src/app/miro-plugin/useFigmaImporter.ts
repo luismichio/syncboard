@@ -169,7 +169,8 @@ export function useFigmaImporter(
       }
 
       const fallbackName = figmaNodeInfo.name || figmaNodeInfo.nodeId;
-      const titleTag = `${fallbackName} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
+      const safeName = decodeHtmlEntities(fallbackName);
+      const titleTag = `${safeName} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
 
       const image = await miro.board.createImage({
         url: dataUrl,
@@ -205,7 +206,7 @@ export function useFigmaImporter(
                 boardId: boardInfo.id,
                 itemId: image.id,
                 dataUrl,
-                nodeName: fallbackName,
+                nodeName: safeName,
                 fileKey: figmaNodeInfo.fileKey,
                 nodeId: figmaNodeInfo.nodeId,
                 format,

@@ -187,7 +187,7 @@ export function usePenpotImporter(
               boardId: boardInfo.id,
               itemId: image.id,
               dataUrl,
-              nodeName: capturedName || 'Penpot Screen',
+              nodeName: capturedName ? decodeHtmlEntities(capturedName) : 'Penpot Screen',
               fileKey: capturedFileId,
               nodeId: capturedObjectId,
               format,
