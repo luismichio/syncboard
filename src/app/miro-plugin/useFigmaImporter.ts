@@ -194,27 +194,42 @@ export function useFigmaImporter(
 
         // Non-blocking background registration of binary File resource on Miro backend
         // so that right-clicking and downloading the image from Miro uses the frame's actual name.
+        // After the PATCH, re-assert the widget title via SDK — same pattern as sync/replace.
         if (miroToken) {
-          miro.board.getInfo().then((boardInfo) => {
-            fetch('/api/miro/update-image', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${miroToken}`,
-              },
-              body: JSON.stringify({
-                boardId: boardInfo.id,
-                itemId: image.id,
-                dataUrl,
-                nodeName: safeName,
-                fileKey: figmaNodeInfo.fileKey,
-                nodeId: figmaNodeInfo.nodeId,
-                format,
-                scale: resolvedScale,
-                platform: 'figma',
-              }),
-            }).catch((err) => console.warn('Background filename registration warning:', err));
-          }).catch(() => {});
+          const registerImage = async () => {
+            try {
+              const boardInfo = await miro.board.getInfo();
+              const patchRes = await fetch('/api/miro/update-image', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${miroToken}`,
+                },
+                body: JSON.stringify({
+                  boardId: boardInfo.id,
+                  itemId: image.id,
+                  dataUrl,
+                  nodeName: safeName,
+                  fileKey: figmaNodeInfo.fileKey,
+                  nodeId: figmaNodeInfo.nodeId,
+                  format,
+                  scale: resolvedScale,
+                  platform: 'figma',
+                }),
+              });
+              if (patchRes.ok) {
+                // Re-assert the widget title after PATCH to fix any server-side encoding
+                const widget = await miro.board.getById(image.id).catch(() => null);
+                if (widget) {
+                  widget.title = `${safeName} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
+                  await widget.sync().catch(() => {});
+                }
+              }
+            } catch (err) {
+              console.warn('Background filename registration warning:', err);
+            }
+          };
+          registerImage();
         }
 
         setSyncStatusParent('✓ Image placed successfully!', 'success');

@@ -175,26 +175,39 @@ export function usePenpotImporter(
       await image.sync();
 
       if (miroToken) {
-        void miro.board.getInfo().then((boardInfo) => {
-          return fetch('/api/miro/update-image', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${miroToken}`,
-            },
-            body: JSON.stringify({
-              boardId: boardInfo.id,
-              itemId: image.id,
-              dataUrl,
-              nodeName: resolvedName,
-              fileKey: capturedFileId,
-              nodeId: capturedObjectId,
-              format,
-              scale,
-              platform: 'penpot',
-            }),
-          }).catch((err) => console.warn('Background filename registration warning:', err));
-        }).catch(() => {});
+        const registerImage = async () => {
+          try {
+            const boardInfo = await miro.board.getInfo();
+            const patchRes = await fetch('/api/miro/update-image', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${miroToken}`,
+              },
+              body: JSON.stringify({
+                boardId: boardInfo.id,
+                itemId: image.id,
+                dataUrl,
+                nodeName: resolvedName,
+                fileKey: capturedFileId,
+                nodeId: capturedObjectId,
+                format,
+                scale,
+                platform: 'penpot',
+              }),
+            });
+            if (patchRes.ok) {
+              const widget = await miro.board.getById(image.id).catch(() => null);
+              if (widget) {
+                widget.title = `${resolvedName} [PenpotSync|${capturedFileId}|${capturedObjectId}]`;
+                await widget.sync().catch(() => {});
+              }
+            }
+          } catch (err) {
+            console.warn('Background filename registration warning:', err);
+          }
+        };
+        registerImage();
       }
 
       setSyncStatusParent('✓ Penpot vector screen placed successfully!', 'success');
