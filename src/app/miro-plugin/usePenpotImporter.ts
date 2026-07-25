@@ -135,7 +135,6 @@ export function usePenpotImporter(
 
       const capturedFileId = penpotNodeInfo.fileId;
       const capturedObjectId = penpotNodeInfo.objectId;
-      const capturedName = penpotNodeInfo.name;
 
       const titleTag = `${resolvedName} [PenpotSync|${capturedFileId}|${capturedObjectId}]`;
 
