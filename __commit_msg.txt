@@ -1,8 +1,11 @@
-fix: remove /api/figma/verify startup check (OAuth tokens rejected by /v1/me)
+fix: batch limit counts unique exports, not total widgets
 
-Figma's /v1/me endpoint only accepts Personal Access Tokens, not OAuth
-tokens. So the verify endpoint returned 401 for every valid OAuth token,
-causing the plugin to clear the Figma connection on every reload.
+The batch limit of 3 now applies to unique
+(fileKey, nodeId, format, scale, platform) groups — i.e., distinct
+Figma/Penpot exports. Widget copies of the same frame share the render
+cache and are NOT counted against the limit. With syncAllCopies enabled,
+all copies of the first 3 frames sync without extra export slots.
 
-Removed the verify call from useAuthTokens.ts. Server-side token
-revocation is now caught at sync time (Figami API 401 → error handler).
+Also removed silent truncation — the sync function now throws an error
+if called with >3 unique groups (defense-in-depth; the UI already
+prevents this via the disabled button + warning banner).
