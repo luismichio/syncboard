@@ -7,13 +7,13 @@ async function handler(request: Request) {
     const miroToken = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
     const figmaToken = request.headers.get('X-Figma-Token') || '';
 
-    const { 
-      boardId, 
-      itemId, 
-      fileKey, 
-      nodeId, 
-      nodeName, 
-      width, 
+    const {
+      boardId,
+      itemId,
+      fileKey,
+      nodeId,
+      nodeName,
+      width,
       dataUrl,
       format = 'png',
       scale = 2,
@@ -43,7 +43,7 @@ async function handler(request: Request) {
 
       const scaleQuery = format === 'svg' ? '' : `&scale=${scale ? Number(scale) : 2}`;
       const figmaApiUrl = `https://api.figma.com/v1/images/${fileKey}?ids=${nodeId}${scaleQuery}&format=${format}`;
-      
+
       const figmaResponse = await fetch(figmaApiUrl, {
         headers: { Authorization: `Bearer ${figmaToken}` },
       });
@@ -55,7 +55,6 @@ async function handler(request: Request) {
         const planTier = figmaResponse.headers.get('X-Figma-Plan-Tier');
         const limitType = figmaResponse.headers.get('X-Figma-Rate-Limit-Type');
         const baseError = figmaData.err || figmaData.message || 'Rate limit exceeded';
-        
         return NextResponse.json(
           {
             error: baseError,
@@ -86,28 +85,24 @@ async function handler(request: Request) {
       arrayBuffer = await imageResponse.arrayBuffer();
     }
 
-    // Build multipart form data for Miro image PATCH
-    const formData = new FormData();
-    
     const mimeType = format === 'svg' ? 'image/svg+xml' : 'image/png';
     const safeName = nodeName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'screenshot';
     const fileName = format === 'svg' ? `${safeName}.svg` : `${safeName}.png`;
-    
     const file = new File([arrayBuffer], fileName, { type: mimeType });
-    formData.append('resource', file);
 
     const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
     const titleTag = `${nodeName} [${tag}|${fileKey}|${nodeId}]`;
-
     const authHeaders = { Authorization: `Bearer ${miroToken}` };
 
     // Step 1: Upload the image via the image-specific multipart endpoint.
-    // Title is included here; geometry is NOT sent because Miro's image
-    // processing overrides geometry.width when a new resource is supplied.
+    // When preserveSize is active, include style.fit: "contain" so the new image
+    // renders within the current widget bounds without stretching.
+    // NOTE: We do NOT send geometry here — Miro's image PATCH may recalculate
+    // widget dimensions when a new resource is supplied, and sending geometry
+    // with height causes a 400 error.
     const imageForm = new FormData();
     imageForm.append('resource', file);
-    // When preserveSize is enabled, include style.fit: "contain" so the image
-    // maintains its aspect ratio within the current widget bounds instead of stretching.
+
     const imageData: Record<string, unknown> = { title: titleTag };
     if (preserveSize) {
       imageData.style = { fit: 'contain' };
@@ -131,17 +126,14 @@ async function handler(request: Request) {
 
     // Step 2: Apply geometry via the generic item update endpoint (JSON body) —
     // only when preserveSize is NOT active.
-    // This endpoint handles geometry differently from the image-specific one —
-    // it updates the widget's data model directly without triggering image processing.
     if (width && !preserveSize) {
       const targetWidth = Math.round(Number(width));
       const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
-
       const geometryRes = await fetch(itemUrl, {
         method: 'PATCH',
         headers: {
-          ...authHeaders,
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({
           data: {

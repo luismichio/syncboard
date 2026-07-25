@@ -34,7 +34,7 @@ const STORAGE_KEYS = {
 };
 
 const MIRO_STORAGE_TIMEOUT_MS = 1500;
-const REFRESH_TIMEOUT_MS = 7000;
+const REFRESH_TIMEOUT_MS = 15000;
 
 type MiroStorageApi = {
   get: (key: string) => Promise<string | undefined>;
@@ -97,12 +97,22 @@ function parseTokenData(raw: string): TokenData | null {
 }
 
 /**
- * Saves token data to Miro board storage if inside Miro, or falls back to localStorage.
+ * Saves token data — always writes to localStorage (fast local cache) and
+ * also attempts Miro board storage (survives browser cache clears).
  */
 export async function saveToken(platform: 'figma' | 'miro', data: TokenData): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  // 1. If running inside Miro board, write to Miro's native App storage to bypass iframe cookie block
+  // Always write to localStorage as a local cache — this is the fast path
+  // for reads on iframe reload, before Miro board storage has synced.
+  try {
+    localStorage.setItem(STORAGE_KEYS[platform], JSON.stringify(data));
+  } catch (err) {
+    console.error(`Failed to save ${platform} token in localStorage:`, err);
+  }
+
+  // Also persist to Miro board storage (survives browser cache clears).
+  // Errors here are non-fatal — localStorage is the primary read path.
   const miroStorage = getMiroStorageApi();
   if (miroStorage) {
     try {
@@ -111,27 +121,33 @@ export async function saveToken(platform: 'figma' | 'miro', data: TokenData): Pr
         MIRO_STORAGE_TIMEOUT_MS,
         'Miro board.storage.set'
       );
-      return;
     } catch (err) {
-      console.warn('Failed to write to Miro board storage, falling back to localStorage:', err);
+      console.warn('Failed to write to Miro board storage:', err);
     }
-  }
-
-  // 2. Otherwise, fall back to standard localStorage
-  try {
-    localStorage.setItem(STORAGE_KEYS[platform], JSON.stringify(data));
-  } catch (err) {
-    console.error(`Failed to save ${platform} token in localStorage:`, err);
   }
 }
 
 /**
- * Reads token data from Miro board storage or falls back to localStorage.
+ * Reads token data — checks localStorage first (instant, works immediately on
+ * iframe reload), falls back to Miro board storage (survives cache clears).
  */
 export async function getToken(platform: 'figma' | 'miro'): Promise<TokenData | null> {
   if (typeof window === 'undefined') return null;
 
-  // 1. Read from Miro's native App storage if inside Miro and callable
+  // 1. Read from localStorage first — this is the fast path on iframe reload.
+  //    saveToken() always writes here, so it's available before board storage syncs.
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS[platform]);
+    if (raw) {
+      const parsed = parseTokenData(raw);
+      if (parsed) return parsed;
+    }
+  } catch (err) {
+    console.warn(`Failed to read ${platform} token from localStorage:`, err);
+  }
+
+  // 2. Fall back to Miro board storage (survives browser cache clears).
+  //    This handles the case where localStorage was cleared but board storage still has it.
   const miroStorage = getMiroStorageApi();
   if (miroStorage) {
     try {
@@ -142,30 +158,34 @@ export async function getToken(platform: 'figma' | 'miro'): Promise<TokenData | 
       );
       if (raw) {
         const parsed = parseTokenData(raw);
-        if (parsed) return parsed;
+        // Populate localStorage so the next read is instant.
+        if (parsed) {
+          try { localStorage.setItem(STORAGE_KEYS[platform], raw); } catch {}
+          return parsed;
+        }
       }
     } catch (err) {
       console.warn('Failed to read from Miro board storage:', err);
     }
   }
 
-  // 2. Otherwise, read from standard localStorage
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS[platform]);
-    if (!raw) return null;
-    return parseTokenData(raw);
-  } catch (err) {
-    console.error(`Failed to read ${platform} token from localStorage:`, err);
-    return null;
-  }
+  return null;
 }
 
 /**
- * Clears token data from Miro board storage or localStorage.
+ * Clears token data from both localStorage and Miro board storage.
  */
 export async function clearToken(platform: 'figma' | 'miro'): Promise<void> {
   if (typeof window === 'undefined') return;
 
+  // Always clear localStorage first.
+  try {
+    localStorage.removeItem(STORAGE_KEYS[platform]);
+  } catch (err) {
+    console.error(`Failed to clear ${platform} token from localStorage:`, err);
+  }
+
+  // Also clear from Miro board storage.
   const miroStorage = getMiroStorageApi();
   if (miroStorage) {
     try {
@@ -174,16 +194,9 @@ export async function clearToken(platform: 'figma' | 'miro'): Promise<void> {
         MIRO_STORAGE_TIMEOUT_MS,
         'Miro board.storage.set'
       );
-      return;
     } catch (err) {
       console.warn('Failed to clear Miro board storage:', err);
     }
-  }
-
-  try {
-    localStorage.removeItem(STORAGE_KEYS[platform]);
-  } catch (err) {
-    console.error(`Failed to clear ${platform} token:`, err);
   }
 }
 

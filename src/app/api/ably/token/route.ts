@@ -5,10 +5,9 @@ import { generateAblyToken } from '@/lib/relayAbly';
 async function postHandler(request: Request) {
   try {
     const body: unknown = await request.json().catch(() => null);
-    const pairingId =
-      body && typeof body === 'object' && 'pairingId' in body
-        ? String((body as { pairingId: string }).pairingId).trim()
-        : null;
+    const raw = body && typeof body === 'object' ? body as Record<string, unknown> : {};
+    const pairingId = typeof raw.pairingId === 'string' ? raw.pairingId.trim() : null;
+    const platform = raw.platform === 'figma' ? 'figma' : 'penpot';
 
     if (!pairingId) {
       return NextResponse.json(
@@ -17,7 +16,7 @@ async function postHandler(request: Request) {
       );
     }
 
-    const tokenDetails = await generateAblyToken(pairingId);
+    const tokenDetails = await generateAblyToken(pairingId, platform);
 
     return NextResponse.json(tokenDetails);
   } catch (error) {
@@ -33,6 +32,8 @@ async function getHandler(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const pairingId = searchParams.get('pairingId');
+    const platformParam = searchParams.get('platform');
+    const platform = platformParam === 'figma' ? 'figma' : 'penpot';
 
     if (!pairingId) {
       return NextResponse.json(
@@ -49,7 +50,7 @@ async function getHandler(request: Request) {
       );
     }
 
-    const tokenDetails = await generateAblyToken(trimmed);
+    const tokenDetails = await generateAblyToken(trimmed, platform);
 
     return NextResponse.json(tokenDetails);
   } catch (error) {

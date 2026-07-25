@@ -7,6 +7,7 @@ export type RelayJson = null | boolean | number | string | RelayJson[] | { [key:
 
 export interface RelayRequestBody {
   pairingId: string;
+  platform?: 'figma' | 'penpot';
   action: 'select' | 'export';
   shapeId?: string;
   format?: 'svg' | 'png';
@@ -45,9 +46,11 @@ import Ably from 'ably';
 let globalAblyClient: Ably.Realtime | null = null;
 let globalAblyChannel: Ably.RealtimeChannel | null = null;
 let currentConnectedPairingId: string | null = null;
+let currentConnectedPlatform: 'figma' | 'penpot' | null = null;
 
-async function getAblyConnection(pairingId: string): Promise<Ably.RealtimeChannel> {
-  if (globalAblyClient && currentConnectedPairingId === pairingId && globalAblyChannel) {
+async function getAblyConnection(pairingId: string, platform: 'figma' | 'penpot' = 'penpot'): Promise<Ably.RealtimeChannel> {
+  const prefix = platform === 'figma' ? 'figma' : 'penpot';
+  if (globalAblyClient && currentConnectedPairingId === pairingId && currentConnectedPlatform === platform && globalAblyChannel) {
     return globalAblyChannel;
   }
 
@@ -62,12 +65,13 @@ async function getAblyConnection(pairingId: string): Promise<Ably.RealtimeChanne
   }
 
   globalAblyClient = new Ably.Realtime({
-    authUrl: `/api/ably/token?pairingId=${encodeURIComponent(pairingId)}`,
+    authUrl: `/api/ably/token?pairingId=${encodeURIComponent(pairingId)}&platform=${platform}`,
     authMethod: 'GET',
   });
 
-  globalAblyChannel = globalAblyClient.channels.get(`penpot:${pairingId}`);
+  globalAblyChannel = globalAblyClient.channels.get(`${prefix}:${pairingId}`);
   currentConnectedPairingId = pairingId;
+  currentConnectedPlatform = platform;
 
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Ably connection timed out.')), 10000);
@@ -86,7 +90,8 @@ async function getAblyConnection(pairingId: string): Promise<Ably.RealtimeChanne
 
 export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
   const pairingId = body.pairingId;
-  const channel = await getAblyConnection(pairingId);
+  const platform = body.platform || 'penpot';
+  const channel = await getAblyConnection(pairingId, platform);
 
   return new Promise<RelayJson>((resolve, reject) => {
     let isResolved = false;
@@ -207,6 +212,7 @@ export async function callPenpotMcpTool(
   if (toolName === 'execute_code') {
     const data = await callRelay({
       pairingId,
+      platform: 'penpot',
       action: 'select',
       timeoutMs: 8_000,
     });
@@ -230,11 +236,12 @@ export async function callPenpotMcpTool(
 
     const data = await callRelay({
       pairingId,
+      platform: 'penpot',
       action: 'export',
       shapeId,
       format,
       scale,
-      timeoutMs: 18_000,
+      timeoutMs: 120_000,
     });
 
     const payload = data as { svg?: string; base64?: string; name?: string; width?: number; height?: number } | null;

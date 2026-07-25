@@ -35,24 +35,33 @@ async function findShapeById(shapeId) {
   if (penpot.selection && penpot.selection.length > 0) {
     const selMatch = penpot.selection.find((s) => s && s.id === shapeId);
     if (selMatch) return selMatch;
-    if (penpot.selection.length === 1 && penpot.selection[0]) {
-      return penpot.selection[0];
+    // Do NOT fall back to the current selection if shapeId doesn't match.
+    // The stored nodeId in SyncBoard metadata is the source of truth.
+  }
+
+  // 2. Use official getShapeById API on current page (O(1) internal map lookup)
+  //    This is synchronous and much faster than tree walking.
+  if (penpot.currentPage && typeof penpot.currentPage.getShapeById === 'function') {
+    const found = penpot.currentPage.getShapeById(shapeId);
+    if (found) return found;
+  }
+
+  // 3. Cross-page search via official getShapeById API (O(1) per page)
+  const allPages = penpot.pages || (penpot.currentFile && penpot.currentFile.pages);
+  if (allPages && Array.isArray(allPages)) {
+    for (const page of allPages) {
+      if (page === penpot.currentPage) continue;
+      if (typeof page.getShapeById === 'function') {
+        const found = page.getShapeById(shapeId);
+        if (found) {
+          console.log('[SyncBoard] found via cross-page getShapeById');
+          return found;
+        }
+      }
     }
   }
 
-  // 2. Try native findShape method on current page
-  if (penpot.currentPage && typeof penpot.currentPage.findShape === 'function') {
-    try {
-      const found = await penpot.currentPage.findShape({ id: shapeId });
-      if (found) return found;
-    } catch (e) {
-      // Ignore
-    }
-  }
-
-  // 3. Fall back to recursive page tree search
-  if (!penpot.currentPage) return null;
-
+  // 4. Fallback: recursive tree walk (for older Penpot instances without getShapeById)
   function search(node) {
     if (!node) return null;
     if (node.id === shapeId) return node;
@@ -65,37 +74,73 @@ async function findShapeById(shapeId) {
     return null;
   }
 
-  if (penpot.currentPage.root) {
+  if (penpot.currentPage && penpot.currentPage.root) {
     const found = search(penpot.currentPage.root);
     if (found) return found;
   }
 
-  if (penpot.currentPage.children) {
-    for (const child of penpot.currentPage.children) {
-      const found = search(child);
-      if (found) return found;
+  if (allPages && Array.isArray(allPages)) {
+    for (const page of allPages) {
+      if (page === penpot.currentPage || !page.root) continue;
+      const found = search(page.root);
+      if (found) {
+        console.log('[SyncBoard] found via fallback cross-page search');
+        return found;
+      }
     }
   }
 
-  return search(penpot.currentPage);
+  console.log('[SyncBoard] findShapeById returning null — shape not found on any page');
+  return null;
 }
 
 async function exportShapeBuffer(shapeId, format, scale) {
+  // Preload: if the shape is on a different page, navigate there so WASM
+  // has the shape data cached and export is instant (<1s) instead of a
+  // 10-60s main-thread freeze. After export, navigate back to the original
+  // page so the user's workspace is not disrupted.
+  const originalPageId = penpot.currentPage ? penpot.currentPage.id : null;
+  if (typeof penpot.openPage === 'function' && originalPageId) {
+    const allPages = penpot.pages || (penpot.currentFile && penpot.currentFile.pages);
+    if (allPages && Array.isArray(allPages)) {
+      for (const page of allPages) {
+        if (page.id === originalPageId) continue;
+        if (typeof page.getShapeById === 'function') {
+          const found = page.getShapeById(shapeId);
+          if (found) {
+            console.log('[SyncBoard] navigating to shape page for fast export');
+            await penpot.openPage(page);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Run the actual export (await the full result so WASM data is captured
+  // before any page navigation happens).
   const shapeFromPage = await findShapeById(shapeId);
-
+  let result;
   if (shapeFromPage && typeof shapeFromPage.export === 'function') {
-    return shapeFromPage.export({ type: format, scale });
+    console.log('[SyncBoard] exporting via shapeFromPage.export()');
+    result = await shapeFromPage.export({ type: format, scale });
+  } else if (shapeFromPage && typeof shapeFromPage.exportShape === 'function') {
+    console.log('[SyncBoard] exporting via shapeFromPage.exportShape()');
+    result = await shapeFromPage.exportShape({ format, scale });
+  } else if (typeof penpot.export === 'function') {
+    console.log('[SyncBoard] exporting via penpot.export(shapeId) fallback');
+    result = await penpot.export(shapeId, { format, scale });
+  } else {
+    throw new Error(`Penpot shape "${shapeId}" export API unavailable. Ensure a valid frame or shape is selected in Penpot.`);
   }
 
-  if (shapeFromPage && typeof shapeFromPage.exportShape === 'function') {
-    return shapeFromPage.exportShape({ format, scale });
+  // Navigate back after export data is fully captured in memory.
+  if (originalPageId && typeof penpot.openPage === 'function') {
+    console.log('[SyncBoard] navigating back to original page');
+    await penpot.openPage(originalPageId).catch(() => {});
   }
 
-  if (typeof penpot.export === 'function') {
-    return penpot.export(shapeId, { format, scale });
-  }
-
-  throw new Error(`Penpot shape "${shapeId}" export API unavailable. Ensure a valid frame or shape is selected in Penpot.`);
+  return result;
 }
 
 // Listen to messages from the UI Iframe
@@ -141,11 +186,14 @@ penpot.ui.onMessage(async (message) => {
 
       // Get the shape name and natural dimensions so the Miro plugin can
       // create the widget at the correct display size regardless of scale.
-      let shapeName = 'Selected Frame';
+      // When the shape is not found on the current page, omit the name (null)
+      // so the Miro plugin preserves the existing widget name rather than
+      // overwriting it with a placeholder.
+      let shapeName = null;
       let shapeWidth = 0;
       let shapeHeight = 0;
       try {
-        const shapeFromPage = findShapeById(message.shapeId);
+        const shapeFromPage = await findShapeById(message.shapeId);
         if (shapeFromPage) {
           if (shapeFromPage.name) shapeName = shapeFromPage.name;
           // selrect gives the shape's natural dimensions (before scale multiplication)
@@ -155,7 +203,7 @@ penpot.ui.onMessage(async (message) => {
           }
         }
       } catch (e) {
-        // Silently fall back to default name
+        // Silently fall back — name stays null, Miro plugin uses existing widget name
       }
 
       const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);

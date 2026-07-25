@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useMiroPlugin } from './useMiroPlugin';
+import { useMiroPlugin, SyncStatus } from './useMiroPlugin';
 import ThemeToggle from '@/components/ThemeToggle';
-import { DISPLAY } from '@/lib/version';
+import { DISPLAY, PLAN } from '@/lib/version';
 
 export default function MiroPluginPage() {
   const [propagate, setPropagate] = useState<boolean>(false);
@@ -39,10 +39,17 @@ export default function MiroPluginPage() {
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
+    // Selection state
+    isAnyImageSelected,
+    // Replace / Adopt
+    replaceSelectedWidget,
   } = useMiroPlugin(propagate, preserveSize);
   const [activeTab, setActiveTab] = useState<'sync' | 'import' | 'settings'>('sync');
   const [importPlatform, setImportPlatform] = useState<'figma' | 'penpot'>('figma');
   const [importFormat, setImportFormat] = useState<'png' | 'svg'>('png');
+  const MAX_SCALE = PLAN === 'community' ? 2 : 4;
+  const AVAILABLE_SCALES = Array.from({ length: MAX_SCALE }, (_, i) => i + 1);
+
   const [importScale, setImportScale] = useState<number>(2);
   const [defaultPngScale, setDefaultPngScale] = useState<number>(2);
   const [useTauri, setUseTauri] = useState<boolean>(false);
@@ -55,7 +62,7 @@ export default function MiroPluginPage() {
     const rafId = window.requestAnimationFrame(() => {
       const savedScaleRaw = localStorage.getItem('default_png_scale');
       const parsedScale = savedScaleRaw ? Number(savedScaleRaw) : 2;
-      const safeScale = Number.isFinite(parsedScale) && parsedScale >= 1 && parsedScale <= 4
+      const safeScale = Number.isFinite(parsedScale) && parsedScale >= 1 && parsedScale <= MAX_SCALE
         ? parsedScale
         : 2;
       setDefaultPngScale(safeScale);
@@ -278,10 +285,10 @@ export default function MiroPluginPage() {
     <div className="flex flex-col min-h-screen p-5 bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page transition-colors duration-200">
       {/* App Header */}
       <header className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* SyncBoard Logo */}
+        <div className="flex items-start gap-2.5">
+          {/* SyncBoard Logo — aligned with first line of text */}
           <div
-            className="w-6 h-6 bg-accent"
+            className="w-6 h-6 mt-0.5 bg-accent shrink-0"
             style={{
               maskImage: 'url(/syncboard_logo.svg)',
               WebkitMaskImage: 'url(/syncboard_logo.svg)',
@@ -293,7 +300,6 @@ export default function MiroPluginPage() {
           <div>
             <h2 className="text-xl font-bold tracking-tight text-accent leading-none">SyncBoard</h2>
             <p className="text-[10px] text-text-muted mt-0.5">Stateless Design-Miro Pipeline</p>
-            <span className="text-[8px] font-mono text-text-muted/50">{DISPLAY}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -309,10 +315,10 @@ export default function MiroPluginPage() {
               maskPosition: 'center',
             }}
           />
-          {/* Miro Status Indicator */}
+          {/* Miro Status Indicator — 4px larger for legibility */}
           <div
             title={tokensLoading ? 'Connecting...' : miroToken ? 'Miro Connected' : 'Miro Disconnected'}
-            className={`w-4 h-4 transition duration-200 ${tokensLoading ? 'bg-yellow-500/50' : miroToken ? 'bg-accent' : 'bg-text-muted/30'}`}
+            className={`w-[18px] h-[18px] transition duration-200 ${tokensLoading ? 'bg-yellow-500/50' : miroToken ? 'bg-accent' : 'bg-text-muted/30'}`}
             style={{
               maskImage: 'url(/Miro.svg)',
               WebkitMaskImage: 'url(/Miro.svg)',
@@ -369,7 +375,7 @@ export default function MiroPluginPage() {
               </h4>
               {selectedItems.length > 0 ? (
                 <div className="space-y-3">
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
                     {getGroupedItems().map((group) => (
                       <div
                         key={group.key}
@@ -423,10 +429,9 @@ export default function MiroPluginPage() {
                                 onChange={(e) => handleGroupSettingChange(group.widgets.map(w => w.id), 'scale', Number(e.target.value))}
                                 className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
                               >
-                                <option value="1">1x</option>
-                                <option value="2">2x</option>
-                                <option value="3">3x</option>
-                                <option value="4">4x</option>
+                                {AVAILABLE_SCALES.map(s => (
+                                  <option key={s} value={s}>{s}x</option>
+                                ))}
                               </select>
                             </div>
                           )}
@@ -462,7 +467,10 @@ export default function MiroPluginPage() {
                       <input
                         type="checkbox"
                         checked={propagate}
-                        onChange={e => setPropagate(e.target.checked)}
+                        onChange={e => {
+                            setPropagate(e.target.checked);
+                            if (e.target.checked) setPreserveSize(false);
+                          }}
                         className="accent-accent w-3 h-3"
                       />
                       <span className="text-[10px] text-text-muted font-mono">
@@ -470,9 +478,19 @@ export default function MiroPluginPage() {
                       </span>
                     </label>
                   )}
+                  {getGroupedItems().length > 3 && (
+                    <div className="flex items-start gap-2 p-2.5 mt-2 rounded-md bg-bg-card border border-amber-500/60">
+                      <svg className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                      </svg>
+                      <span className="text-xs font-mono leading-snug text-text-page">
+                        Only 3 items can be synced at once. Deselect some to continue.
+                      </span>
+                    </div>
+                  )}
                   <button
                     onClick={syncSelectedScreens}
-                    disabled={isSyncing || !miroToken}
+                    disabled={isSyncing || !miroToken || getGroupedItems().length > 3}
                     className="w-full mt-2 font-mono font-bold text-xs py-2.5 rounded bg-accent text-bg-page hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED'}
@@ -592,10 +610,9 @@ export default function MiroPluginPage() {
                                 onChange={(e) => setImportScale(Number(e.target.value))}
                                 className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
                               >
-                                <option value="1">1x</option>
-                                <option value="2">2x</option>
-                                <option value="3">3x</option>
-                                <option value="4">4x</option>
+                                {AVAILABLE_SCALES.map(s => (
+                                  <option key={s} value={s}>{s}x</option>
+                                ))}
                               </select>
                             </div>
                           )}
@@ -606,6 +623,31 @@ export default function MiroPluginPage() {
                           className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {isSyncing ? 'PLACING...' : 'PLACE ON CANVAS'}
+                        </button>
+                        {/* Preserve widget size — shown in Import tab when an image is selected */}
+                        {isAnyImageSelected && (
+                          <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={preserveSize}
+                              onChange={e => setPreserveSize(e.target.checked)}
+                              className="accent-accent w-3 h-3"
+                            />
+                            <span className="text-[10px] text-text-muted font-mono">
+                              Preserve widget size
+                            </span>
+                          </label>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (figmaNodeInfo) {
+                              replaceSelectedWidget('figma', figmaNodeInfo.fileKey, figmaNodeInfo.nodeId, figmaNodeInfo.name, importFormat, importScale);
+                            }
+                          }}
+                          disabled={isSyncing || !figmaNodeInfo || !isAnyImageSelected}
+                          className="w-full mt-2 font-mono font-bold text-xs py-2 rounded border border-accent text-accent bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          REPLACE SELECTED
                         </button>
                       </div>
                     )}
@@ -690,10 +732,9 @@ export default function MiroPluginPage() {
                             onChange={(e) => setImportScale(Number(e.target.value))}
                             className="bg-bg-page border border-border-card text-[10px] rounded px-1.5 py-0.5 focus:outline-none focus:border-accent text-text-page w-full cursor-pointer"
                           >
-                            <option value="1">1x</option>
-                            <option value="2">2x</option>
-                            <option value="3">3x</option>
-                            <option value="4">4x</option>
+                            {AVAILABLE_SCALES.map(s => (
+                              <option key={s} value={s}>{s}x</option>
+                            ))}
                           </select>
                         </div>
                       )}
@@ -704,6 +745,31 @@ export default function MiroPluginPage() {
                       className="w-full mt-3 font-mono font-bold text-xs py-2 rounded bg-accent text-bg-page hover:opacity-90 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {isSyncing ? 'PLACING...' : 'PLACE ON CANVAS'}
+                    </button>
+                    {/* Preserve widget size — shown in Import tab when an image is selected */}
+                    {isAnyImageSelected && (
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={preserveSize}
+                          onChange={e => setPreserveSize(e.target.checked)}
+                          className="accent-accent w-3 h-3"
+                        />
+                        <span className="text-[10px] text-text-muted font-mono">
+                          Preserve widget size
+                        </span>
+                      </label>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (penpotNodeInfo) {
+                          replaceSelectedWidget('penpot', penpotNodeInfo.fileId, penpotNodeInfo.objectId, penpotNodeInfo.name, importFormat, importScale);
+                        }
+                      }}
+                      disabled={isSyncing || !penpotNodeInfo || !isAnyImageSelected}
+                      className="w-full mt-2 font-mono font-bold text-xs py-2 rounded border border-accent text-accent bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      REPLACE SELECTED
                     </button>
                   </div>
                 )}
@@ -780,32 +846,17 @@ export default function MiroPluginPage() {
                   )}
                 </div>
 
-                {/* SyncBridge Status Card */}
-                <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
+                {/* SyncBridge — greyd out, not fully implemented */}
+                <div className="p-3 rounded-lg bg-bg-card/50 border border-border-card/50 flex justify-between items-center opacity-50 select-none">
                   <div>
                     <div className="text-xs font-semibold text-text-page">SyncBridge</div>
                     <div className="text-[10px] text-text-muted">
-                      {useTauri ? 'Local HTTPS loopback active' : 'Disabled (Penpot cloud relay mode)'}
+                      Local desktop bridge — coming soon
                     </div>
                   </div>
-                  {useTauri ? (
-                    <div className="flex items-center gap-3">
-                      <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                      <button
-                        onClick={() => handleTauriToggle(false)}
-                        className="text-[9px] font-mono font-bold tracking-wider text-text-muted hover:text-accent uppercase underline bg-transparent cursor-pointer"
-                      >
-                        Disconnect
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleTauriToggle(true)}
-                      className="text-[10px] font-mono tracking-wider font-semibold border border-accent text-accent rounded px-2.5 py-1 bg-transparent hover:bg-accent hover:text-bg-page transition cursor-pointer"
-                    >
-                      CONNECT
-                    </button>
-                  )}
+                  <span className="text-[8px] font-mono uppercase tracking-wider text-text-muted/50">
+                    Future
+                  </span>
                 </div>
 
                 {/* Sync Pairing ID Card */}
@@ -849,10 +900,9 @@ export default function MiroPluginPage() {
                     onChange={(e) => handleDefaultPngScaleChange(Number(e.target.value))}
                     className="bg-bg-page border border-border-card text-xs rounded px-2 py-1 focus:outline-none focus:border-accent text-text-page cursor-pointer"
                   >
-                    <option value="1">1x</option>
-                    <option value="2">2x</option>
-                    <option value="3">3x</option>
-                    <option value="4">4x</option>
+                    {AVAILABLE_SCALES.map(s => (
+                      <option key={s} value={s}>{s}x</option>
+                    ))}
                   </select>
                 </div>
                 <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
@@ -861,18 +911,60 @@ export default function MiroPluginPage() {
                 </div>
               </div>
             </div>
+            {/* Documentation Link */}
+            <div className="mt-6 pt-4 border-t border-border-card">
+              <a
+                href="https://syncboard.luiskobayashi.com/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-text-muted hover:text-accent transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                Documentation
+              </a>
+            </div>
           </div>
         )}
       </section>
 
-      {/* Logger Board Status */}
-      {syncStatus && (
-        <footer className="mt-4 border-t border-border-card pt-4">
-          <div className="p-2.5 rounded font-mono text-[10px] bg-bg-card border border-border-card text-amber-800 dark:text-yellow-400">
-            {syncStatus}
-          </div>
-        </footer>
-      )}
+      {/* Version & Tier — centered above status */}
+      <footer className="mt-4 pt-3 border-t border-border-card">
+        <p className="text-center text-[9px] font-mono text-text-muted/50">{DISPLAY}</p>
+      </footer>
+
+      {/* Logger Board Status — color-coded with auto-clear */}
+      <BoardStatusFooter status={syncStatus} />
     </div>
+  );
+}
+
+/**
+ * Color-coded status bar — green for success, red for errors, amber with
+ * pulse animation during active operations, neutral gray for info.
+ */
+function BoardStatusFooter({ status }: { status: SyncStatus | null }) {
+  if (!status) return null;
+
+  const typeStyles: Record<string, string> = {
+    success: 'text-green-600 dark:text-green-400 border-green-500/30 bg-green-500/5',
+    error: 'text-red-600 dark:text-red-400 border-red-500/30 bg-red-500/5',
+    progress: 'text-amber-700 dark:text-amber-300 border-amber-500/30 bg-amber-500/5',
+    info: 'text-text-muted border-border-card bg-bg-card',
+  };
+
+  const animClass = status.type === 'progress' ? 'animate-pulse' : '';
+
+  return (
+    <footer className="mt-4 border-t border-border-card pt-4">
+      <div className={`p-2.5 rounded font-mono text-[10px] border ${typeStyles[status.type] || typeStyles.info} ${animClass} transition-colors duration-300`}>
+        {status.type === 'progress' && (
+          <span className="inline-block w-2 h-2 rounded-full bg-current mr-1.5 animate-pulse" />
+        )}
+        {status.message}
+      </div>
+    </footer>
   );
 }

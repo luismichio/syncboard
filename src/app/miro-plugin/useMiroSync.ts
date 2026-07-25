@@ -29,7 +29,7 @@ export function useMiroSync(
   selectedItems: SyncedImage[],
   isSyncing: boolean,
   setIsSyncing: (val: boolean) => void,
-  setSyncStatus: (val: string) => void,
+  setSyncStatus: (val: string, type?: 'success' | 'error' | 'progress' | 'info') => void,
   propagate: boolean = false,
   preserveSize: boolean = false
 ) {
@@ -53,6 +53,8 @@ export function useMiroSync(
     trackEvent('sync_start', `items:${selectedItems.length}`);
     setIsSyncing(true);
     try {
+      setSyncStatus('Preparing items for sync...', 'progress');
+
       const boardInfo = await miro.board.getInfo();
       const boardId = boardInfo.id;
 
@@ -184,6 +186,20 @@ export function useMiroSync(
         return;
       }
 
+      // Enforce batch limit of 3 unique export groups.
+      // Enforce batch limit of 3 unique images (different fileKey + nodeId).
+      // Copies at different scales of the same image are NOT counted separately.
+      // The UI already blocks the sync button when >3 groups are selected, so this
+      // is a defensive check — silently truncating would hide bugs.
+      const MAX_BATCH_SIZE = 3;
+      const uniqueImages = new Set(itemsToSync.map(i => `${i.fileKey}|${i.nodeId}`));
+      if (uniqueImages.size > MAX_BATCH_SIZE) {
+        throw new Error(`Can only sync up to ${MAX_BATCH_SIZE} different images at once. Deselect some to continue.`);
+      }
+      if (itemsToSync.length > MAX_BATCH_SIZE) {
+        setSyncStatus(`Syncing ${itemsToSync.length} widget(s) across ${uniqueImages.size} image(s)`);
+      }
+
       // renderCache: "fileKey|nodeId|format" -> base64 data URL
       // Format is included in the key to prevent race conditions when copies have different formats
       const renderCache = new Map<string, string>();
@@ -259,48 +275,52 @@ export function useMiroSync(
         }
       }
 
-      // --- Penpot Batch Rendering ---
+      // --- Penpot Batch Rendering (sequential, grouped by page via companion) ---
       if (penpotTargets.length > 0) {
         setSyncStatus(`Requesting ${penpotTargets.length} frame(s) from Penpot Companion relay...`);
-        
-        await Promise.all(
-          penpotTargets.map(async (target) => {
-            const format = target.format || 'svg';
-            try {
-              const mcpResponse = await callPenpotMcpTool('export_shape', {
-                shapeId: target.nodeId,
-                format: format,
-                scale: target.scale || 2,
-              });
 
-              if (mcpResponse.content && mcpResponse.content.length > 0) {
-                const content = mcpResponse.content[0];
-                const cacheKey = `${target.fileKey}|${target.nodeId}`;
-                // Update name from export response if present
-                if (content.name && typeof content.name === 'string') {
-                  nameCache.set(cacheKey, content.name);
-                }
-                // Include format in render cache key to prevent race conditions
-                // when copies have different formats
-                const renderKey = `${target.fileKey}|${target.nodeId}|${format}|${target.scale || 2}`;
-                if (format === 'svg' && content.text) {
-                  const base64 = btoa(unescape(encodeURIComponent(content.text)));
-                  const dataUrl = `data:image/svg+xml;base64,${base64}`;
-                  renderCache.set(renderKey, dataUrl);
-                } else if (format === 'png' && content.data) {
-                  const dataUrl = `data:image/png;base64,${content.data}`;
-                  renderCache.set(renderKey, dataUrl);
-                }
-              } else {
-                throw new Error('Penpot relay returned an empty payload.');
+        // Sequential per-item — the companion plugin handles page navigation
+        // (openPage) within each export so the WASM cache is hot.
+        for (const target of penpotTargets) {
+          const format = target.format || 'svg';
+          try {
+            setSyncStatus(`Exporting Penpot frame: ${target.nodeName}...`);
+            const mcpResponse = await callPenpotMcpTool('export_shape', {
+              shapeId: target.nodeId,
+              format: format,
+              scale: target.scale || 2,
+            });
+
+            if (mcpResponse.content && mcpResponse.content.length > 0) {
+              const content = mcpResponse.content[0];
+              const cacheKey = `${target.fileKey}|${target.nodeId}`;
+              // Update name from export response if present
+              // Only use the export name if it's meaningful — reject
+              // placeholders that would overwrite the widget's real name.
+              if (content.name && typeof content.name === 'string' &&
+                  content.name !== 'Selected Frame') {
+                nameCache.set(cacheKey, content.name);
               }
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err);
-              console.error(`Penpot export failed for node ${target.nodeId}:`, err);
-              throw new Error(`Penpot sync failed for '${target.nodeName}': ${msg}. Make sure Penpot is open and the Companion Plugin is connected with the same Pairing ID.`);
+              // Include format in render cache key to prevent race conditions
+              // when copies have different formats
+              const renderKey = `${target.fileKey}|${target.nodeId}|${format}|${target.scale || 2}`;
+              if (format === 'svg' && content.text) {
+                const base64 = btoa(unescape(encodeURIComponent(content.text)));
+                const dataUrl = `data:image/svg+xml;base64,${base64}`;
+                renderCache.set(renderKey, dataUrl);
+              } else if (format === 'png' && content.data) {
+                const dataUrl = `data:image/png;base64,${content.data}`;
+                renderCache.set(renderKey, dataUrl);
+              }
+            } else {
+              throw new Error('Penpot relay returned an empty payload.');
             }
-          })
-        );
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`Penpot export failed for node ${target.nodeId}:`, err);
+            throw new Error(`Penpot sync failed for '${target.nodeName}': ${msg}. Make sure Penpot is open and the Companion Plugin is connected with the same Pairing ID.`);
+          }
+        }
       }
 
       // --- STEP 2: Update each board widget using the cached data URLs ---

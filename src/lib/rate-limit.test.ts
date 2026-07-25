@@ -62,6 +62,7 @@ describe("InMemoryBackend", () => {
   beforeEach(async () => {
     vi.resetModules();
     setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN", "5");
     setEnv("UPSTASH_REDIS_REST_URL", undefined);
     setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
     setEnv("VERCEL", undefined);

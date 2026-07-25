@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const state = searchParams.get('state') || crypto.randomBytes(16).toString('hex');
 
-  // We request 'file_content:read' scope to fetch the file structure and render screenshots
+  // We request 'file_content:read' scope to fetch the file structure and render screenshots.
   const authUrl = `https://www.figma.com/oauth?client_id=${figmaClientId}&redirect_uri=${encodeURIComponent(
     redirectUri
   )}&scope=file_content:read&state=${state}&response_type=code`;

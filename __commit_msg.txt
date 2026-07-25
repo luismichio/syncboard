@@ -1,0 +1,8 @@
+chore: community scale limits (1x/2x), bumped rate limit defaults, propagate unchecks preserve size
+
+- Community plan: scale selector limited to 1x and 2x (self-host keeps 1x–4x)
+  via AVAILABLE_SCALES derived from PLAN. Caps worst-case exports at
+  3 frames × 2 scales = 6 renders.
+- RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN default 5→12 (handles 2 batches/min)
+- RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN default 10→30
+- Propagate now auto-unchecks Preserve Size — prevents 1x-in-4x-box blur

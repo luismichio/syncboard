@@ -16,7 +16,7 @@ export interface PenpotNodeInfo {
 export function usePenpotImporter(
   miroToken: string | null,
   setIsSyncingParent: (val: boolean) => void,
-  setSyncStatusParent: (val: string) => void
+  setSyncStatusParent: (val: string, type?: 'success' | 'error' | 'progress' | 'info') => void
 ) {
   const [penpotInput, setPenpotInput] = useState<string>('');
   const [penpotNodeInfo, setPenpotNodeInfo] = useState<PenpotNodeInfo | null>(null);
@@ -96,6 +96,8 @@ export function usePenpotImporter(
       const x = viewport.x + viewport.width / 2;
       const y = viewport.y + viewport.height / 2;
 
+      setSyncStatusParent('Exporting Penpot frame...', 'progress');
+
       // Fetch shape data from Companion relay
       const mcpResponse = await callPenpotMcpTool('export_shape', {
         shapeId: penpotNodeInfo.objectId,
@@ -107,9 +109,11 @@ export function usePenpotImporter(
         throw new Error('Penpot relay returned empty export response.');
       }
 
-      // Update the node name from the relay response if available
+      // Update the node name from the relay response if available.
+      // Reject 'Selected Frame' placeholder — it means the shape was
+      // not found on the current Penpot page.
       const responseName = mcpResponse.content[0]?.name;
-      if (responseName && typeof responseName === 'string') {
+      if (responseName && typeof responseName === 'string' && responseName !== 'Selected Frame') {
         setPenpotNodeInfo((prev) =>
           prev ? { ...prev, name: responseName } : prev
         );
@@ -133,8 +137,16 @@ export function usePenpotImporter(
       const naturalWidth = mcpResponse.content[0]?.width;
       const naturalHeight = mcpResponse.content[0]?.height;
 
-      const resolvedName = responseName || penpotNodeInfo.name;
-      const titleTag = `${resolvedName} [PenpotSync|${penpotNodeInfo.fileId}|${penpotNodeInfo.objectId}]`;
+      const resolvedName = (responseName && responseName !== 'Selected Frame')
+        ? responseName
+        : penpotNodeInfo.name;
+      // Snapshot Penpot node info in local variables to prevent stale-closure
+      // bugs in the async background fetch below. Without this, the .then()
+      // callback may read an updated state from a subsequent import.
+      const capturedFileId = penpotNodeInfo.fileId;
+      const capturedObjectId = penpotNodeInfo.objectId;
+      const capturedName = penpotNodeInfo.name;
+      const titleTag = `${resolvedName} [PenpotSync|${capturedFileId}|${capturedObjectId}]`;
       
       // Display width = naturalWidth * scale — the widget visually scales with
       // export resolution (1x=native, 2x=double size, 4x=quadruple).
@@ -164,9 +176,9 @@ export function usePenpotImporter(
 
       // Save connection configuration to widget metadata
       await image.setMetadata('syncboard', {
-        fileKey: penpotNodeInfo.fileId,
-        nodeId: penpotNodeInfo.objectId,
-        nodeName: penpotNodeInfo.name,
+        fileKey: capturedFileId,
+        nodeId: capturedObjectId,
+        nodeName: capturedName,
         format,
         scale,
         platform: 'penpot',
@@ -189,9 +201,9 @@ export function usePenpotImporter(
               boardId: boardInfo.id,
               itemId: image.id,
               dataUrl,
-              nodeName: penpotNodeInfo.name || 'Penpot Screen',
-              fileKey: penpotNodeInfo.fileId,
-              nodeId: penpotNodeInfo.objectId,
+              nodeName: capturedName || 'Penpot Screen',
+              fileKey: capturedFileId,
+              nodeId: capturedObjectId,
               format,
               scale,
               platform: 'penpot',
@@ -200,7 +212,7 @@ export function usePenpotImporter(
         }).catch(() => {});
       }
 
-      setSyncStatusParent('Penpot vector screen placed successfully!');
+      setSyncStatusParent('✓ Penpot vector screen placed successfully!', 'success');
       setIsSyncingParent(false);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);

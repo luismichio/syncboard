@@ -16,7 +16,7 @@ export function useFigmaImporter(
   figmaToken: string | null,
   miroToken: string | null,
   setIsSyncingParent: (val: boolean) => void,
-  setSyncStatusParent: (val: string) => void
+  setSyncStatusParent: (val: string, type?: 'success' | 'error' | 'progress' | 'info') => void
 ) {
   const [figmaInput, setFigmaInput] = useState<string>('');
   const [figmaNodeInfo, setFigmaNodeInfo] = useState<FigmaNodeInfo | null>(null);
@@ -101,6 +101,7 @@ export function useFigmaImporter(
 
         const data = await callRelay({
           pairingId,
+          platform: 'figma',
           action: 'select',
           timeoutMs: 8_000,
         });
@@ -139,6 +140,8 @@ export function useFigmaImporter(
 
       // Read default scale settings from user's global settings configuration
       const resolvedScale = scale ?? (typeof window !== 'undefined' ? Number(localStorage.getItem('default_png_scale') || '2') : 2);
+
+      setSyncStatusParent('Rendering Figma frame...', 'progress');
 
       // Use the same render-batch endpoint as sync to guarantee identical image data handling
       const batchRes = await fetch('/api/figma/render-batch', {
@@ -212,7 +215,7 @@ export function useFigmaImporter(
           }).catch(() => {});
         }
 
-        setSyncStatusParent('Image placed successfully!');
+        setSyncStatusParent('✓ Image placed successfully!', 'success');
         setIsSyncingParent(false);
       } catch (metaErr: unknown) {
         const metaMsg = metaErr instanceof Error ? metaErr.message : String(metaErr);
