@@ -131,13 +131,17 @@ export function useAuthTokens(isInitMode: boolean | null) {
 
         // Startup Figma token validation: if we have a token, verify it's
         // actually accepted by Figma's API (catches server-side revocation).
-        // Silently clears the UI state on failure — stored token is preserved
-        // for retry on next page load (Issue 4 safety).
+        // Startup Figma token validation: check if token is actually accepted
+        // by Figma's API (catches server-side revocation).
+        // Only clears on definitive 401 (token rejected by Figma).
+        // Transient errors (502 timeout, 5xx) preserve the connected state.
         if (fToken) {
           fetch('/api/figma/verify', {
             headers: { Authorization: `Bearer ${fToken}` },
           }).then(res => {
-            if (!res.ok && active) {
+            // 401 = Figma explicitly rejected the token (revoked/expired) → clear
+            // 502 = transient error (timeout, Figma 5xx) → keep token, retry next load
+            if (res.status === 401 && active) {
               setFigmaToken(null);
             }
           }).catch(() => {

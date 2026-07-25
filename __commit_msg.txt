@@ -1,10 +1,6 @@
-chore: bump to v0.13.1, update changelog, fix stale version display
+fix: don't clear Figma token on transient verify errors
 
-- Bump package.json to 0.13.1
-- Add changelog entries for: Figma offline_access scope fix, token storage
-  localStorage fix, version injection fix
-- Refactor src/lib/version.ts to import from version.generated.ts
-  instead of require('../../package.json'), avoiding bundler caching issues
-- inject-version.mjs now writes src/lib/version.generated.ts on every run
-- yarn dev now runs inject-version before next dev (was build-only)
-- Add version.generated.ts to .gitignore
+- /api/figma/verify now returns 502 for timeouts and Figma 5xx (transient),
+  only returns 401 when Figma explicitly rejects the token
+- Plugin only clears Figma token on res.status === 401 from verify,
+  preserving connected state through network glitches
