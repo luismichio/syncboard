@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.13.1] - 2026-07-25
 
 ### Fixed
-- **Verify endpoint false-positive token invalidation:** `/api/figma/verify` returned 401 for every error type (including timeouts and Figma 5xx), and the plugin cleared the Figma token on ANY non-ok response. A transient cold-start timeout would permanently disconnect Figma until the user re-authenticated. Fixed by: (1) verify endpoint now only returns 401 when Figma explicitly rejects the token (401/403), and returns 502 for transient errors; (2) plugin only clears the token on `res.status === 401` from verify, preserving the connected state through network glitches.
+- **Removed `/api/figma/verify` startup check:** Figma's `/v1/me` endpoint does not accept OAuth tokens — only Personal Access Tokens. So the verify endpoint returned 401 for every valid OAuth token, and the plugin cleared the Figma connection on every reload. Removed the verify call entirely. Server-side token revocation is now detected at sync time (when a Figma API call returns 401, the sync error handler surfaces it).
 - **Token storage read failures on iframe reload:** `saveToken()` only wrote to Miro board storage (server-side, slow on fresh load) and returned early, never reaching `localStorage`. On iframe reload (Miro tab reopen or idle resume), `getToken()` tried board storage with a 1500ms timeout; if that failed before Miro's SDK synced board data, the fallback to `localStorage` found nothing and returned `null`. Fixed by always writing to `localStorage` alongside board storage, and reading from `localStorage` first (instant, no network). Board storage remains as a backup for when browser cache is cleared.
 
 ### Added

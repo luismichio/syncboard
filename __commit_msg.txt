@@ -1,6 +1,8 @@
-fix: don't clear Figma token on transient verify errors
+fix: remove /api/figma/verify startup check (OAuth tokens rejected by /v1/me)
 
-- /api/figma/verify now returns 502 for timeouts and Figma 5xx (transient),
-  only returns 401 when Figma explicitly rejects the token
-- Plugin only clears Figma token on res.status === 401 from verify,
-  preserving connected state through network glitches
+Figma's /v1/me endpoint only accepts Personal Access Tokens, not OAuth
+tokens. So the verify endpoint returned 401 for every valid OAuth token,
+causing the plugin to clear the Figma connection on every reload.
+
+Removed the verify call from useAuthTokens.ts. Server-side token
+revocation is now caught at sync time (Figami API 401 → error handler).

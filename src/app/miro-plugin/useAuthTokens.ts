@@ -131,23 +131,10 @@ export function useAuthTokens(isInitMode: boolean | null) {
 
         // Startup Figma token validation: if we have a token, verify it's
         // actually accepted by Figma's API (catches server-side revocation).
-        // Startup Figma token validation: check if token is actually accepted
-        // by Figma's API (catches server-side revocation).
-        // Only clears on definitive 401 (token rejected by Figma).
-        // Transient errors (502 timeout, 5xx) preserve the connected state.
-        if (fToken) {
-          fetch('/api/figma/verify', {
-            headers: { Authorization: `Bearer ${fToken}` },
-          }).then(res => {
-            // 401 = Figma explicitly rejected the token (revoked/expired) → clear
-            // 502 = transient error (timeout, Figma 5xx) → keep token, retry next load
-            if (res.status === 401 && active) {
-              setFigmaToken(null);
-            }
-          }).catch(() => {
-            // Network error — ignore, token might still be valid
-          });
-        }
+        // Note: Figma OAuth tokens are not accepted by Figma's /v1/me endpoint,
+        // so we skip startup validation here. Server-side revocation is detected
+        // at sync time — if a Figma API call returns 401, the sync flow will
+        // surface the error and prompt the user to reconnect.
       } catch (err) {
         console.error('Failed to load credentials:', err);
       } finally {
