@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { parseFigmaUrl } from './figmaUrlParser';
+import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 
 export interface FigmaNodeInfo {
   fileKey: string;
@@ -45,7 +46,7 @@ export function useFigmaImporter(
               setFigmaNodeInfo({
                 fileKey: parsed.fileKey,
                 nodeId: parsed.nodeId,
-                name: data.name,
+                name: decodeHtmlEntities(data.name),
               });
               return;
             }
@@ -76,7 +77,7 @@ export function useFigmaImporter(
           setFigmaNodeInfo({
             fileKey: selection.fileKey,
             nodeId: selection.id,
-            name: selection.name || 'Figma Screen',
+            name: selection.name ? decodeHtmlEntities(selection.name) : 'Figma Screen',
           });
           setSyncStatusParent('Local Figma selection detected via SyncBridge!');
         } else {
@@ -111,9 +112,9 @@ export function useFigmaImporter(
           setFigmaNodeInfo({
             fileKey: payload.fileKey,
             nodeId: payload.id,
-            name: payload.name || 'Figma Screen',
+            name: payload.name ? decodeHtmlEntities(payload.name) : 'Figma Screen',
           });
-          setSyncStatusParent(`Detected Figma companion frame: "${payload.name || 'Unnamed'}"`);
+          setSyncStatusParent(`Detected Figma companion frame: "${payload.name ? decodeHtmlEntities(payload.name) : 'Unnamed'}"`);
         } else {
           throw new Error('Figma companion returned empty selection. Make sure Figma is open and a frame is selected.');
         }

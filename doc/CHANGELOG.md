@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Sync metadata integrity:** `handleGroupSettingChange` now merges updates into existing `syncboard` metadata instead of overwriting the object, preserving `fileKey/nodeId/nodeName/platform/width/height`.
 - **Post-sync metadata completeness:** `useMiroSync` now persists `fileKey`, `nodeId`, and `nodeName` in metadata updates so fallback selection parsing remains reliable when titles are edited.
 - **Rate-limit identifier correctness:** `miro:update-image` now keys limits by Authorization bearer token instead of attempting to read a body token that no longer exists.
+- **HTML entity decode for frame names:** Names containing HTML entities (e.g. `Expanded&#61;True`) now display correctly as their actual characters (`Expanded=True`). Created `src/lib/decodeHtmlEntities.ts` and applied at all name entry points — relay response (`companionRelayClient.ts`), Penpot selection/export (`usePenpotImporter.ts`), Figma REST API and companion selection (`useFigmaImporter.ts`), sync name cache (`useMiroSync.ts`), and display components (`SyncTab.tsx`, `ImportTab.tsx`).
 
 ### Changed
 - **Miro plugin panel decomposition:** Split `src/app/miro-plugin/page.tsx` monolith into focused components (`AppHeader`, `TabNav`, `SyncTab`, `ImportTab`, `SettingsTab`, `BoardStatusFooter`, shared types), reducing `page.tsx` from ~970 lines to ~319 lines.

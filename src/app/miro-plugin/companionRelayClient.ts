@@ -1,5 +1,6 @@
 import Ably from 'ably';
 import { getOrCreatePairingId } from '@/lib/pairingId';
+import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 
 export interface PenpotMcpResponse {
   content: { type: string; text?: string; data?: string; mimeType?: string; name?: string; width?: number; height?: number }[];
@@ -211,6 +212,7 @@ export async function callPenpotMcpTool(
     });
 
     const payload = data as { svg?: string; base64?: string; name?: string; width?: number; height?: number } | null;
+    const decodedName = payload?.name ? decodeHtmlEntities(payload.name) : undefined;
 
     if (format === 'svg') {
       const svgText = payload?.svg;
@@ -222,7 +224,7 @@ export async function callPenpotMcpTool(
         content: [{
           type: 'text',
           text: svgText,
-          name: payload?.name,
+          name: decodedName,
           width: payload?.width,
           height: payload?.height,
         }],
@@ -239,7 +241,7 @@ export async function callPenpotMcpTool(
         type: 'image',
         data: base64Data,
         mimeType: 'image/png',
-        name: payload?.name,
+        name: decodedName,
         width: payload?.width,
         height: payload?.height,
       }],

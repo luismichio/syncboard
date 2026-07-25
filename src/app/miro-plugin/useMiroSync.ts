@@ -3,6 +3,7 @@ import { SyncedImage } from './useMiroSelection';
 import { callPenpotMcpTool } from './companionRelayClient';
 import { getValidToken } from '@/lib/tokens';
 import { trackEvent } from '@/lib/analytics';
+import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 
 /**
  * Handles board sync with support for both Figma and Penpot:
@@ -288,7 +289,7 @@ export function useMiroSync(
               // placeholders that would overwrite the widget's real name.
               if (content.name && typeof content.name === 'string' &&
                   content.name !== 'Selected Frame') {
-                nameCache.set(cacheKey, content.name);
+                nameCache.set(cacheKey, decodeHtmlEntities(content.name));
               }
               // Include format in render cache key to prevent race conditions
               // when copies have different formats

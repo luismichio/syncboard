@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 import { GroupedSyncedImage } from '../types';
 
 interface SyncTabProps {
@@ -60,7 +61,7 @@ export function SyncTab({
 
                   <div className="flex flex-col pr-16">
                     <span className="text-xs font-semibold text-text-page truncate">
-                      {group.nodeName}
+                      {decodeHtmlEntities(group.nodeName)}
                     </span>
                     <span className="text-[9px] font-mono text-text-muted truncate">
                       ID: {group.nodeId}

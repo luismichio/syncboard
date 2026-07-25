@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 import { FigmaNodeInfo } from '../useFigmaImporter';
 import { PenpotNodeInfo } from '../usePenpotImporter';
 import { ImportPlatform } from '../types';
@@ -136,7 +137,7 @@ export function ImportTab({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-bold text-text-page truncate">
-                        {figmaNodeInfo.name}
+                        {decodeHtmlEntities(figmaNodeInfo.name)}
                       </div>
                       <div className="text-[9px] font-mono text-text-muted truncate">
                         File: {figmaNodeInfo.fileKey}
@@ -248,7 +249,7 @@ export function ImportTab({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-bold text-text-page truncate">
-                    {penpotNodeInfo.name}
+                    {decodeHtmlEntities(penpotNodeInfo.name)}
                   </div>
                   <div className="text-[9px] font-mono text-text-muted truncate">
                     File ID: {penpotNodeInfo.fileId}

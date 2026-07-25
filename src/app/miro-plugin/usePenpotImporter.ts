@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { parsePenpotUrl } from './penpotUrlParser';
 import { callPenpotMcpTool, callRelay, getOrCreatePairingId } from './companionRelayClient';
+import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 
 export interface PenpotNodeInfo {
   fileId: string;
@@ -59,7 +60,7 @@ export function usePenpotImporter(
       }
 
       const fileId = payload.fileId || 'unknown-file';
-      const nodeName = payload.name || 'Penpot Frame';
+      const nodeName = payload.name ? decodeHtmlEntities(payload.name) : 'Penpot Frame';
 
       setPenpotNodeInfo({
         fileId,
@@ -101,8 +102,8 @@ export function usePenpotImporter(
 
       const content = mcpResponse.content[0];
 
-      const responseName = content.name;
-      if (responseName && typeof responseName === 'string' && responseName !== 'Selected Frame') {
+      const responseName = content.name ? decodeHtmlEntities(content.name) : undefined;
+      if (responseName && responseName !== 'Selected Frame') {
         setPenpotNodeInfo((prev) =>
           prev
             ? {
@@ -128,9 +129,9 @@ export function usePenpotImporter(
       const naturalWidth = content?.width;
       const naturalHeight = content?.height;
 
-      const resolvedName = (responseName && responseName !== 'Selected Frame')
+      const resolvedName = responseName && responseName !== 'Selected Frame'
         ? responseName
-        : penpotNodeInfo.name;
+        : penpotNodeInfo.name ? decodeHtmlEntities(penpotNodeInfo.name) : 'Penpot Frame';
 
       const capturedFileId = penpotNodeInfo.fileId;
       const capturedObjectId = penpotNodeInfo.objectId;
