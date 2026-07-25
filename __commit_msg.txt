@@ -1,13 +1,10 @@
-fix: add offline_access scope to Figma OAuth (enables refresh token, fixes re-oauth on every reload)
+chore: bump to v0.13.0, update changelog, fix stale version display
 
-Root cause: Figma OAuth auth URL only requested 'file_content:read' scope.
-Without 'offline_access', Figma's token exchange NEVER returns a refresh_token.
-So tokenData.refreshToken was always '' (empty), and getValidToken() could
-never refresh — returning null once the 1-hour access token expired.
-
-Now with 'offline_access' scoped, Figma returns a refresh_token valid ~90d,
-and getValidToken() can silently refresh on every page load.
-
-Note: existing tokens have no refresh token. Users must re-auth Figma ONCE
-after deploy to obtain a token with refresh_token. After that, no more
-reconnects.
+- Bump package.json to 0.13.0 (was 0.12.0, changelog already at 0.13.0)
+- Add changelog entries for: Figma offline_access scope fix, token storage
+  fix, version injection fix
+- Refactor src/lib/version.ts to import from version.generated.ts
+  instead of require('../../package.json'), avoiding bundler caching issues
+- inject-version.mjs now writes src/lib/version.generated.ts on every run
+- yarn dev now runs inject-version before next dev (was build-only)
+- Add version.generated.ts to .gitignore
