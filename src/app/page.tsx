@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import { VERSION } from "@/lib/version";
 
 export default function Home() {
   return (
@@ -24,7 +25,7 @@ export default function Home() {
       <div className="relative z-10 text-center max-w-xl space-y-6 flex flex-col items-center">
         <header className="space-y-2">
           <div className="inline-block px-3 py-1 text-[10px] font-mono tracking-widest font-semibold border border-accent/40 text-accent rounded-full bg-accent/5 mb-3 animate-pulse">
-            OPEN SOURCE · AGPL 3.0
+            OPEN SOURCE · AGPL 3.0 · v{VERSION}
           </div>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-text-page to-text-muted bg-clip-text text-transparent">
             SyncBoard
