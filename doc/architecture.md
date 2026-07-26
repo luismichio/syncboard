@@ -1,42 +1,42 @@
 ---
 title: SyncBoard Architecture & System Design
-updated: 2026-07-15
+updated: 2026-07-26
 
 # Status Index
 # Status Legend: stable = implemented | draft = research | design = planned | historical = context only, no longer actionable
 
 sections:
- - title: Source Adapters
- status:
- Figma: stable
- Penpot: stable
- UXPin: draft
- Framer: draft
- Lovable: draft
- Stitch: draft
- Adobe UXP: research
- - title: Target Adapters
- status:
- Miro: stable
- Mural: research
- MS Whiteboard: research
- - title: MCP Transport Layer
- status:
- MCP Client: draft
- MCP Server: design
- - title: Cross-Cutting
- status:
- Selection Detection: design
- Metadata Registry: stable
- Duplicate Consolidation: design
- - title: Operations
- status:
- Rate Limits: stable
- Data Transport & Costs: stable
- - title: Appendix
- status:
- Chromium Loopback: historical
- Architecture Evolution: historical
+  - title: Source Adapters
+    status:
+      Figma: stable
+      Penpot: stable
+      UXPin: draft
+      Framer: draft
+      Lovable: draft
+      Stitch: draft
+      Adobe UXP: research
+  - title: Target Adapters
+    status:
+      Miro: stable
+      Mural: research
+      MS Whiteboard: research
+  - title: MCP Transport Layer
+    status:
+      MCP Client: draft
+      MCP Server: design (planned)
+  - title: Cross-Cutting
+    status:
+      Selection Detection: design
+      Metadata Registry: stable
+      Duplicate Consolidation: stable
+  - title: Operations
+    status:
+      Rate Limits: stable
+      Data Transport & Costs: stable
+  - title: Appendix
+    status:
+      Chromium Loopback: historical
+      Architecture Evolution: historical
 ---
 
 # SyncBoard Architecture & System Design
@@ -52,12 +52,12 @@ SyncBoard is a stateless design-to-canvas sync engine designed to fetch, render,
 | Section | Status | Availability | What it describes |
 |---|---|---|---|
 | **1 Source Adapters** | stable / draft | **Figma & Penpot (LIVE)**; Lovable, Stitch, UXPin, Framer, Adobe UXP *(Planned)* | Figma & Penpot production APIs; future design source specs |
-| **2 Target Adapters** | stable / design | **Miro (LIVE)**; Mural, MS Whiteboard *(Planned)* | Miro v2 Web SDK; future whiteboard adapters |
-| **3 MCP Transport Layer** | design | **⚠️ NOT AVAILABLE YET** | Speculative MCP client & MCP server for AI agents |
+| **2 Target Adapters** | stable / design | **Miro (LIVE)**; Mural, MS Whiteboard *(Planned)* | Miro v2 Web SDK + REST image update API; geometry preservation & adoption workflows |
+| **3 MCP Transport Layer** | design / draft | **⚠️ PLANNED (Not in v0.13.3)** | Speculative MCP client & MCP server specifications for AI agents |
 | **4 Selection Detection** | stable | **LIVE** | Real-time WebSocket selection stream from Figma & Penpot companions |
 | **5 Metadata Registry** | stable | **LIVE** | Implemented `linked_boards` and widget metadata format |
 | **6 Duplicate Card Consolidation** | stable | **LIVE** | Aggregates identical `fileKey`+`nodeId` items and propagates multi-copy board sync |
-| **7 Rate Limits** | stable | **LIVE** | Implemented `@upstash/ratelimit` & daily bandwidth caps |
+| **7 Rate Limits** | stable | **LIVE** | Implemented `@upstash/ratelimit`, token-hash keys & daily bandwidth caps |
 | **8 Data Transport & Costs** | stable | **LIVE** | Serverless direct push & zero-Redis selection transport |
 | **A Appendix: Chromium Loopback** | historical | Archived | Deprecated research log |
 | **B Appendix: Architecture Evolution** | historical | Archived | Decision log — context only |
@@ -94,6 +94,8 @@ Each adapter implements a uniform interface. Adding a new source means writing a
 ## 1. Source Adapters
 
 > **Overview:** SyncBoard reads design data from source tools through platform-specific adapters. Two are implemented (Figma, Penpot); five more are under research (UXPin, Framer, Lovable, Stitch, Adobe UXP).
+>
+> **Implementation Note (v0.13.3):** While `SyncSourceAdapter` represents the target architectural interface for future integrations (Lovable, Stitch), `v0.13.3` currently implements Figma and Penpot directly via custom serverless endpoints (`/api/figma/...`, `/api/relay/...`) and dedicated React importer hooks (`useFigmaImporter`, `usePenpotImporter`).
 
 The current production architecture uses two sync strategies depending on the source platform's capabilities:
 
@@ -519,10 +521,12 @@ sequenceDiagram
 
 Miro is SyncBoard's primary canvas target. SyncBoard pushes screenshots to Miro image widgets via the **Miro REST API** (widget creation, image PATCH) and reads widget metadata via the **Miro Web SDK v2** (sidebar panel, selection detection).
 
-**Transport:**
+**Transport & Operations:**
 - **Create/update images:** `PATCH /v2/boards/{boardId}/images/{itemId}` with multipart image upload.
-- **Read metadata:** `miro.board.getById()` via Web SDK.
+- **Read/sync metadata:** `miro.board.getById()` and `widget.setMetadata('syncboard', ...)` via Web SDK.
 - **Sidebar UI:** Miro Web SDK `miro.board.ui.openPanel()` for the SyncBoard control panel.
+- **Geometry Preservation (`preserveSize`):** Optional update mode (`preserveSize: true`) that pushes new image bytes to Miro without resetting custom canvas widget dimensions or aspect ratios.
+- **Widget Adoption & Retargeting (`replaceSelectedWidget`):** Enables adopting non-SyncBoard images or retargeting existing SyncBoard widgets to a new Figma/Penpot frame without changing widget IDs. Connectors, comments, links, and frame memberships are preserved.
 
 **Widget metadata storage:**
 
@@ -555,7 +559,7 @@ The source-adapter and target-adapter architecture means adding a new whiteboard
 
 ### 3A. SyncBoard as MCP Client
 
-> **Status:** draft --- transport implementation verified with `@modelcontextprotocol/sdk` v1.29.0+.
+> **Status:** draft / planned --- transport design verified with `@modelcontextprotocol/sdk` v1.29.0+ (*not installed in `v0.13.3` package.json*).
 
 SyncBoard can act as a **remote MCP client** using the official `@modelcontextprotocol/sdk` (v1.29.0+). This enables SyncBoard (running on Vercel serverless) to call MCP servers over HTTP just like any REST API --- no subprocess management required for remote MCP endpoints.
 
@@ -815,6 +819,7 @@ The term **"Relay"** (and **"Relay-First"**) refers to the cloud-based event tra
 - **Ably Capabilities:** Ably tokens issued by `/api/ably/token` grant `['publish', 'subscribe', 'presence']` capabilities on pairing channels (`penpot:${pairingId}`), enabling zero-polling bidirectional streaming.
 - **Figma:** The Figma Companion plugin (`public/figma-companion-ui.html`) connects via WebSocket (Ably), subscribes to the pairing channel (`penpot:${pairingId}`) for `select` commands, retrieves selected frame metadata via `figma.root.getPluginData`, and publishes selection details (`id`, `name`, `fileKey`) directly over Ably back to Miro with zero server polling and zero Redis commands.
 - **Penpot:** The Penpot Companion plugin (`public/penpot-companion-ui.html`) connects via WebSocket (Ably), subscribes to the pairing channel for `select` or `export` commands, executes them using Penpot's native plugin API, and returns selection results directly over Ably or uploads heavy image buffers to Vercel/Redis with a `'result-ready'` Ably notification event.
+- **Cryptographically Secure Pairing IDs & UI Masking:** Pairing IDs (`src/lib/pairingId.ts`) are 16-character unguessable alphanumeric keys (`sb_` + 16 random chars) generated via `window.crypto.getRandomValues()`. In the Miro plugin Settings tab, pairing IDs are password-masked (`●●●●●●●●`) to prevent shoulder-surfing during screen recordings or streams, with an instant one-click key rotation feature (`rotatePairingId()`).
 
 ### Why Not Tauri for Transport?
 
@@ -850,6 +855,7 @@ Although Miro's native metadata registry (`image.getMetadata().syncboard`) serve
 1. **Durable Copy/Paste Fallback:** In Miro, when a widget is copied and pasted across different boards or by different users, custom plugin-sandboxed metadata can occasionally be stripped or become inaccessible. Standard title text is native to the widget and is guaranteed to persist during duplication. The plugin uses title-based regex matching as its primary detection path to preserve connections under copy/paste.
 2. **Native Board Searchability:** Miro's native search bar indexes widget text (including titles) but does not index custom plugin metadata. Storing the `[SyncBoard|fileKey|nodeId]` signature in the title enables users to search their Miro board for specific Figma/Penpot nodes or files.
 3. **Human-Readable Auditing:** It provides an instant visual reference for developers and editors to verify frame mapping directly from the Miro interface without needing to inspect developer tools or open the plugin sidebar.
+4. **HTML Entity Sanitization:** Design frame titles returned by Figma REST API and Penpot WASM exports are decoded via `decodeHtmlEntities()` (`src/lib/decodeHtmlEntities.ts`) before being applied to `widget.title` via the Miro Web SDK. This prevents raw XML/HTML entity encodings (e.g. `&amp;`, `&quot;`, `&#39;`) from polluting Miro canvas widget headers.
 
 ---
 
@@ -896,7 +902,12 @@ Miro limits heavyset widget operations (like uploading and PATCHing images) to *
 
 ### D. SyncBoard Internal Rate Limits
 
-SyncBoard implements its own sliding-window rate limiter (`@upstash/ratelimit`) to protect the shared community infrastructure. Defaults differ between the Community plan and self-host deployments:
+SyncBoard implements its own sliding-window rate limiter (`@upstash/ratelimit` via `src/lib/rate-limit.ts`) to protect shared community infrastructure.
+
+* **Token-Hash Identification (IP-Proof):** Callers are identified primarily by SHA-256 hashes of their OAuth tokens (`tok:sha256(token)`) or pairing IDs (`relay:sha256(pairingId)`). This prevents VPN/IP cycling attacks, as each request requires a valid user-authenticated token. Client IP (`ip:clientIp`) is used as a fallback only when no token or pairing ID is present.
+* **Backend Auto-Detection:** Uses Upstash Redis when `UPSTASH_REDIS_REST_URL` is set (required for Vercel serverless). Falls back to an in-memory sliding window `Map` on persistent infrastructure (Docker/VPS/ECS).
+
+Defaults differ between the Community plan and self-host deployments:
 
 | Endpoint | Community Default | Env Variable |
 |---|---|---|
@@ -1073,10 +1084,10 @@ While standard browsers trust custom root certificates (like the `mkcert` CA) im
 
 Opening Miro or Figma authentication pages in Miro Desktop opens the system browser. Once auth completes in the system browser, the OAuth callback cannot redirect back to the Miro Desktop context due to process isolation (the desktop app cannot access Chrome cookies/localstorage).
 
-* **The Solution:** We implemented a **stateless OAuth state polling mechanism**:
-1. The Miro plugin generates a unique random `state` and registers it before opening the browser.
-2. The system browser callbacks POST the tokens to `/api/oauth/store` mapped by the `state`.
-3. The Miro plugin polls `/api/oauth/store` for the tokens and completes the login inside the desktop app.
+* **The Solution:** We implemented a **stateless OAuth state polling mechanism** (`src/app/api/oauth/store/route.ts`):
+1. The Miro plugin generates a unique random `state` and registers it before opening the OAuth popup/browser.
+2. System browser OAuth callbacks (`/api/oauth/figma/callback`, `/api/oauth/miro/callback`) store the tokens in Upstash Redis via `SETEX` with a **300-second (5-minute) TTL**, mapped to `oauth:store:${hashId(state)}`.
+3. The Miro plugin inside the desktop/iframe context polls `/api/oauth/store?state=...`, retrieves and deletes the token payload (`GET` + `DEL`), and completes the authentication without third-party cookies or permanent database storage.
 
 ---
 

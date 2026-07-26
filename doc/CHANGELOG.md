@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.13.3] - 2026-07-26
 ### Added
 - **Privacy policy page:** New `/docs/privacy` documenting all transient operational data (rate limit IP counters, 45s Redis relay buffers, 5min OAuth states), their legal bases under GDPR, and user rights. Landing page footer now links to it.
+- **Architecture Spec Audit & Remediation:** Updated `doc/architecture.md` to align with `v0.13.3` implementation status — clarifying MCP Client/Server planned status, documenting token-hash rate limiting (`tok:sha256(token)`), geometry preservation (`preserveSize`), widget adoption/retargeting (`replaceSelectedWidget`), 300s Redis SETEX OAuth state handshake (`/api/oauth/store`), 16-char secure pairing ID masking/rotation (`pairingId.ts`), and HTML entity title sanitization (`decodeHtmlEntities`).
 ### Changed
 - **Default scale 1x:** All scale defaults changed from 2x to 1x across 6 files — initial states, localStorage fallbacks, import parameter defaults, selection fallbacks, sync fallbacks, and companion relay client. New imports and syncs now default to 1x resolution.
 - **Landing page footer:** Updated from "Zero data stored on server" to "Your designs never leave your tools. No accounts. No permanent storage." — accurate about no design data or permanent storage, while transparent about transient operational data (now documented on `/docs/privacy`).
