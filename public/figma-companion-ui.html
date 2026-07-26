@@ -86,7 +86,34 @@
       display: flex;
       gap: 8px;
     }
-    input[type="text"] {
+    .pairing-input-wrap {
+      position: relative;
+      flex: 1;
+    }
+    .pairing-input-wrap input {
+      width: 100%;
+      padding-right: 28px;
+      box-sizing: border-box;
+    }
+    .pairing-eye-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .pairing-eye-btn:hover {
+      color: var(--text-page);
+    }
+    input[type="text"], input[type="password"] {
       flex: 1;
       background-color: var(--bg-page);
       border: 1px solid var(--border-card);
@@ -162,13 +189,21 @@
     <header>
       <div class="subtitle">SyncBoard Companion</div>
       <h2>Figma Companion Relay</h2>
-      <div class="version-badge">v0.13.1 Community</div>
+      <div class="version-badge">v0.13.2 Community</div>
     </header>
 
     <div class="card">
       <label for="pairing-id">Miro Pairing ID</label>
       <div class="input-row">
-        <input type="text" id="pairing-id" placeholder="sb_xxxxx" />
+        <div class="pairing-input-wrap">
+          <input type="password" id="pairing-id" placeholder="sb_xxxxx" />
+          <button type="button" id="toggle-pairing-vis" class="pairing-eye-btn" aria-label="Show pairing ID">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
         <button id="connect-btn">Connect</button>
       </div>
     </div>
@@ -435,6 +470,20 @@
     // Connect trigger
     connectBtn.addEventListener('click', () => {
       connectBridge(false);
+    });
+
+    // Toggle pairing ID visibility
+    document.getElementById('toggle-pairing-vis')?.addEventListener('click', () => {
+      const input = pairingInput;
+      const btn = document.getElementById('toggle-pairing-vis');
+      if (!input || !btn) return;
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      btn.setAttribute('aria-label', isHidden ? 'Hide pairing ID' : 'Show pairing ID');
+      // Swap eye icon
+      btn.innerHTML = isHidden
+        ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+        : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
     });
 
     // Notify Figma local bridge that the UI is ready

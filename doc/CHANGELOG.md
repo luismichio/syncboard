@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.13.2] - 2026-07-25
+### Security
+- Escaped dynamic OAuth callback HTML error messages in both Figma and Miro callback routes to prevent reflected XSS (`escapeHtml` sanitization for query/provider error strings).
+- Hardened `/api/oauth/store` with strict state/token payload validation and endpoint-level rate limits (`oauth:store:get`, `oauth:store:post`).
+- Added overwrite protection for OAuth state cache keys using Redis `SET ... NX EX 300` semantics to prevent token-poison race overwrite.
+- Added rate limiting and requestId format validation to `/api/relay/response`.
+- Added strict input validation for `/api/figma/render-batch` (`fileKey`, `nodeIds`, `format`, `scale`) before proxying requests.
+- Tightened Miro callback state policy with controlled direct-install bypass behind `MIRO_ALLOW_DIRECT_INSTALL_NO_STATE=true`.
+
+### Fixed
+- **Sync metadata integrity:** `handleGroupSettingChange` now merges updates into existing `syncboard` metadata instead of overwriting the object, preserving `fileKey/nodeId/nodeName/platform/width/height`.
+- **Post-sync metadata completeness:** `useMiroSync` now persists `fileKey`, `nodeId`, and `nodeName` in metadata updates so fallback selection parsing remains reliable when titles are edited.
+- **Rate-limit identifier correctness:** `miro:update-image` now keys limits by Authorization bearer token instead of attempting to read a body token that no longer exists.
+- **HTML entity decode for frame names:** Names containing HTML entities (e.g. `Expanded&#61;True`) now display correctly as their actual characters (`Expanded=True`). Created `src/lib/decodeHtmlEntities.ts` and applied at all name entry points — relay response (`companionRelayClient.ts`), Penpot selection/export (`usePenpotImporter.ts`), Figma REST API and companion selection (`useFigmaImporter.ts`), sync name cache (`useMiroSync.ts`), and display components (`SyncTab.tsx`, `ImportTab.tsx`).
+
+### Added
+- **Pairing ID masking with eye toggle:** All three Pairing ID fields (Miro plugin Settings, Figma companion, Penpot companion) now default to hidden (`type="password"`, shown as `********`) with an eye icon button to reveal. Protects against screen recording and shoulder surfing.
+- **Pairing ID rotation:** Added `REGENERATE` button in Miro plugin Settings that generates a new random `sb_xxx` ID via `rotatePairingId()` in `src/lib/pairingId.ts`, overwriting the stored value. Existing companion connections will need the new ID.
+- **Documentation of rate limits, batch limit, and scale cap:** Added default rate limit table (9 endpoints with env variable names), batch size limit (3 unique images), and community scale cap (1x/2x) to `doc/faq.md` and `doc/architecture.md`.
+
+### Changed
+- **Miro plugin panel decomposition:** Split `src/app/miro-plugin/page.tsx` monolith into focused components (`AppHeader`, `TabNav`, `SyncTab`, `ImportTab`, `SettingsTab`, `BoardStatusFooter`, shared types), reducing `page.tsx` from ~970 lines to ~319 lines.
+- **Selection grouping performance:** Replaced repeated `getGroupedItems()` render calls with memoized grouped state.
+- **Pairing ID source of truth:** Moved pairing ID generation into `src/lib/pairingId.ts` and reused it across panel + relay client, fixing the empty-string localStorage edge case.
+- **Analytics deduplication:** Consolidated duplicated `trackEvent` implementations into `src/lib/analytics.ts`.
+- **Removed dead verify route:** Deleted unused `/api/figma/verify` endpoint.
+- **Removed production debug noise:** Cleared `console.log` debug traces from `public/penpot-companion-plugin.js`.
+
 ## [0.13.1] - 2026-07-25
 
 ### Fixed

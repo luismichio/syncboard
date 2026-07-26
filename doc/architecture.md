@@ -206,6 +206,8 @@ Penpot's Plugin API exposes `penpot.openPage(page)` (`app.plugins.api.cljs` line
 | Vercel function timeout | 60 seconds | Batch syncs limited to ~20 items per request |
 | Upstash Redis storage | 30 KB per key, 45s TTL | Result buffers automatically expire |
 | Ably connections | ~100 active users (free tier) | 2 connections per active user (Miro + Companion) |
+| **SyncBoard batch limit** | **3 unique images** (Community) | Different scales of the same frame count as 1 image. Self-host: adjustable in source |
+| **SyncBoard scale cap** | **1x–2x** (Community) / **1x–4x** (self-host) | Caps worst-case exports at 3 frames × 2 scales = 6 renders per sync |
 
 ### E. Open-Source Licensing & Contributor Governance
 
@@ -836,7 +838,7 @@ SyncBoard stores all design connection metadata directly in the Miro widget. No 
  "nodeId": "Frame_Node_ID",
  "nodeName": "Home Screen",
  "format": "png" | "svg",
- "scale": 1 | 2 | 3 | 4,
+ "scale": 1 | 2 | 3 | 4,   // Community plan: 1x/2x only (MAX_SCALE=2). Self-host: 1x–4x (MAX_SCALE=4).
  "platform": "figma" | "penpot"
 }
 ```
@@ -891,6 +893,32 @@ Miro limits heavyset widget operations (like uploading and PATCHing images) to *
 * **SyncBoard Optimization:** Includes a **500ms delay** between consecutive widget updates to prevent hitting Miro's limit.
 
 [Miro Rate Limits](https://developers.miro.com/reference/rate-limiting)
+
+### D. SyncBoard Internal Rate Limits
+
+SyncBoard implements its own sliding-window rate limiter (`@upstash/ratelimit`) to protect the shared community infrastructure. Defaults differ between the Community plan and self-host deployments:
+
+| Endpoint | Community Default | Env Variable |
+|---|---|---|
+| Figma renders / min | 12 | `RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN` |
+| Figma renders / day | 50 | `RATE_LIMIT_COMMUNITY_FIGMA_PER_DAY` |
+| Relay selections / min | 5 | `RATE_LIMIT_COMMUNITY_RELAY_PER_MIN` |
+| Relay selections / hour | 30 | `RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR` |
+| Relay results / day | 100 | `RATE_LIMIT_COMMUNITY_RELAY_PER_DAY` |
+| Miro image updates / min | 30 | `RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN` |
+| Ably token requests / min | 5 | `RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN` |
+| Global syncs / day | 500 | `RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY` |
+| Global bandwidth / day | 500 MB | `RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY` |
+
+Self-host deployments can override any of these via environment variables or disable the limiter entirely (`RATE_LIMIT_ENABLED=false`).
+
+### E. Batch Limit
+
+The Community plan limits sync to **3 unique images per batch**. Different export scales of the same frame count as 1 image (same `fileKey` + `nodeId` pair). A warning banner in the Miro sidebar disables the sync button when exceeded. Self-host deployments can adjust the limit in the source.
+
+### F. Scale Restriction
+
+The Community plan export scale selector is limited to **1x and 2x** (`MAX_SCALE=2`). Self-host deployments offer 1x–4x (`MAX_SCALE=4`). This caps worst-case per-sync exports at 3 frames × 2 scales = 6 renders.
 
 ---
 

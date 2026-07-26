@@ -1,6 +1,57 @@
 import { NextResponse } from 'next/server';
 import { withRateLimit } from '@/lib/rate-limit';
 
+const FILE_KEY_RE = /^[A-Za-z0-9_-]{3,128}$/;
+const NODE_ID_RE = /^[A-Za-z0-9:_-]{1,128}$/;
+const MAX_NODE_IDS = 50;
+
+interface RenderBatchBody {
+  fileKey: string;
+  nodeIds: string[];
+  format?: 'png' | 'svg';
+  scale?: number;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function normalizeRequestBody(raw: unknown): RenderBatchBody | null {
+  if (!isRecord(raw)) return null;
+
+  const fileKey = typeof raw.fileKey === 'string' ? raw.fileKey.trim() : '';
+  const nodeIdsRaw = Array.isArray(raw.nodeIds) ? raw.nodeIds : [];
+  const formatRaw = raw.format;
+  const scaleRaw = raw.scale;
+
+  if (!FILE_KEY_RE.test(fileKey)) return null;
+  if (nodeIdsRaw.length === 0 || nodeIdsRaw.length > MAX_NODE_IDS) return null;
+
+  const nodeIds: string[] = [];
+  for (const value of nodeIdsRaw) {
+    if (typeof value !== 'string') return null;
+    const nodeId = value.trim();
+    if (!NODE_ID_RE.test(nodeId)) return null;
+    nodeIds.push(nodeId);
+  }
+
+  const format: 'png' | 'svg' = formatRaw === 'svg' ? 'svg' : 'png';
+
+  let scale = 2;
+  if (scaleRaw !== undefined) {
+    if (typeof scaleRaw !== 'number' || !Number.isFinite(scaleRaw)) return null;
+    if (scaleRaw < 1 || scaleRaw > 4) return null;
+    scale = scaleRaw;
+  }
+
+  return {
+    fileKey,
+    nodeIds,
+    format,
+    scale,
+  };
+}
+
 /**
  * POST /api/figma/render-batch
  *
@@ -14,39 +65,45 @@ import { withRateLimit } from '@/lib/rate-limit';
  */
 async function handler(request: Request) {
   try {
-    // Read token from Authorization header instead of body (security)
     const authHeader = request.headers.get('Authorization') || '';
-    const figmaToken = authHeader.replace(/^Bearer\s+/i, '');
-    const body = await request.json();
-    const { fileKey, nodeIds, format = 'png', scale = 2 } = body;
+    const figmaToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const bodyRaw: unknown = await request.json();
 
-    if (!figmaToken || !fileKey || !Array.isArray(nodeIds) || nodeIds.length === 0) {
+    const body = normalizeRequestBody(bodyRaw);
+
+    if (!figmaToken || !body) {
       return NextResponse.json(
-        { error: 'Missing required parameters: figmaToken (Bearer), fileKey, nodeIds[]' },
+        { error: 'Missing or invalid parameters: Authorization token, fileKey, nodeIds[]' },
         { status: 400 }
       );
     }
 
-    // 1. Single batched Figma API call with all node IDs comma-separated
+    const { fileKey, nodeIds, format, scale } = body;
+
     const idsParam = nodeIds.join(',');
-    const scaleQuery = format === 'svg' ? '' : `&scale=${scale ? Number(scale) : 2}`;
+    const scaleQuery = format === 'svg' ? '' : `&scale=${scale}`;
     const figmaApiUrl = `https://api.figma.com/v1/images/${fileKey}?ids=${idsParam}${scaleQuery}&format=${format}`;
 
     const figmaResponse = await fetch(figmaApiUrl, {
       headers: { Authorization: `Bearer ${figmaToken}` },
     });
 
-    const figmaData = await figmaResponse.json();
+    const figmaDataUnknown: unknown = await figmaResponse.json().catch(() => ({}));
+    const figmaData = isRecord(figmaDataUnknown) ? figmaDataUnknown : {};
 
     if (!figmaResponse.ok) {
       const retryAfter = figmaResponse.headers.get('Retry-After');
       const planTier = figmaResponse.headers.get('X-Figma-Plan-Tier');
       const limitType = figmaResponse.headers.get('X-Figma-Rate-Limit-Type');
-      const baseError = figmaData.err || figmaData.message || 'Rate limit exceeded';
-      
+      const errText = typeof figmaData.err === 'string'
+        ? figmaData.err
+        : typeof figmaData.message === 'string'
+          ? figmaData.message
+          : 'Rate limit exceeded';
+
       return NextResponse.json(
         {
-          error: baseError,
+          error: errText,
           retryAfter: retryAfter ? Number(retryAfter) : null,
           planTier,
           limitType,
@@ -55,19 +112,22 @@ async function handler(request: Request) {
       );
     }
 
-    const imageUrls: Record<string, string> = figmaData.images || {};
+    const imageUrlsRaw = isRecord(figmaData.images) ? figmaData.images : {};
     const mimePrefix = format === 'svg' ? 'data:image/svg+xml;base64,' : 'data:image/png;base64,';
 
-    // 2. Download each S3 image and convert to base64 data URL in parallel
     const entries = await Promise.all(
-      nodeIds.map(async (nodeId: string) => {
-        const s3Url = imageUrls[nodeId];
+      nodeIds.map(async (nodeId) => {
+        const value = imageUrlsRaw[nodeId];
+        const s3Url = typeof value === 'string' ? value : null;
+
         if (!s3Url) {
           return [nodeId, null] as [string, null];
         }
+
         try {
           const imgRes = await fetch(s3Url);
           if (!imgRes.ok) return [nodeId, null] as [string, null];
+
           const arrayBuffer = await imgRes.arrayBuffer();
           const base64 = Buffer.from(arrayBuffer).toString('base64');
           return [nodeId, `${mimePrefix}${base64}`] as [string, string];
@@ -79,10 +139,9 @@ async function handler(request: Request) {
 
     const images: Record<string, string | null> = Object.fromEntries(entries);
     return NextResponse.json({ images });
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: errorMsg }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Internal server error during batch rendering' }, { status: 500 });
   }
 }
 
-export const POST = withRateLimit({ endpoint: "figma:render-batch" })(handler);
+export const POST = withRateLimit({ endpoint: 'figma:render-batch' })(handler);

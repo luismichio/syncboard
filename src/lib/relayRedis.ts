@@ -107,9 +107,10 @@ function oauthStoreKey(state: string): string {
   return `oauth:state:${state.replace(/[^a-zA-Z0-9_-]/g, '')}`;
 }
 
-export async function storeOauthToken(state: string, tokens: unknown): Promise<void> {
+export async function storeOauthToken(state: string, tokens: unknown): Promise<boolean> {
   const key = oauthStoreKey(state);
-  await runRedisCommand<string>(['SETEX', key, '300', JSON.stringify(tokens)]);
+  const result = await runRedisCommand<string | null>(['SET', key, JSON.stringify(tokens), 'EX', '300', 'NX']);
+  return result === 'OK';
 }
 
 export async function getOauthToken(state: string): Promise<unknown | null> {

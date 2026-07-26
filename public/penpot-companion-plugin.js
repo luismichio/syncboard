@@ -54,7 +54,6 @@ async function findShapeById(shapeId) {
       if (typeof page.getShapeById === 'function') {
         const found = page.getShapeById(shapeId);
         if (found) {
-          console.log('[SyncBoard] found via cross-page getShapeById');
           return found;
         }
       }
@@ -84,13 +83,11 @@ async function findShapeById(shapeId) {
       if (page === penpot.currentPage || !page.root) continue;
       const found = search(page.root);
       if (found) {
-        console.log('[SyncBoard] found via fallback cross-page search');
         return found;
       }
     }
   }
 
-  console.log('[SyncBoard] findShapeById returning null — shape not found on any page');
   return null;
 }
 
@@ -108,7 +105,6 @@ async function exportShapeBuffer(shapeId, format, scale) {
         if (typeof page.getShapeById === 'function') {
           const found = page.getShapeById(shapeId);
           if (found) {
-            console.log('[SyncBoard] navigating to shape page for fast export');
             await penpot.openPage(page);
             break;
           }
@@ -122,13 +118,10 @@ async function exportShapeBuffer(shapeId, format, scale) {
   const shapeFromPage = await findShapeById(shapeId);
   let result;
   if (shapeFromPage && typeof shapeFromPage.export === 'function') {
-    console.log('[SyncBoard] exporting via shapeFromPage.export()');
     result = await shapeFromPage.export({ type: format, scale });
   } else if (shapeFromPage && typeof shapeFromPage.exportShape === 'function') {
-    console.log('[SyncBoard] exporting via shapeFromPage.exportShape()');
     result = await shapeFromPage.exportShape({ format, scale });
   } else if (typeof penpot.export === 'function') {
-    console.log('[SyncBoard] exporting via penpot.export(shapeId) fallback');
     result = await penpot.export(shapeId, { format, scale });
   } else {
     throw new Error(`Penpot shape "${shapeId}" export API unavailable. Ensure a valid frame or shape is selected in Penpot.`);
@@ -136,7 +129,6 @@ async function exportShapeBuffer(shapeId, format, scale) {
 
   // Navigate back after export data is fully captured in memory.
   if (originalPageId && typeof penpot.openPage === 'function') {
-    console.log('[SyncBoard] navigating back to original page');
     await penpot.openPage(originalPageId).catch(() => {});
   }
 

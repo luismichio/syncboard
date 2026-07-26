@@ -95,6 +95,25 @@ SyncBoard implements sliding-window rate limits (configurable via environment va
 * **API Quota Management:** Throttling requests at the gateway level ensures a single user's heavy batch sync does not exhaust the shared Figma/Miro API quotas, which would otherwise trigger global rate blocks (HTTP 429) for the entire community.
 * **Self-Host Customization:** For teams deploying SyncBoard on their own private infrastructure (e.g. self-hosting on enterprise Vercel or local Docker instances), these limits can be fully managed, adjusted, or entirely disabled (`RATE_LIMIT_ENABLED=false` in the environment configuration) to suit their internal team requirements.
 
+### What are the default rate limit values?
+| Endpoint | Community Default | Self-Host (Env Override) |
+|---|---|---|
+| Figma renders per minute | 12 | `RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN` |
+| Figma renders per day | 50 | `RATE_LIMIT_COMMUNITY_FIGMA_PER_DAY` |
+| Relay selections per minute | 5 | `RATE_LIMIT_COMMUNITY_RELAY_PER_MIN` |
+| Relay selections per hour | 30 | `RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR` |
+| Relay results per day | 100 | `RATE_LIMIT_COMMUNITY_RELAY_PER_DAY` |
+| Miro image updates per minute | 30 | `RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN` |
+| Ably token requests per minute | 5 | `RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN` |
+| Global syncs per day | 500 | `RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY` |
+| Global bandwidth per day | 500 MB | `RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY` |
+
+### Is there a batch size limit?
+Yes — the Community plan limits sync to **3 unique images per batch**. Different scales of the same frame count as 1 image. A warning banner appears in the sidebar when more than 3 images are selected, and the sync button is disabled. Self-host deployments can adjust this limit in the source code.
+
+### Are there scale restrictions on the Community plan?
+Yes — the Community plan limits export scale to **1x and 2x** only. Self-host deployments can use 1x–4x. This caps the worst-case export count at 3 frames × 2 scales = 6 renders per sync, protecting free-tier infrastructure from accidental overuse.
+
 ### Can I run SyncBoard offline or on-premise?
 SyncBoard requires an internet connection to communicate with Figma, Penpot, and Miro cloud APIs. However, the codebase can be self-hosted on your own infrastructure (Vercel, Docker containers, AWS, etc.). The frontend utilizes system font fallbacks to ensure compilation and loading succeed smoothly in isolated or restricted corporate networks without relying on external CDN font fetches.
 

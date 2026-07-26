@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { parseFigmaUrl } from './figmaUrlParser';
+import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 
 export interface FigmaNodeInfo {
   fileKey: string;
@@ -45,7 +46,7 @@ export function useFigmaImporter(
               setFigmaNodeInfo({
                 fileKey: parsed.fileKey,
                 nodeId: parsed.nodeId,
-                name: data.name,
+                name: decodeHtmlEntities(data.name),
               });
               return;
             }
@@ -76,7 +77,7 @@ export function useFigmaImporter(
           setFigmaNodeInfo({
             fileKey: selection.fileKey,
             nodeId: selection.id,
-            name: selection.name || 'Figma Screen',
+            name: selection.name ? decodeHtmlEntities(selection.name) : 'Figma Screen',
           });
           setSyncStatusParent('Local Figma selection detected via SyncBridge!');
         } else {
@@ -111,9 +112,9 @@ export function useFigmaImporter(
           setFigmaNodeInfo({
             fileKey: payload.fileKey,
             nodeId: payload.id,
-            name: payload.name || 'Figma Screen',
+            name: payload.name ? decodeHtmlEntities(payload.name) : 'Figma Screen',
           });
-          setSyncStatusParent(`Detected Figma companion frame: "${payload.name || 'Unnamed'}"`);
+          setSyncStatusParent(`Detected Figma companion frame: "${payload.name ? decodeHtmlEntities(payload.name) : 'Unnamed'}"`);
         } else {
           throw new Error('Figma companion returned empty selection. Make sure Figma is open and a frame is selected.');
         }
@@ -139,7 +140,7 @@ export function useFigmaImporter(
       const y = viewport.y + viewport.height / 2;
 
       // Read default scale settings from user's global settings configuration
-      const resolvedScale = scale ?? (typeof window !== 'undefined' ? Number(localStorage.getItem('default_png_scale') || '2') : 2);
+      const resolvedScale = scale ?? (typeof window !== 'undefined' ? Number(localStorage.getItem('default_png_scale') || '1') : 1);
 
       setSyncStatusParent('Rendering Figma frame...', 'progress');
 
@@ -168,7 +169,8 @@ export function useFigmaImporter(
       }
 
       const fallbackName = figmaNodeInfo.name || figmaNodeInfo.nodeId;
-      const titleTag = `${fallbackName} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
+      const safeName = decodeHtmlEntities(fallbackName);
+      const titleTag = `${safeName} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
 
       const image = await miro.board.createImage({
         url: dataUrl,
@@ -184,7 +186,7 @@ export function useFigmaImporter(
         await image.setMetadata('syncboard', {
           fileKey: figmaNodeInfo.fileKey,
           nodeId: figmaNodeInfo.nodeId,
-          nodeName: figmaNodeInfo.name,
+          nodeName: safeName,
           format,
           scale: resolvedScale,
         });
@@ -192,27 +194,42 @@ export function useFigmaImporter(
 
         // Non-blocking background registration of binary File resource on Miro backend
         // so that right-clicking and downloading the image from Miro uses the frame's actual name.
+        // After the PATCH, re-assert the widget title via SDK — same pattern as sync/replace.
         if (miroToken) {
-          miro.board.getInfo().then((boardInfo) => {
-            fetch('/api/miro/update-image', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${miroToken}`,
-              },
-              body: JSON.stringify({
-                boardId: boardInfo.id,
-                itemId: image.id,
-                dataUrl,
-                nodeName: fallbackName,
-                fileKey: figmaNodeInfo.fileKey,
-                nodeId: figmaNodeInfo.nodeId,
-                format,
-                scale: resolvedScale,
-                platform: 'figma',
-              }),
-            }).catch((err) => console.warn('Background filename registration warning:', err));
-          }).catch(() => {});
+          const registerImage = async () => {
+            try {
+              const boardInfo = await miro.board.getInfo();
+              const patchRes = await fetch('/api/miro/update-image', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${miroToken}`,
+                },
+                body: JSON.stringify({
+                  boardId: boardInfo.id,
+                  itemId: image.id,
+                  dataUrl,
+                  nodeName: safeName,
+                  fileKey: figmaNodeInfo.fileKey,
+                  nodeId: figmaNodeInfo.nodeId,
+                  format,
+                  scale: resolvedScale,
+                  platform: 'figma',
+                }),
+              });
+              if (patchRes.ok) {
+                // Re-assert the widget title after PATCH to fix any server-side encoding
+                const widget = await miro.board.getById(image.id).catch(() => null);
+                if (widget) {
+                  widget.title = `${safeName} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
+                  await widget.sync().catch(() => {});
+                }
+              }
+            } catch (err) {
+              console.warn('Background filename registration warning:', err);
+            }
+          };
+          registerImage();
         }
 
         setSyncStatusParent('✓ Image placed successfully!', 'success');

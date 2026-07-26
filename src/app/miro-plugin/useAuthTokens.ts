@@ -1,15 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getValidToken, clearToken, saveToken, TokenData } from '@/lib/tokens';
-
-/** Fire a Google Analytics event if gtag is loaded. */
-function trackEvent(action: string, label?: string) {
-  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
-    window.gtag('event', action, {
-      event_label: label,
-      send_to: 'G-Q4W94QDWWC',
-    });
-  }
-}
+import { trackEvent } from '@/lib/analytics';
 
 const MIRO_BOOT_WAIT_MS = 8000;
 const MIRO_BOOT_POLL_MS = 50;

@@ -25,10 +25,6 @@ function channelName(platform: Platform, pairingId: string): string {
 }
 
 /**
- * Publish a Penpot command to the Ably channel for the given pairingId.
- * The companion subscribes to this channel to receive commands in real-time.
- */
-/**
  * Publish a command to the Ably channel for the given pairingId and platform.
  * The companion for the specified platform subscribes to this channel.
  */

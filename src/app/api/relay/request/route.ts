@@ -94,6 +94,14 @@ async function handler(request: Request) {
       });
     }
 
+    const hasRedis = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+    if (!hasRedis) {
+      return NextResponse.json(
+        { error: 'Synchronous relay polling requires Redis. Use async relay mode or configure Upstash Redis.' },
+        { status: 503 }
+      );
+    }
+
     const timeoutMs = clampTimeout(body.timeoutMs, commandAction);
     const deadline = Date.now() + timeoutMs;
 

@@ -63,6 +63,15 @@ const HTML_HEAD = `
 </head>
 `;
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
@@ -98,6 +107,7 @@ ${HTML_HEAD}
   }
 
   if (error || !code) {
+    const safeError = escapeHtml(error || 'No authorization code returned.');
     const errorResponse = new NextResponse(
       `<!DOCTYPE html>
 <html>
@@ -105,7 +115,7 @@ ${HTML_HEAD}
 <body>
   <div class="container">
     <h3>Authentication Failed</h3>
-    <p class="error-msg">${error || 'No authorization code returned.'}</p>
+    <p class="error-msg">${safeError}</p>
     <button onclick="window.close()">Close Window</button>
   </div>
 </body>
@@ -162,8 +172,8 @@ ${HTML_HEAD}
 
     // Securely serialize the token structure to avoid string escaping injection vulnerabilities
     const tokenPayload = {
-      accessToken: access_token,
-      refreshToken: refresh_token,
+      accessToken: typeof access_token === 'string' ? access_token : '',
+      refreshToken: typeof refresh_token === 'string' ? refresh_token : '',
       expiresAt,
     };
 
@@ -232,6 +242,7 @@ ${HTML_HEAD}
     return response;
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
+    const safeError = escapeHtml(errorMsg);
     const errResponse = new NextResponse(
       `<!DOCTYPE html>
 <html>
@@ -239,7 +250,7 @@ ${HTML_HEAD}
 <body>
   <div class="container">
     <h3>Error during Token Exchange</h3>
-    <p class="error-msg">${errorMsg}</p>
+    <p class="error-msg">${safeError}</p>
     <button onclick="window.close()">Close Window</button>
   </div>
 </body>

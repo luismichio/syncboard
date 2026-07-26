@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
+import { withRateLimit } from '@/lib/rate-limit';
 import { getRelayResponse, deleteRelayResponse } from '@/lib/relayRedis';
+
+const REQUEST_ID_RE = /^req_[a-f0-9]{32}$/;
 
 /**
  * GET /api/relay/response
@@ -10,7 +13,7 @@ import { getRelayResponse, deleteRelayResponse } from '@/lib/relayRedis';
  *
  * Query Params: ?requestId=req_xxx
  */
-export async function GET(request: Request) {
+async function handler(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const requestId = searchParams.get('requestId')?.trim();
@@ -18,6 +21,13 @@ export async function GET(request: Request) {
     if (!requestId) {
       return NextResponse.json(
         { error: 'Missing required query parameter: requestId' },
+        { status: 400 }
+      );
+    }
+
+    if (!REQUEST_ID_RE.test(requestId)) {
+      return NextResponse.json(
+        { error: 'Invalid requestId format' },
         { status: 400 }
       );
     }
@@ -30,7 +40,6 @@ export async function GET(request: Request) {
       );
     }
 
-    // Clean up key immediately after read
     await deleteRelayResponse(requestId);
 
     if (response.error) {
@@ -44,8 +53,9 @@ export async function GET(request: Request) {
       error: null,
       data: response.data,
     });
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: errorMsg }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Failed to retrieve relay response' }, { status: 500 });
   }
 }
+
+export const GET = withRateLimit({ endpoint: 'relay:response' })(handler);

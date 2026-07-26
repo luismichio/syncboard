@@ -2,17 +2,8 @@ import { useState } from 'react';
 import { SyncedImage } from './useMiroSelection';
 import { callPenpotMcpTool } from './companionRelayClient';
 import { getValidToken } from '@/lib/tokens';
-
-/** Fire a Google Analytics event if gtag is loaded. */
-function trackEvent(action: string, label?: string, value?: number) {
-  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
-    window.gtag('event', action, {
-      event_label: label,
-      value: value,
-      send_to: 'G-Q4W94QDWWC',
-    });
-  }
-}
+import { trackEvent } from '@/lib/analytics';
+import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 
 /**
  * Handles board sync with support for both Figma and Penpot:
@@ -113,7 +104,7 @@ export function useMiroSync(
 
           for (const match of matches) {
             let format: 'png' | 'svg' = selected.format || (selected.platform === 'penpot' ? 'svg' : 'png');
-            let scale = selected.scale || 2;
+            let scale = selected.scale || 1;
             let platform = selected.platform || 'figma';
 
             let storedWidth: number | undefined;
@@ -128,7 +119,7 @@ export function useMiroSync(
               } | undefined;
               if (syncData) {
                 format = syncData.format || (syncData.platform === 'penpot' ? 'svg' : 'png');
-                scale = syncData.scale || 2;
+                scale = syncData.scale || 1;
                 platform = syncData.platform || 'figma';
                 if (typeof syncData.width === 'number' && syncData.width > 0) storedWidth = syncData.width;
               }
@@ -138,7 +129,7 @@ export function useMiroSync(
 
             // When propagate is enabled, override each copy's format/scale with the selected item's values
             const effectiveFormat = propagate ? (selected.format || (selected.platform === 'penpot' ? 'svg' : 'png')) : format;
-            const effectiveScale = propagate ? (selected.scale || 2) : scale;
+            const effectiveScale = propagate ? (selected.scale || 1) : scale;
 
             // Calculate new display width.
             // For Penpot items with stored natural width: displayWidth = naturalWidth * effectiveScale.
@@ -186,7 +177,6 @@ export function useMiroSync(
         return;
       }
 
-      // Enforce batch limit of 3 unique export groups.
       // Enforce batch limit of 3 unique images (different fileKey + nodeId).
       // Copies at different scales of the same image are NOT counted separately.
       // The UI already blocks the sync button when >3 groups are selected, so this
@@ -219,7 +209,7 @@ export function useMiroSync(
         const groups = new Map<string, Set<string>>();
         for (const item of figmaTargets) {
           const format = item.format || 'png';
-          const scale = item.scale || 2;
+          const scale = item.scale || 1;
           const groupKey = `${item.fileKey}|${format}|${scale}`;
           if (!groups.has(groupKey)) {
             groups.set(groupKey, new Set());
@@ -299,7 +289,7 @@ export function useMiroSync(
               // placeholders that would overwrite the widget's real name.
               if (content.name && typeof content.name === 'string' &&
                   content.name !== 'Selected Frame') {
-                nameCache.set(cacheKey, content.name);
+                nameCache.set(cacheKey, decodeHtmlEntities(content.name));
               }
               // Include format in render cache key to prevent race conditions
               // when copies have different formats
@@ -371,14 +361,18 @@ export function useMiroSync(
           throw new Error(errData.error || 'Failed to update image on Miro board');
         }
 
-        // Update widget metadata so format/scale dropdown reflects the new values
-        // (preserve natural width/height from Penpot import if present)
+        // Update widget metadata and title via the Miro SDK.
+        // Title is updated via the SDK (not the REST API PATCH) to avoid
+        // HTML entity encoding differences between the two Miro interfaces.
         try {
           const widget = await miro.board.getById(item.id);
           if (widget && 'setMetadata' in widget && typeof widget.setMetadata === 'function') {
             const existingMeta = await widget.getMetadata().catch(() => ({})) as Record<string, unknown>;
             const existingSyncboard = existingMeta?.syncboard as Record<string, unknown> | undefined;
             await widget.setMetadata('syncboard', {
+              fileKey: item.fileKey,
+              nodeId: item.nodeId,
+              nodeName: liveName,
               format: item.format || (item.platform === 'penpot' ? 'svg' : 'png'),
               scale: item.scale || 2,
               platform: item.platform || 'figma',
@@ -386,9 +380,15 @@ export function useMiroSync(
               ...(existingSyncboard?.width ? { width: existingSyncboard.width } : {}),
               ...(existingSyncboard?.height ? { height: existingSyncboard.height } : {}),
             });
+
+            // Update widget title to reflect the live frame name
+            const tag = item.platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
+            const titleTag = `${decodeHtmlEntities(liveName)} [${tag}|${item.fileKey}|${item.nodeId}]`;
+            widget.title = titleTag;
+            await widget.sync();
           }
         } catch (metaErr) {
-          console.warn('Failed to update widget metadata:', metaErr);
+          console.warn('Failed to update widget metadata/title:', metaErr);
         }
       }
 
