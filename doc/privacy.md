@@ -1,6 +1,11 @@
+---
+title: Privacy
+description: SyncBoard privacy policy — what transient operational data we process, your GDPR rights, and how we never store your design data.
+---
+
 # Privacy
 
-**Last updated:** 2025-07-26
+**Last updated:** 2026-07-26
 
 SyncBoard is designed with privacy as a core principle. Your design data stays in your tools — we never store your frames, images, or personal files.
 
