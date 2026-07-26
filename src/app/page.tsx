@@ -58,7 +58,9 @@ export default function Home() {
         </div>
 
         <footer className="pt-12 text-[10px] text-text-muted font-mono">
-          Made for product teams. Zero data stored on server.
+          Your designs never leave your tools. No accounts. No permanent storage.
+          <br />
+          <Link href="/docs/privacy" className="underline hover:text-text-page transition-colors">Privacy</Link>
         </footer>
       </div>
     </main>

@@ -13,7 +13,7 @@ interface DocMeta {
 function categorize(slug: string): string {
   if (slug === "readme") return "Overview";
   if (slug === "setup") return "Guides";
-  if (slug === "architecture" || slug === "changelog" || slug === "license") return "Reference";
+  if (slug === "architecture" || slug === "changelog" || slug === "license" || slug === "privacy") return "Reference";
   return "Other";
 }
 
