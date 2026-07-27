@@ -10,14 +10,15 @@
   --accent: #00A2C9;       /* Deep cyan */
 
   /* Code block contrast (light mode) */
-  --bg-code-block: #e8e4dc;
-  --bg-code-inline: #e8e4dc;
-  --border-code: #c9c3b6;
+  --bg-code-block: #F4F1EA;
+  --bg-code-inline: #EDE9E0;
+  --border-code: #D8D2C4;
 
-  /* Code token colors (light mode) — WCAG AA ≥ 4.5:1 against #e8e4dc */
-  --code-keyword: #005a73;
-  --code-string: #0d6e30;
-  --code-func: #5b1fa8;
+  /* Code token colors (light mode) — WCAG AA ≥ 4.5:1 against #F4F1EA */
+  --code-keyword: #006680;
+  --code-string: #15803D;
+  --code-func: #6B21A8;
+  --code-number: #C2410C;
 
   --background: var(--bg-page);
   --foreground: var(--text-page);
@@ -34,14 +35,15 @@
     --accent: #01C8F1;       /* Light cyan */
 
     /* Code block contrast (dark mode) */
-    --bg-code-block: #181818;
-    --bg-code-inline: #181818;
-    --border-code: #2a2a2a;
+    --bg-code-block: #121212;
+    --bg-code-inline: #1A1A1A;
+    --border-code: #262626;
 
     /* Code token colors (dark mode) */
     --code-keyword: var(--accent);
-    --code-string: #16a34a;
-    --code-func: #7c3aed;
+    --code-string: #4ADE80;
+    --code-func: #C084FC;
+    --code-number: #F97316;
 
     --background: var(--bg-page);
     --foreground: var(--text-page);
@@ -57,14 +59,15 @@
   --text-muted: #9A9997;
   --accent: #01C8F1;
 
-  --bg-code-block: #181818;
-  --bg-code-inline: #181818;
-  --border-code: #2a2a2a;
+  --bg-code-block: #121212;
+  --bg-code-inline: #1A1A1A;
+  --border-code: #262626;
 
   /* Code token colors (dark mode) */
   --code-keyword: var(--accent);
-  --code-string: #16a34a;
-  --code-func: #7c3aed;
+  --code-string: #4ADE80;
+  --code-func: #C084FC;
+  --code-number: #F97316;
 
   --background: var(--bg-page);
   --foreground: var(--text-page);
@@ -79,14 +82,15 @@
   --text-muted: #5E5E5E;
   --accent: #00A2C9;
 
-  --bg-code-block: #e8e4dc;
-  --bg-code-inline: #e8e4dc;
-  --border-code: #c9c3b6;
+  --bg-code-block: #F4F1EA;
+  --bg-code-inline: #EDE9E0;
+  --border-code: #D8D2C4;
 
-  /* Code token colors (light mode) — WCAG AA ≥ 4.5:1 against #e8e4dc */
-  --code-keyword: #005a73;
-  --code-string: #0d6e30;
-  --code-func: #5b1fa8;
+  /* Code token colors (light mode) — WCAG AA ≥ 4.5:1 against #F4F1EA */
+  --code-keyword: #006680;
+  --code-string: #15803D;
+  --code-func: #6B21A8;
+  --code-number: #C2410C;
 
   --background: var(--bg-page);
   --foreground: var(--text-page);
@@ -111,7 +115,6 @@ body {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-/* ── Syntax highlighting (rehype-highlight) ────────────────────── */
 html {
   scroll-behavior: smooth;
 }
@@ -124,36 +127,52 @@ html {
   margin-bottom: 0 !important;
 }
 
+/* ── Code Block & Inline Code Formatting ─────────────────────── */
+
+/* Remove default backticks inserted by Tailwind Typography plugin */
+.prose code::before,
+.prose code::after {
+  content: "" !important;
+}
+
+/* Fenced Code Block Container (<pre>) */
 .prose pre {
   background-color: var(--bg-code-block) !important;
-  border-color: var(--border-code) !important;
-  color: var(--text-page);
+  border: 1px solid var(--border-code) !important;
+  border-radius: 12px !important;
+  padding: 1.25rem 1.5rem !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+  overflow-x: auto !important;
+  box-shadow: none !important;
 }
 
-.prose pre code.hljs {
-  background: transparent !important;
-  border: none;
-  padding: 0;
-  font-size: 14px;
-  line-height: 1.25;
-  color: var(--text-page);
-}
-
-/* Ensure box-drawing characters in ASCII diagrams connect properly.
-   The tight line-height (1.25) makes ─ │ ┌ ┐ └ ┘ characters align
-   without gaps between rows. */
+/* Code text inside <pre> */
 .prose pre code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-family: var(--font-mono) !important;
+  font-size: 13px !important;
+  line-height: 1.65 !important;
+  color: var(--text-page) !important;
   font-variant-ligatures: none;
   font-kerning: none;
 }
 
-/* Inline code */
+/* Inline code (`code`) */
 .prose code:not(pre code) {
   background-color: var(--bg-code-inline) !important;
-  border-color: var(--border-code) !important;
+  border: 1px solid var(--border-code) !important;
   color: var(--text-page) !important;
+  padding: 0.15rem 0.4rem !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  font-family: var(--font-mono) !important;
+  font-weight: 500 !important;
 }
 
+/* ── Syntax Highlighting Tokens (rehype-highlight) ────────────── */
 .hljs {
   color: var(--text-page);
   background: transparent;
@@ -165,6 +184,7 @@ html {
 .hljs-type,
 .hljs-tag {
   color: var(--code-keyword);
+  font-weight: 600;
 }
 
 /* Strings */
@@ -178,7 +198,7 @@ html {
 /* Numbers, booleans */
 .hljs-number,
 .hljs-literal {
-  color: #d97706;   /* amber */
+  color: var(--code-number);
 }
 
 /* Comments */
@@ -203,8 +223,7 @@ html {
 }
 
 /* Punctuation and operators inside code blocks should be readable,
-   not muted — they include ASCII box-drawing characters (┌ ─ ┐ │ └)
-   in architecture diagrams and configuration syntax. */
+   including ASCII box-drawing characters (┌ ─ ┐ │ └) in architecture diagrams. */
 .hljs-punctuation,
 .hljs-operator {
   color: var(--text-page);
@@ -234,7 +253,7 @@ html {
   color: var(--text-muted);
 }
 
-/* ── Heading anchor links ─────────────────────────────────────── */
+/* ── Heading Anchor Links ─────────────────────────────────────── */
 .heading-anchor {
   float: left;
   margin-left: -1.2em;
@@ -242,9 +261,9 @@ html {
   text-decoration: none !important;
   opacity: 0;
   transition: opacity 0.15s ease;
-  color: var(--accent) !important;         /* override bg-clip-text on h2 */
-  background: none !important;             /* override gradient on h2 */
-  -webkit-text-fill-color: var(--accent) !important; /* override gradient */
+  color: var(--accent) !important;
+  background: none !important;
+  -webkit-text-fill-color: var(--accent) !important;
   font-size: 0.85em;
   font-weight: 400;
 }
@@ -257,7 +276,6 @@ html {
   opacity: 1;
 }
 
-/* Keep visible when anchor is focused (keyboard nav) */
 .heading-anchor:focus-visible {
   opacity: 1;
   outline: 2px solid var(--accent);
@@ -265,7 +283,7 @@ html {
   border-radius: 2px;
 }
 
-/* Mermaid diagram styles */
+/* ── Mermaid Diagrams ─────────────────────────────────────────── */
 .mermaid-diagram {
   background: var(--bg-card);
   border-radius: 12px;
@@ -276,32 +294,59 @@ html {
   display: flex;
   justify-content: center;
 }
-.mermaid-diagram:hover {
-  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-}
+
 .mermaid-diagram svg {
   max-width: 100%;
   height: auto;
 }
 
-/* Force uniform font size and family across ALL mermaid diagram types */
 .mermaid-diagram svg *,
 .mermaid-zoom svg * {
   font-size: 14px !important;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
 }
+
 .mermaid-diagram svg .sectionTitle text,
 .mermaid-zoom svg .sectionTitle text {
   font-size: 15px !important;
   font-weight: 700 !important;
 }
 
-/* Allow wide content (tables, code blocks) to scroll horizontally in main content area */
+/* ── Tables & Prose Overrides ─────────────────────────────────── */
 .doc-content {
   overflow-x: auto;
 }
 
-/* TOC sidebar scrollbar — subtle, matches theme */
+.doc-content table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 1.5rem 0;
+  font-size: 13px;
+}
+
+.doc-content th {
+  background-color: var(--bg-card);
+  color: var(--text-page);
+  font-weight: 600;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-card);
+}
+
+.doc-content td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-card);
+  color: var(--text-muted);
+}
+
+.doc-content tr:last-child td {
+  border-bottom: none;
+}
+
+/* TOC sidebar scrollbar */
 .toc-container::-webkit-scrollbar {
   width: 4px;
 }

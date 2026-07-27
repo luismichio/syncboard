@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import CookieSettingsButton from "@/components/CookieSettingsButton";
 import { VERSION } from "@/lib/version";
 
 export default function Home() {
@@ -58,10 +59,13 @@ export default function Home() {
           </a>
         </div>
 
-        <footer className="pt-12 text-[10px] text-text-muted font-mono">
-          Your designs never leave your tools. No accounts. No permanent storage.
-          <br />
-          <Link href="/docs/privacy" className="underline hover:text-text-page transition-colors">Privacy</Link>
+        <footer className="pt-12 text-[10px] text-text-muted font-mono space-y-1">
+          <p>Your designs never leave your tools. No accounts. No permanent storage.</p>
+          <div className="flex items-center justify-center gap-3">
+            <Link href="/docs/privacy" className="underline hover:text-text-page transition-colors">Privacy</Link>
+            <span>•</span>
+            <CookieSettingsButton />
+          </div>
         </footer>
       </div>
     </main>

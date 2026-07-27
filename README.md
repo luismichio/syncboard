@@ -1,3 +1,9 @@
+---
+title: SyncBoard Overview & Features
+description: Stateless, open-source integration tool syncing design screens from Figma and Penpot directly into Miro whiteboards in-place with zero duplicates.
+updated: 2026-07-27
+---
+
 # SyncBoard (Figma & Penpot to Miro Sync Engine)
 
 [![Version 0.13.3](https://img.shields.io/badge/version-0.13.3-%23007ACC?style=flat-square)](https://github.com/luismichio/syncboard/blob/dev/package.json)
@@ -37,14 +43,16 @@ Unlike official live embeds which require browser logins and degrade board perfo
 
 | Feature | Design Tool Context | Miro Client | Status |
 | :--- | :--- | :--- | :--- |
-| **Figma URL Import / Sync** | Browser or Desktop | Browser or Desktop | ✅ **Shipped** |
-| **Figma Auto-Detect Selection** | Figma Desktop or Browser | Browser or Desktop | ✅ **Shipped** (via Figma Companion Plugin) |
-| **Penpot URL Import & Selection** | Penpot Browser | Browser or Desktop | ✅ **Shipped** (Cloud relay via Companion plugin) |
-| **Penpot Export & Render** | Penpot Browser | Browser or Desktop | ✅ **Shipped** (Companion plugin renders locally, relay handles transport) |
-| **Replace Selected (Adopt Image)** | Browser or Desktop | Browser or Desktop | ✅ **Shipped** |
-| **Figma / Miro Login (OAuth)** | Any browser | Browser or Desktop | ✅ **Shipped** (Stateless OAuth polling) |
-| **Large Images (>4.5MB)** | Browser or Desktop | Browser or Desktop | 📋 **Planned** (SyncBridge capability extender) |
-| **Adobe UXP / Local LLMs / Two-Way Sync** | Desktop apps | Browser or Desktop | 📋 **Planned** (SyncBridge capability extender) |
+| **Figma URL Import / Sync** | Browser or Desktop | Browser or Desktop | **Shipped** |
+| **Figma Auto-Detect Selection** | Figma Desktop or Browser | Browser or Desktop | **Shipped** (via Figma Companion Plugin) |
+| **Penpot URL Import & Selection** | Penpot Browser | Browser or Desktop | **Shipped** (Cloud relay via Companion plugin) |
+| **Penpot Export & Render** | Penpot Browser | Browser or Desktop | **Shipped** (Companion plugin renders locally, relay handles transport) |
+| **Replace Selected (Adopt Image)** | Browser or Desktop | Browser or Desktop | **Shipped** |
+| **Figma / Miro Login (OAuth)** | Any browser | Browser or Desktop | **Shipped** (Stateless OAuth polling) |
+| **Large Images (>4.5MB)** | Browser or Desktop | Browser or Desktop | **Planned** (SyncBridge capability extender) |
+| **Adobe UXP / Local LLMs / Two-Way Sync** | Desktop apps | Browser or Desktop | **Planned** (SyncBridge capability extender) |
+
+---
 
 ## Deployment Modes: Community vs. Self-Hosted
 
@@ -70,13 +78,13 @@ For production use inside design teams, you can deploy your own instance of Sync
 
 ---
 
-> **Full setup & deployment guide -> [doc/setup.md](https://github.com/luismichio/syncboard/blob/dev/doc/setup.md)**
+> **Full setup & deployment guide -> [doc/setup.md](./doc/setup.md)**
 >
-> **Tauri/SyncBridge setup -> [doc/setup.md#-7-tauri-desktop-app-syncbridge-optional](https://github.com/luismichio/syncboard/blob/dev/doc/setup.md#-7-tauri-desktop-app-syncbridge-optional)**
+> **Tauri/SyncBridge setup -> [doc/setup.md#-7-tauri-desktop-app-syncbridge-optional](./doc/setup.md#-7-tauri-desktop-app-syncbridge-optional)**
 >
-> **Architecture reference -> [doc/architecture.md](https://github.com/luismichio/syncboard/blob/dev/doc/architecture.md)**
+> **Architecture reference -> [doc/architecture.md](./doc/architecture.md)**
 
 ---
 
 ## License
-This project is open-source and licensed under the **GNU Affero General Public License v3 (AGPL-3.0)**. See the [LICENSE](https://github.com/luismichio/syncboard/blob/dev/LICENSE) file for more details.
+This project is open-source and licensed under the **GNU Affero General Public License v3 (AGPL-3.0)**. See the [LICENSE](./LICENSE) file for more details.

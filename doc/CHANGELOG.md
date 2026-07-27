@@ -1,3 +1,8 @@
+---
+title: Changelog
+description: Complete release history, version updates, feature additions, and bug fixes across SyncBoard releases.
+---
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

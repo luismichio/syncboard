@@ -71,6 +71,7 @@ export default function RootLayout({
     <html
       lang="en"
       className="h-full antialiased"
+      suppressHydrationWarning
     >
       <head>
         {/* Google Consent Mode v2 — default deny before GA loads */}

@@ -13,12 +13,20 @@ export default function CookieConsent() {
       return;
     }
 
+    const handleOpen = () => setVisible(true);
+    window.addEventListener('show-cookie-consent', handleOpen);
+
     const stored = localStorage.getItem(CONSENT_KEY);
     if (!stored) {
       // Delay showing the banner slightly so it doesn't flash immediately
       const timer = setTimeout(() => setVisible(true), 1000);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('show-cookie-consent', handleOpen);
+      };
     }
+
+    return () => window.removeEventListener('show-cookie-consent', handleOpen);
   }, []);
 
   const accept = () => {

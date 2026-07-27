@@ -1,3 +1,8 @@
+---
+title: "Contribution Guidelines & CLA"
+description: "Guidelines for contributing to SyncBoard, signing off commits under DCO, running unit tests, and CLA compliance."
+---
+
 # Contributing to SyncBoard
 
 First off, thank you for taking the time to contribute! Contributions from the community help make SyncBoard better for everyone.
@@ -9,7 +14,7 @@ By contributing to this project, you agree to abide by our contribution guidelin
 
 ---
 
-## ⚖️ Developer Certificate of Origin (DCO) & Licensing
+## Developer Certificate of Origin (DCO) & Licensing
 
 To ensure that all code in SyncBoard remains open-source and legally unencumbered, we use the **Developer Certificate of Origin (DCO)**. 
 
@@ -26,7 +31,7 @@ This adds the following text to the end of your commit message:
 
 ---
 
-## 🛠️ Local Development Setup
+## Local Development Setup
 
 To set up your local workspace for development:
 
@@ -47,7 +52,7 @@ To set up your local workspace for development:
 
 ---
 
-## 📋 Pull Request Checklist
+## Pull Request Checklist
 
 Before submitting a Pull Request, please ensure that:
 - [ ] Code is strictly typed in TypeScript (no `any` types).

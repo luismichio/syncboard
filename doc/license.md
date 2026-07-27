@@ -1,6 +1,6 @@
 ---
-title: License & CLA
-description: GNU Affero General Public License v3 (AGPL-3.0) — SyncBoard open-source terms, trademark guidelines, and Contributor License Agreement.
+title: "License & CLA"
+description: "GNU Affero General Public License v3 (AGPL-3.0) — SyncBoard open-source terms, trademark guidelines, and Contributor License Agreement."
 ---
 
 ```text

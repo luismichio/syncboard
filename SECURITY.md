@@ -1,3 +1,8 @@
+---
+title: "Security Policy & Disclosure"
+description: "Security architecture, vulnerability reporting procedures, zero-persistent-storage guarantees, and token encryption standards."
+---
+
 # Security Policy
 
 ## Supported Versions
@@ -6,9 +11,9 @@ We actively monitor and patch security vulnerabilities in SyncBoard. Security up
 
 | Version | Supported |
 | ------- | --------- |
-| < 0.5.x | ❌ No     |
-| 0.5.x   | ❌ No     |
-| 0.6.x   | ✅ Yes    |
+| < 0.5.x | No     |
+| 0.5.x   | No     |
+| 0.6.x   | Yes    |
 
 Always ensure you are running the latest release to receive active security updates.
 
@@ -18,14 +23,14 @@ Always ensure you are running the latest release to receive active security upda
 
 SyncBoard is designed with a **zero-persistent-storage, cloud-relay-first** architecture that minimizes attack surface:
 
-### 🔐 Authentication & Token Handling
+### Authentication & Token Handling
 
 - **OAuth tokens are stored in Miro board storage** (via `board.storage.set`), with a **localStorage fallback** for same-origin contexts. Tokens are never persisted server-side beyond an ephemeral Upstash Redis cache (300s TTL) used only during OAuth popup handoff.
 - Token refresh uses an ephemeral Upstash Redis cache (300s TTL) with automatic deletion on consumption — no long-lived token storage on the server.
 - **OAuth CSRF protection** via cryptographically secure `state` parameters generated with `window.crypto.getRandomValues()`. State values are validated server-side before accepting the callback.
 - **Pairing IDs** (Penpot ↔ Miro link) are read-only fields in the UI and generated via `crypto.getRandomValues()` — users cannot inject custom values.
 
-### 🌐 API Protection
+### API Protection
 
 - **Community Plan rate limiting** — per-user token-based throttling on all sync endpoints. Identifiers are hashed with SHA-256 to avoid storing raw tokens in rate-limit counters. A global daily backstop (500 syncs/day) prevents free-tier budget exhaustion regardless of attacker IP cycling.
 - **Token-based identification** — rate limit keys use `SHA256(OAuth token)` or `SHA256(pairingId)` instead of client IP, making the limiter immune to VPN/proxy cycling. IP fallback only applies to unauthenticated requests (tightly capped at 5 req/min).
@@ -33,20 +38,20 @@ SyncBoard is designed with a **zero-persistent-storage, cloud-relay-first** arch
 - **Generic error responses** — API endpoints sanitize exceptions to avoid leaking stack traces or internal paths to clients.
 - **Orphan endpoint cleanup** — unused relay routes (`/api/relay/penpot/poll`, `/api/relay/penpot/register`) have been removed to reduce the attack surface.
 
-### 🔗 Transport Security
+### Transport Security
 
 - **Penpot sync uses the cloud relay** (Ably WebSocket + Upstash Redis over public HTTPS), not localhost WebSocket or HTTP calls. This avoids exposure to **Private Network Access (PNA)** restrictions and prevents browsers from making mixed-content requests from `https://` origins to local servers.
 - **Figma sync is cloud-native** — the Figma Render API delivers images directly to Miro via the SyncBoard relay. No local servers or desktop agents are required for day-to-day sync.
 - **SyncBridge (Tauri)** is fully **optional** — only needed for large images (>4.5MB), Adobe UXP integration, or local LLMs. When enabled, it uses a locally-trusted HTTPS certificate (`mkcert`) for secure communication with Miro Desktop (Electron).
 
-### 🧹 Surface Area Reduction
+### Surface Area Reduction
 
 - Legacy Tauri bridge routes (WebSocket, local polling, local export triggers) have been pruned — the desktop app now only serves the capability-extender role.
 - Temporary/scratch files (`.html` stubs, `.txt` notes) are excluded from production builds.
 
 ---
 
-### 📜 GDPR & Data Protection
+### GDPR & Data Protection
 
 SyncBoard's architecture is designed for **data minimization by default**, making self-hosted deployments naturally GDPR-compliant:
 
