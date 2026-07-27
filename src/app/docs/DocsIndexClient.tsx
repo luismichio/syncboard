@@ -198,7 +198,7 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
 
         {searchQuery && totalResults === 0 && (
           <div className="p-8 rounded-xl border border-border-card bg-bg-card text-center space-y-2">
-            <p className="text-sm font-semibold text-text-page">No documents matched "{searchQuery}"</p>
+            <p className="text-sm font-semibold text-text-page">No documents matched &quot;{searchQuery}&quot;</p>
             <p className="text-xs text-text-muted">Try searching for keywords like Figma, Ably, Rate Limits, or Miro.</p>
           </div>
         )}
