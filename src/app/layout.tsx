@@ -4,63 +4,81 @@ import CookieConsent from "@/components/CookieConsent";
 
 const SITE_URL = "https://syncboard.luiskobayashi.com";
 
-export const metadata: Metadata = {
-  title: "SyncBoard",
-  description:
-    "SyncBoard is a stateless, self-hosted integration that syncs Figma and Penpot frame screenshots into Miro in-place with zero duplicates.",
-  icons: {
-    icon: "/syncboard_logo.svg",
-  },
-  metadataBase: new URL(SITE_URL),
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    siteName: "SyncBoard",
-    title: "SyncBoard — Stateless Figma/Penpot-Miro Pipeline",
+import { headers } from "next/headers";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const headersList = await headers();
+  const host = headersList.get("host") || "";
+  const isDevDomain = host.includes("syncboard-dev") || host.includes("vercel.app");
+
+  return {
+    title: "SyncBoard",
     description:
-      "A database-free, self-hosted integration that syncs Figma and Penpot frame screenshots into Miro in-place with zero duplicates.",
-    url: SITE_URL,
-    images: [
-      {
-        url: "/syncboard_logo_color.svg",
-        width: 480,
-        height: 480,
-        alt: "SyncBoard logo",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "SyncBoard — Stateless Figma/Penpot-Miro Pipeline",
-    description:
-      "A database-free, self-hosted integration that syncs Figma and Penpot frame screenshots into Miro in-place with zero duplicates.",
-    images: ["/syncboard_logo_color.svg"],
-  },
-  keywords: [
-    "Figma",
-    "Miro",
-    "Penpot",
-    "sync",
-    "design handoff",
-    "design-to-whiteboard",
-    "self-hosted",
-    "open source",
-  ],
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      "SyncBoard is a stateless, self-hosted integration that syncs Figma and Penpot frame screenshots into Miro in-place with zero duplicates.",
+    icons: {
+      icon: "/syncboard_logo.svg",
     },
-  },
-};
+    metadataBase: new URL(SITE_URL),
+    alternates: {
+      canonical: "/",
+    },
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      siteName: "SyncBoard",
+      title: "SyncBoard — Stateless Figma/Penpot-Miro Pipeline",
+      description:
+        "A database-free, self-hosted integration that syncs Figma and Penpot frame screenshots into Miro in-place with zero duplicates.",
+      url: SITE_URL,
+      images: [
+        {
+          url: "/syncboard_logo_color.svg",
+          width: 480,
+          height: 480,
+          alt: "SyncBoard logo",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "SyncBoard — Stateless Figma/Penpot-Miro Pipeline",
+      description:
+        "A database-free, self-hosted integration that syncs Figma and Penpot frame screenshots into Miro in-place with zero duplicates.",
+      images: ["/syncboard_logo_color.svg"],
+    },
+    keywords: [
+      "Figma",
+      "Miro",
+      "Penpot",
+      "sync",
+      "design handoff",
+      "design-to-whiteboard",
+      "self-hosted",
+      "open source",
+    ],
+    robots: isDevDomain
+      ? {
+          index: false,
+          follow: false,
+          nocache: true,
+          googleBot: {
+            index: false,
+            follow: false,
+          },
+        }
+      : {
+          index: true,
+          follow: true,
+          googleBot: {
+            index: true,
+            follow: true,
+            "max-video-preview": -1,
+            "max-image-preview": "large",
+            "max-snippet": -1,
+          },
+        },
+  };
+}
 
 export default function RootLayout({
   children,
