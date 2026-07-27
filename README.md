@@ -23,6 +23,17 @@ SyncBoard is a stateless, open-source integration tool that lets product and des
 
 Unlike official live embeds which require browser logins and degrade board performance, SyncBoard places fast-loading, flat images that stakeholders can annotate, draw on, and reference instantly.
 
+### Why Stateless?
+
+SyncBoard is deliberately built as a stateless proxy engine for key technical, security, and operational reasons:
+
+* **Privacy-First Security Model:** We never store raw Figma or Miro access tokens, credentials, or design screens on our servers. Rate limiting identifies callers using anonymous, one-way SHA-256 token fingerprints (`tok:sha256(token)`) from which original access tokens can never be recovered. Your intellectual property remains strictly within your design tools.
+* **Third-Party Cookie Resilience:** Miro plugins operate inside sandboxed browser iframes where modern browsers block third-party cookies. Storing tokens client-side within the active Miro session avoids iframe cookie restrictions entirely.
+* **Enterprise Compliance Exemption:** Storing zero personal data or design files bypasses GDPR Data Subject Access Requests (DSARs), right-to-be-forgotten pipelines, and complex Data Processing Agreements (DPAs) for enterprise security reviews.
+* **Zero Infrastructure Overhead:** Operating database-free allows self-hosters and design teams to deploy SyncBoard in minutes on serverless hosts (like Vercel) with zero database management or storage costs.
+* **Self-Healing Serverless Scale:** Serverless functions scale instantly from 0 to 10,000 requests/minute and back to 0 without database schema migrations, connection pool limits, or cold-start latency.
+* **Seamless Board Collaboration:** Frame pairing metadata is stored directly inside Miro widget properties (`title`). This enables any teammate on the board to sync design updates without requiring complex multi-user database permissions.
+
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,ABLY_API_KEY)
 
 ---

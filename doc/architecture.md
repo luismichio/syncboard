@@ -29,6 +29,25 @@ sections:
 
 SyncBoard is a stateless design-to-canvas sync engine designed to fetch, render, and update screenshots in-place on whiteboards. It supports **Figma** and **Penpot** as design sources, **Miro** as the primary canvas target, and is exploring additional platforms.
 
+### Why Stateless?
+
+SyncBoard is deliberately built as a stateless proxy engine for key technical, security, and operational reasons:
+
+* **Privacy-First Security Model:** We never store raw Figma or Miro access tokens, credentials, or design screens on our servers. Rate limiting identifies callers using anonymous, one-way SHA-256 token fingerprints (`tok:sha256(token)`) from which original access tokens can never be recovered. Your intellectual property remains strictly within your design tools.
+* **Third-Party Cookie Resilience:** Miro plugins operate inside sandboxed browser iframes where modern browsers block third-party cookies. Storing tokens client-side within the active Miro session avoids iframe cookie restrictions entirely.
+* **Enterprise Compliance Exemption:** Storing zero personal data or design files bypasses GDPR Data Subject Access Requests (DSARs), right-to-be-forgotten pipelines, and complex Data Processing Agreements (DPAs) for enterprise security reviews.
+* **Zero Infrastructure Overhead:** Operating database-free allows self-hosters and design teams to deploy SyncBoard in minutes on serverless hosts (like Vercel) with zero database management or storage costs.
+* **Self-Healing Serverless Scale:** Serverless functions scale instantly from 0 to 10,000 requests/minute and back to 0 without database schema migrations, connection pool limits, or cold-start latency.
+* **Seamless Board Collaboration:** Frame pairing metadata is stored directly inside Miro widget properties (`title`). This enables any teammate on the board to sync design updates without requiring complex multi-user database permissions.
+
+### Architectural Trade-Offs
+
+While statelessness delivers maximum privacy and zero infrastructure overhead, it involves deliberate technical trade-offs:
+
+* **Client-Scoped Sessions:** OAuth tokens live in client-side Miro board metadata; clearing browser data or moving to an un-paired browser requires re-authenticating.
+* **Payload Constraints:** Without server-side cloud storage (S3), image transfers travel directly via serverless HTTP response bodies and are subject to host payload limits (4.5MB on Vercel).
+* **No Historical Sync Activity:** SyncBoard retains no historical user activity logs, past sync dashboards, or permanent audit histories.
+
 ---
 
 ## Quick Status & Module Directory
