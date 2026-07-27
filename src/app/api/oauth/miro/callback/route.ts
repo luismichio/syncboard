@@ -86,12 +86,9 @@ export async function GET(request: NextRequest) {
   const appUrl = `${protocol}://${host}`;
   const redirectUri = `${appUrl}/api/oauth/miro/callback`;
 
-  // 1. Verify CSRF State
-  // Controlled bypass policy:
-  // - Default secure behavior: require state match.
-  // - Optional legacy compatibility for marketplace/direct install can be enabled via env.
-  const allowDirectInstallNoState = process.env.MIRO_ALLOW_DIRECT_INSTALL_NO_STATE === 'true';
-  const isDirectInstall = allowDirectInstallNoState && !stateCookie && !stateParam;
+  // 1. Verify CSRF State or Direct Miro App Installation Callback
+  // Direct installation callbacks from Miro's app-install URL return code with empty/missing state
+  const isDirectInstall = (!stateCookie && (!stateParam || stateParam.trim() === '')) || process.env.MIRO_ALLOW_DIRECT_INSTALL_NO_STATE === 'true';
 
   if (!isDirectInstall && stateCookie !== stateParam) {
     const csrfResponse = new NextResponse(
