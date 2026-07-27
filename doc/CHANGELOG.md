@@ -11,6 +11,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [0.13.4] - 2026-07-27
+### Added
+- **Root-level documentation indexing:** Added scanner support for `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` in `src/lib/docs.ts`, exposing them as public `/docs/contributing` and `/docs/security` pages.
+- **Footer cookie settings button:** Created reusable `<CookieSettingsButton />` client component allowing users to reopen cookie preferences at any time from footers across public pages.
+- **Reference documentation cards:** Displaying 6 full-featured cards (*Changelog*, *Privacy Policy*, *License & CLA*, *FAQ*, *Contribution Guidelines & CLA*, and *Security Policy*) under the Reference section on `/docs`.
+
+### Changed
+- **Documentation hub layout & typography:** Upgraded `/docs` with wide featured cards, cyan/blue outline borders (`border-accent/40`), and enhanced section category headers (`text-xl md:text-2xl font-black`).
+- **Markdown style compliance:** Removed emojis across all markdown documentation files and documentation components in alignment with project design system standards.
+
+### Fixed
+- **Root doc path resolution bug:** Resolved `ENOENT` error in `getDocBySlug()` by adding explicit `ROOT_DOCS` set checking for root-level markdown files vs `doc/` sub-directories.
+- **Case-insensitive doc slug generation:** Converted generated doc slugs to lowercase in `filenameToSlug()` so `CHANGELOG.md` correctly maps to `/docs/changelog`.
+- **Dual-context markdown link resolution:** Configured relative markdown links (`./doc/setup.md`, `./doc/architecture.md`, `./LICENSE`) to resolve natively on GitHub and internally on the webpage.
+- **Downloaded Miro image asset naming:** Background binary `File` header registration (`/api/miro/update-image`) ensures right-click image downloads in Miro retain original frame titles (`Frame Name.png`).
+
 ## [0.13.3] - 2026-07-26
 ### Added
 - **Privacy policy page:** New `/docs/privacy` documenting all transient operational data (rate limit IP counters, 45s Redis relay buffers, 5min OAuth states), their legal bases under GDPR, and user rights. Landing page footer now links to it.
