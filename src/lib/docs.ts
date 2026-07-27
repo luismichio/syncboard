@@ -22,6 +22,7 @@ export interface DocMeta {
   filename: string;
   size: number;
   updatedAt: Date;
+  headings?: DocHeading[];
 }
 
 /**
@@ -156,6 +157,7 @@ export function getAllDocs(): DocMeta[] {
         filename: normalizedRelFile,
         size: stat.size,
         updatedAt: stat.mtime,
+        headings: extractHeadings(content),
       });
     } catch {
       // Skip unreadable files
@@ -176,6 +178,7 @@ export function getAllDocs(): DocMeta[] {
         filename: rootFile,
         size: stat.size,
         updatedAt: stat.mtime,
+        headings: extractHeadings(md),
       });
     } catch {
       // Root file not found — skip
@@ -191,8 +194,9 @@ const ROOT_DOCS = new Set(['README.md', 'CONTRIBUTING.md', 'SECURITY.md']);
  * Returns metadata and raw content for a single doc by slug.
  */
 export function getDocBySlug(slug: string): { meta: DocMeta; content: string } | null {
+  const normalizedSlug = slug.toLowerCase();
   const docs = getAllDocs();
-  const doc = docs.find((d) => d.slug === slug || d.slug === slug.replace(/\//g, '-'));
+  const doc = docs.find((d) => d.slug === normalizedSlug || d.slug === normalizedSlug.replace(/\//g, '-'));
   if (!doc) return null;
 
   // Block hidden docs
@@ -256,4 +260,93 @@ export function getWordCount(md: string): number {
   const body = stripFrontmatter(md);
   const text = body.replace(/```[\s\S]*?```/g, '').replace(/<[^>]+>/g, '');
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+export interface SearchResultItem {
+  slug: string;
+  title: string;
+  description: string;
+  filename: string;
+  category: 'Overview' | 'Architecture' | 'Reference' | 'Archives';
+  score: number;
+  matchedSection?: {
+    text: string;
+    id: string;
+  };
+  snippet: string;
+}
+
+function getCategoryBySlug(slug: string): 'Overview' | 'Architecture' | 'Reference' | 'Archives' {
+  if (slug.startsWith('architecture-archive-')) return 'Archives';
+  if (slug.startsWith('architecture')) return 'Architecture';
+  if (['changelog', 'privacy', 'license', 'faq', 'contributing', 'security'].includes(slug)) return 'Reference';
+  return 'Overview';
+}
+
+function getCategoryPenalty(category: 'Overview' | 'Architecture' | 'Reference' | 'Archives'): number {
+  switch (category) {
+    case 'Overview': return 0;
+    case 'Architecture': return -10;
+    case 'Reference': return -20;
+    case 'Archives': return -60; // Historical archives rank lowest
+  }
+}
+
+/**
+ * Searches across document titles, descriptions, section headings, and body content with relevancy scoring and hierarchy demotion.
+ */
+export function searchDocs(query: string): SearchResultItem[] {
+  if (!query || query.trim().length === 0) return [];
+  const q = query.trim().toLowerCase();
+  const docs = getAllDocs();
+  const results: SearchResultItem[] = [];
+
+  for (const doc of docs) {
+    const docData = getDocBySlug(doc.slug);
+    if (!docData) continue;
+    const { content } = docData;
+    const category = getCategoryBySlug(doc.slug);
+
+    const titleMatch = doc.title.toLowerCase().includes(q);
+    const descMatch = doc.description.toLowerCase().includes(q);
+    const headings = doc.headings || [];
+    const matchedHeading = headings.find((h) => h.text.toLowerCase().includes(q));
+
+    const contentLower = content.toLowerCase();
+    const bodyIdx = contentLower.indexOf(q);
+
+    if (titleMatch || descMatch || matchedHeading || bodyIdx !== -1) {
+      let score = getCategoryPenalty(category);
+
+      if (titleMatch) score += 100;
+      if (matchedHeading) score += 50;
+      if (descMatch) score += 30;
+      if (bodyIdx !== -1) {
+        // Count body occurrences (up to 10)
+        const occurrences = (contentLower.split(q).length - 1);
+        score += Math.min(20, 10 + occurrences * 2);
+      }
+
+      let snippet = doc.description;
+      if (bodyIdx !== -1) {
+        const start = Math.max(0, bodyIdx - 35);
+        const end = Math.min(content.length, bodyIdx + q.length + 55);
+        snippet = (start > 0 ? '...' : '') + content.substring(start, end).replace(/\s+/g, ' ') + (end < content.length ? '...' : '');
+      }
+
+      results.push({
+        slug: doc.slug,
+        title: doc.title,
+        description: doc.description,
+        filename: doc.filename,
+        category,
+        score,
+        matchedSection: matchedHeading ? { text: matchedHeading.text, id: matchedHeading.id } : undefined,
+        snippet,
+      });
+    }
+  }
+
+  // Sort by relevancy score descending
+  return results.sort((a, b) => b.score - a.score);
 }

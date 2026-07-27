@@ -6,7 +6,7 @@ updated: 2026-07-27
 
 # SyncBoard (Figma & Penpot to Miro Sync Engine)
 
-[![Version 0.13.3](https://img.shields.io/badge/version-0.13.3-%23007ACC?style=flat-square)](https://github.com/luismichio/syncboard/blob/dev/package.json)
+[![Version 0.13.4](https://img.shields.io/badge/version-0.13.4-%23007ACC?style=flat-square)](https://github.com/luismichio/syncboard/blob/dev/package.json)
 [![OSI Approved License](https://img.shields.io/badge/license-AGPLv3-%23A81C7D?style=flat-square&label=OSI%20Approved)](https://github.com/luismichio/syncboard/blob/dev/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-%23007ACC.svg?style=flat-square&logo=typescript&logoColor=white)](https://github.com/luismichio/syncboard/blob/dev/tsconfig.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-%23FF6B6B?style=flat-square)](https://github.com/luismichio/syncboard/issues/new)
@@ -58,13 +58,17 @@ Unlike official live embeds which require browser logins and degrade board perfo
 
 SyncBoard can be utilized in two different hosting configurations:
 
-### 1. Community Version (Official Market Plugins)
+### Community Version (Official Market Plugins)
+
+> [!IMPORTANT]
+> **User-Owned OAuth Architecture:** SyncBoard maintains zero user databases and requires no user registration. Every user authenticates directly with their own personal Figma and Miro accounts via standard OAuth 2.0. Access tokens remain stored client-side inside the user's active Miro board session.
+
 For quick testing and evaluation, you can use the official pre-published plugins running on the public Community infrastructure hosted at **`https://syncboard.luiskobayashi.com`**.
 * **Zero Configuration:** Simply install the **SyncBoard** plugin from the Miro Marketplace, and the **SyncBoard Companion** from the Figma Community / Penpot Libraries.
 * **Plug and Play:** Open the plugins in both tools, copy the Pairing ID from the Miro sidebar, and paste it into the Figma/Penpot companion to connect.
 * **Rate Limits:** To keep the maintainer's shared infrastructure responsive for everyone, the Community version enforces daily rate limits on image exports and node queries.
 
-### 2. Self-Hosted Version (Private Production)
+### Self-Hosted Version (Private Production)
 For production use inside design teams, you can deploy your own instance of SyncBoard on Vercel or any Node.js container host.
 * **Customizable Sync Quotas:** Since you connect your own accounts, you can bypass the shared Community rates and configure custom daily limits (or disable the rate limiter entirely by setting `RATE_LIMIT_ENABLED=false`) to fit your team's needs (bounded only by your own Upstash and Ably plan quotas).
 * **Custom Developer Apps:** Since you run on your own domain, you will need to register your own custom developer apps:
@@ -80,7 +84,7 @@ For production use inside design teams, you can deploy your own instance of Sync
 
 > **Full setup & deployment guide -> [doc/setup.md](./doc/setup.md)**
 >
-> **Tauri/SyncBridge setup -> [doc/setup.md#-7-tauri-desktop-app-syncbridge-optional](./doc/setup.md#-7-tauri-desktop-app-syncbridge-optional)**
+> **Tauri/SyncBridge setup -> [doc/setup.md#tauri-desktop-app-syncbridge-optional](./doc/setup.md#tauri-desktop-app-syncbridge-optional)**
 >
 > **Architecture reference -> [doc/architecture.md](./doc/architecture.md)**
 

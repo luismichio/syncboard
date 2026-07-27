@@ -13,6 +13,7 @@ import { DISPLAY } from "@/lib/version";
 import TOC from "@/components/docs/TOC";
 import MermaidHydrator from "@/components/docs/MermaidHydrator";
 import CookieSettingsButton from "@/components/CookieSettingsButton";
+import ThemeToggle from "@/components/ThemeToggle";
 
 import type { Node } from "unist";
 
@@ -215,7 +216,7 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
       />
 
       {/* Header */}
-      <header className="relative z-10 border-b border-border-card">
+      <header className="sticky top-0 z-50 bg-bg-page/80 backdrop-blur-md border-b border-border-card transition-all">
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <Link href="/" className="hover:opacity-80 transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg">
@@ -296,8 +297,8 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
 
         {/* TOC sidebar */}
         <aside className="hidden lg:block w-56 shrink-0">
-          <div className="sticky top-8">
-            <div className="toc-container max-h-[calc(100vh-6rem)] overflow-y-auto overflow-x-hidden">
+          <div className="sticky top-28">
+            <div className="toc-container max-h-[calc(100vh-9rem)] overflow-y-auto overflow-x-hidden">
               <TOC headings={headings} />
             </div>
           </div>
@@ -341,10 +342,22 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
       {/* Footer */}
       <footer className="relative z-10 border-t border-border-card">
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between text-[10px] font-mono text-text-muted">
-          <div className="flex items-center gap-3">
-            <Link href="/docs/license" className="hover:text-text-page transition underline">AGPLv3 License</Link>
-            <span>•</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/docs/license"
+              className="px-2.5 py-1 rounded-lg bg-bg-card border border-border-card text-text-muted hover:text-text-page hover:border-text-muted/40 transition duration-200 inline-flex items-center gap-1.5 text-xs font-mono select-none"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+                <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+                <path d="M7 21h10" />
+                <path d="M12 3v18" />
+                <path d="M3 7h18" />
+              </svg>
+              <span>AGPLv3 License</span>
+            </Link>
             <CookieSettingsButton />
+            <ThemeToggle />
           </div>
           <a href="https://github.com/luismichio/syncboard" target="_blank" rel="noreferrer" className="hover:text-text-page transition">
             github.com/luismichio/syncboard

@@ -27,10 +27,12 @@ graph TD
 
 ## Figma — Cloud-Native REST + Companion Relay
 
-Figma provides a robust public web API that renders design frames to images in the cloud (`api.figma.com/v1/images`), while using an Ably WebSocket companion plugin for real-time selection auto-detect.
+Figma provides a robust public web API that renders design frames to images in the cloud (`api.figma.com/v1/images`), while offering an optional WebSocket companion plugin for live selection broadcasting.
 
 * **Image Sync Flow:** The Miro plugin requests frame renders via `/api/figma/render-batch`. The server requests the frame render directly from Figma's cloud REST API (`api.figma.com/v1/images`), downloads the image bytes, and uploads them to the Miro widget via multipart POST.
-* **Selection Auto-Detect Flow (Ably WebSocket):** For real-time selection auto-detect inside Figma Desktop, the Figma Companion plugin (`public/figma-companion-ui.html`) connects via an Ably WebSocket channel (`penpot:${pairingId}`). When selection changes, it publishes metadata (`id`, `name`, `fileKey`) over Ably directly to the Miro plugin sidebar with zero server polling and zero Redis overhead.
+* **Selection Relay Flow (Ably WebSocket):** When running the companion plugin inside **Figma Web (`figma.com`) or Figma Desktop**, `figma.on('selectionchange')` listens for canvas selections. It broadcasts selected frame metadata (`id`, `name`, `fileKey`) over an Ably WebSocket channel (`penpot:${pairingId}`) directly to the Miro plugin sidebar with zero server polling and zero Redis overhead.
+* **Companion Scope:** Unlike Penpot (which relies on its companion plugin for rendering), **Figma ONLY requires the companion plugin for live selection detection**. Frame rendering, metadata extraction, and image syncing work 100% cloud-native via Figma's REST API without installing or running the companion plugin.
+* **Manual Link Fallback:** If the companion plugin is not open in Figma, designers can manually paste any Figma frame URL into the Miro plugin sidebar to import and sync.
 * **Benefits:** Zero user configuration, no local servers, and no tunnels required for private setups.
 
 ### The Cloud Key Limitation (Figma Community Restriction)
@@ -56,6 +58,8 @@ Unlike Figma, Penpot does **not** provide a public cloud REST API for rendering 
 * **Hybrid Image Storage (Single-Read Redis):** Heavy PNG/SVG renders are posted to `/api/relay/penpot/result` (stored in Redis with a 45s TTL) and a tiny `'result-ready'` notification event is published over Ably. The Miro plugin receives the WebSocket event and reads/deletes the image with a single `GET /api/relay/response` call (3 Redis commands total per export: 1 SET, 1 GET, 1 DEL).
 
 ### Penpot Export Freeze & `openPage` Navigation Workaround
+
+> **API Definition:** `penpot.openPage(pageId)` is an asynchronous browser API method provided natively by **Penpot's Plugin JavaScript SDK** (`@penpot/plugin-types`). It programmatically switches the active page view inside Penpot's WebAssembly canvas editor.
 
 To save RAM, Penpot only loads the active page into WebAssembly (WASM) rendering memory. Background pages remain unparsed in storage.
 

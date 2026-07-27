@@ -6,6 +6,7 @@ import { DocCard } from '@/components/docs/DocCard';
 import { DocSectionHeader } from '@/components/docs/DocSectionHeader';
 import { DocSearchInput } from '@/components/docs/DocSearchInput';
 import CookieSettingsButton from '@/components/CookieSettingsButton';
+import ThemeToggle from '@/components/ThemeToggle';
 import { DISPLAY } from '@/lib/version';
 
 export interface DocItemMeta {
@@ -88,6 +89,12 @@ const ServerIcon = (
   </svg>
 );
 
+const KeyIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m21 2-2 2m-1.5 1.5L16 7v2h-2v2h-2l-1 1" /><circle cx="7.5" cy="16.5" r="4.5" />
+  </svg>
+);
+
 const BotIcon = (
   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" />
@@ -100,44 +107,24 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
   const docMap = new Map(docs.map((d) => [d.slug, d]));
   const getMeta = (slug: string) => docMap.get(slug);
 
-  const matchesSearch = (slug: string) => {
-    if (!searchQuery.trim()) return true;
-    const item = getMeta(slug);
-    if (!item) return false;
-    const q = searchQuery.toLowerCase();
-    return (
-      item.title.toLowerCase().includes(q) ||
-      item.description.toLowerCase().includes(q) ||
-      item.slug.toLowerCase().includes(q) ||
-      item.filename.toLowerCase().includes(q)
-    );
-  };
-
-  const readmeSlug = matchesSearch('readme') ? 'readme' : null;
-  const gettingStartedSlugs = ['setup', 'features'].filter(matchesSearch);
-  const mainArchSlug = matchesSearch('architecture') ? 'architecture' : null;
+  const readmeSlug = 'readme';
+  const gettingStartedSlugs = ['setup', 'features'];
+  const mainArchSlug = 'architecture';
   const archSubmoduleSlugs = [
     'architecture-sources',
     'architecture-targets',
     'architecture-selection-and-relay',
     'architecture-security-and-limits',
+    'environment-variables',
     'architecture-infrastructure-and-costs',
     'architecture-mcp-roadmap',
-  ].filter(matchesSearch);
+  ];
 
-  const referenceSlugs = ['changelog', 'privacy', 'license', 'faq', 'contributing', 'security'].filter(matchesSearch);
+  const referenceSlugs = ['changelog', 'privacy', 'license', 'faq', 'contributing', 'security'];
   const archiveSlugs = [
     'architecture-archive-chromium-loopback',
     'architecture-archive-architecture-evolution',
-  ].filter(matchesSearch);
-
-  const totalResults =
-    (readmeSlug ? 1 : 0) +
-    gettingStartedSlugs.length +
-    (mainArchSlug ? 1 : 0) +
-    archSubmoduleSlugs.length +
-    referenceSlugs.length +
-    archiveSlugs.length;
+  ];
 
   return (
     <main className="min-h-screen bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page relative overflow-x-clip">
@@ -152,7 +139,7 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
       />
 
       {/* Header */}
-      <header className="relative z-10 border-b border-border-card">
+      <header className="sticky top-0 z-50 bg-bg-page/80 backdrop-blur-md border-b border-border-card transition-all">
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="hover:opacity-80 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg">
@@ -195,13 +182,6 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
 
           <DocSearchInput value={searchQuery} onChange={setSearchQuery} />
         </div>
-
-        {searchQuery && totalResults === 0 && (
-          <div className="p-8 rounded-xl border border-border-card bg-bg-card text-center space-y-2">
-            <p className="text-sm font-semibold text-text-page">No documents matched &quot;{searchQuery}&quot;</p>
-            <p className="text-xs text-text-muted">Try searching for keywords like Figma, Ably, Rate Limits, or Miro.</p>
-          </div>
-        )}
 
         {/* Tier 1: GETTING STARTED & OVERVIEW */}
         {(readmeSlug || gettingStartedSlugs.length > 0) && (
@@ -285,6 +265,7 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
                   if (slug.includes('targets')) iconNode = TargetIcon;
                   else if (slug.includes('selection')) iconNode = ZapIcon;
                   else if (slug.includes('security')) iconNode = ShieldIcon;
+                  else if (slug.includes('environment-variables')) iconNode = KeyIcon;
                   else if (slug.includes('infrastructure')) iconNode = ServerIcon;
                   else if (slug.includes('mcp')) {
                     iconNode = BotIcon;
@@ -386,10 +367,22 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
       {/* Footer */}
       <footer className="relative z-10 border-t border-border-card">
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between text-xs font-mono text-text-muted">
-          <div className="flex items-center gap-3">
-            <Link href="/docs/license" className="hover:text-text-page transition underline">AGPLv3 License</Link>
-            <span>•</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/docs/license"
+              className="px-2.5 py-1 rounded-lg bg-bg-card border border-border-card text-text-muted hover:text-text-page hover:border-text-muted/40 transition duration-200 inline-flex items-center gap-1.5 text-xs font-mono select-none"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+                <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+                <path d="M7 21h10" />
+                <path d="M12 3v18" />
+                <path d="M3 7h18" />
+              </svg>
+              <span>AGPLv3 License</span>
+            </Link>
             <CookieSettingsButton />
+            <ThemeToggle />
           </div>
           <a
             href="https://github.com/luismichio/syncboard"

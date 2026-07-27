@@ -36,11 +36,28 @@ SyncBoard implements a sliding-window rate limiter (`@upstash/ratelimit` via `sr
 
 ## Platform API Quotas & Optimizations
 
-* **Figma API Quotas:** Starter (Free) plan is limited to 6 image requests per month. Paid plans allow 10–20 requests/min. SyncBoard optimizes consumption by batching requested frames from the same file into single HTTP requests (`/api/figma/render-batch`).
+* **Figma API Quotas:** Starter (Free) plan is limited to 6 image requests per month. Paid plans allow 10–20 requests/min. For detailed tier limits, see the official [Figma REST API Rate Limits Documentation](https://developers.figma.com/docs/rest-api/rate-limits/). SyncBoard optimizes consumption by batching requested frames from the same file into single HTTP requests (`/api/figma/render-batch`).
 * **Penpot API Quotas:** Penpot does not enforce API rate limits or monthly export caps. Rendering runs locally in the Penpot browser tab.
-* **Miro API Quotas:** Miro limits image updates (`PATCH`) to 50 requests/min per user token. SyncBoard enforces a **500ms delay** between consecutive widget updates to ensure compliance.
+* **Miro API Quotas:** Miro limits image updates (`PATCH`) to 50 requests/min per user token. For detailed rate tier specifications, see the official [Miro REST API Rate Limiting Reference](https://developers.miro.com/reference/rate-limiting). SyncBoard enforces a **500ms delay** between consecutive widget updates to ensure compliance.
 * **Batch Limit:** Community plan limits sync to **3 unique images per batch**. UI warning banner in `SyncTab.tsx` disables the sync button when exceeded.
 * **Scale Restriction:** Community plan scale dropdown is limited to 1x and 2x (`MAX_SCALE=2`). Self-host deployments support 1x–4x (`MAX_SCALE=4`).
+
+### Infrastructure & Cloud Provider Quotas
+
+* **Vercel Serverless Limits:**
+  * **4.5 MB Response Payload Limit:** Vercel serverless functions enforce a 4.5MB HTTP response body cap. Images exceeding 4.5MB require the Tauri extender or non-serverless hosting (AWS, Railway, Render).
+  * **60s Execution Timeout:** Configured via `vercel.json` (`maxDuration: 60`).
+  * See official [Vercel Serverless Function Limits](https://vercel.com/docs/functions/serverless-functions/runtimes#max-duration).
+
+* **Upstash Redis Limits:**
+  * **Free Tier Ceiling:** 10,000 commands/day and 256MB memory.
+  * **Buffer Expiration:** Penpot binary image buffers in Redis enforce a strict **300s (5-minute) TTL** (`SETEX`) to prevent storage exhaustion.
+  * See official [Upstash Redis Limits Documentation](https://upstash.com/docs/redis/features/limits).
+
+* **Ably Realtime Limits:**
+  * **Free Tier Ceiling:** 200,000 messages/month and 100 concurrent WebSocket connections.
+  * **Message Rate:** Max 150 messages/second. Signal payloads are minimized to light JSON commands (`render-frame`).
+  * See official [Ably Limits & Quotas Reference](https://ably.com/docs/pricing/limits).
 
 ---
 

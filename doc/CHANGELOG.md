@@ -9,7 +9,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
----
+## [0.13.5] - 2026-07-27
+### Added
+- **Full-text interactive search engine:** Implemented relevancy scoring (+100 Title, +50 Heading, +30 Description, +10 Body), category hierarchy weighting, historical archive demotion (-60), `<mark>` search term highlighting, section deep-linking (`#heading-id`), and `Cmd+K` / `Ctrl+K` keyboard shortcut.
+- **Dedicated Environment Variables Documentation:** Created `doc/environment-variables.md` with complete key reference, rate-limiting overrides, and `.env.example` templates, indexed under System Design & Adapter Modules.
+- **Sticky Top Bar & TOC Offset:** Added sticky glassmorphism header (`sticky top-0 z-50 bg-bg-page/80 backdrop-blur-md`) with TOC top offset increased to `top-28` (`112px`) to eliminate text overlap under the top bar.
+- **Homepage Action Bar:** Placed `[ Privacy ]`, `[ Cookie Settings ]`, and `[ Theme ]` in top-right action bar with uniform button heights.
+
+### Changed
+- **Setup Guide Reorganization:** Consolidated all HTTPS tunneling options (`cloudflared`, `ngrok`, `localtunnel`), local Miro Developer App settings, local Figma Companion import, local Penpot Companion import, and local Figma OAuth App config into Section 6 (`## Local Development`).
+- **Heading Numbering Cleanup:** Removed numerical prefixes from section headers across `README.md`, `doc/setup.md`, and `doc/environment-variables.md` for consistent document styling.
+
+### Fixed
+- **Case-Insensitive Doc Routes:** Normalized slug lookups in `getDocBySlug()` so uppercase URL routes like `/docs/LICENSE` and `/docs/license` resolve 100% case-insensitively.
+- **In-Page Filter Removal:** Removed stale `totalResults` ReferenceError and in-page card filtering from `DocsIndexClient.tsx` so all category cards remain 100% visible while searching.
+- **Infrastructure & Cloud Limits:** Documented Vercel (4.5MB payload limit), Upstash Redis (10k req/day), and Ably Realtime (200k msgs/month) quotas in `doc/architecture/security-and-limits.md` with official documentation links.
+- **Figma & Penpot Architecture Specs:** Updated `doc/architecture/sources.md` to clarify web/desktop selection relay support, Figma Companion scope, and `penpot.openPage()` API definition.
 
 ## [0.13.4] - 2026-07-27
 ### Added
