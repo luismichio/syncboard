@@ -12,6 +12,8 @@ import { getAllDocs, getDocBySlug, extractHeadings, getWordCount } from "@/lib/d
 import { DISPLAY } from "@/lib/version";
 import TOC from "@/components/docs/TOC";
 import MermaidHydrator from "@/components/docs/MermaidHydrator";
+import CodeCopyHydrator from "@/components/docs/CodeCopyHydrator";
+import VideoTabGroupHydrator from "@/components/docs/VideoTabGroupHydrator";
 import CookieSettingsButton from "@/components/CookieSettingsButton";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -234,11 +236,11 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
               href={`https://github.com/luismichio/syncboard/blob/main/doc/${doc.meta.filename}`}
               target="_blank"
               rel="noreferrer"
-              className="px-4 py-2 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="hidden sm:inline-flex px-4 py-2 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               VIEW ON GITHUB
             </a>
-            <span className="text-xs font-mono text-text-muted px-3 py-2 rounded-lg border border-border-card shrink-0">
+            <span className="hidden md:inline-flex text-xs font-mono text-text-muted px-3 py-2 rounded-lg border border-border-card shrink-0">
               {DISPLAY}
             </span>
           </div>
@@ -280,6 +282,8 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
             {content}
           </article>
           <MermaidHydrator />
+          <CodeCopyHydrator />
+          <VideoTabGroupHydrator />
 
           {/* Back link */}
           <div className="mt-16 pt-8 border-t border-border-card">

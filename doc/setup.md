@@ -348,6 +348,16 @@ For testing and coding on your local machine (commands work on Windows, macOS, a
      ```
    * Set `NEXT_PUBLIC_APP_URL=https://YOUR_TUNNEL_URL` in your local `.env.local`. When a user clicks **Connect Figma** in the Miro sidebar, Figma will redirect back to your local callback handler seamlessly.
 
+### Verification & Testing
+
+Verify your setup and custom edits before deploying:
+
+```bash
+yarn test     # Run 76+ automated Vitest unit & route integration tests
+yarn lint     # Verify ESLint code standards and TypeScript types
+yarn build    # Validate production build compilation
+```
+
 ---
 
 ## Tauri Desktop App (SyncBridge) (Optional)

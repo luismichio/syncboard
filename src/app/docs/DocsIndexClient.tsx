@@ -108,13 +108,14 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
   const getMeta = (slug: string) => docMap.get(slug);
 
   const readmeSlug = 'readme';
-  const gettingStartedSlugs = ['setup', 'features'];
+  const gettingStartedSlugs = ['setup', 'roadmap', 'features'];
   const mainArchSlug = 'architecture';
   const archSubmoduleSlugs = [
     'architecture-sources',
     'architecture-targets',
     'architecture-selection-and-relay',
     'architecture-security-and-limits',
+    'architecture-testing',
     'environment-variables',
     'architecture-infrastructure-and-costs',
     'architecture-mcp-roadmap',
@@ -153,11 +154,11 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
               href="https://github.com/luismichio/syncboard"
               target="_blank"
               rel="noreferrer"
-              className="px-4 py-2 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="hidden sm:inline-flex px-4 py-2 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               VIEW ON GITHUB
             </a>
-            <span className="text-xs font-mono text-text-muted px-3 py-2 rounded-lg border border-border-card">
+            <span className="hidden md:inline-flex text-xs font-mono text-text-muted px-3 py-2 rounded-lg border border-border-card">
               {DISPLAY}
             </span>
           </div>
@@ -219,7 +220,7 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
                       slug={slug}
                       title={item.title}
                       description={item.description}
-                      badge={isFeatures ? 'VIDEOS' : 'QUICKSTART'}
+                      badge={slug === 'features' ? 'VIDEOS' : slug === 'roadmap' ? 'MILESTONES' : 'QUICKSTART'}
                       variant="featured"
                       sizeBytes={item.size}
                     />
