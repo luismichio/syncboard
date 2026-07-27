@@ -7652,6 +7652,7 @@ __metadata:
     ably: "npm:^2.24.0"
     eslint: "npm:^9"
     eslint-config-next: "npm:16.2.10"
+    github-slugger: "npm:^2.0.0"
     husky: "npm:^9.1.7"
     jsdom: "npm:^29.1.1"
     mermaid: "npm:^11.16.0"
