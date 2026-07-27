@@ -45,9 +45,19 @@ export function useMiroSync(
     setIsSyncing(true);
     try {
       setSyncStatus('Preparing items for sync...', 'progress');
-
-      const boardInfo = await miro.board.getInfo();
-      const boardId = boardInfo.id;
+      let boardId: string;
+      try {
+        const boardInfo = await miro.board.getInfo();
+        boardId = boardInfo.id;
+      } catch (err: unknown) {
+        const isConnErr = err instanceof Error && (err.name === 'SdkConnectionError' || err.message.includes('not connected'));
+        if (isConnErr) {
+          setIsSyncing(false);
+          setSyncStatus('Miro SDK is not connected. Open this plugin inside a Miro board iframe panel.', 'error');
+          return;
+        }
+        throw err;
+      }
 
       type SyncTarget = { 
         id: string; 

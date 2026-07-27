@@ -34,6 +34,7 @@ writeFileSync(generatedPath, generated, "utf-8");
 console.log(`  ✔ src/lib/version.generated.ts → v${VERSION} ${PLAN_DISPLAY}`);
 
 const files = [
+  "README.md",
   "public/figma-companion-ui.html",
   "public/penpot-companion-ui.html",
   "tauri-bridge/index.html",
@@ -52,6 +53,14 @@ for (const file of files) {
 
     // Also update any existing hardcoded v0.x.x tags
     content = content.replace(/v\d+\.\d+\.\d+(?:\s+\w+)?/g, `v${VERSION} ${PLAN_DISPLAY}`);
+
+    // Update shield.io version badge in README (alt text + URL slug)
+    const shieldVersionPattern = /(?:Version\s+|version-)\d+\.\d+\.\d+/g;
+    content = content.replace(shieldVersionPattern, (match) => {
+      if (match.startsWith('Version ')) return `Version ${VERSION}`;
+      if (match.startsWith('version-')) return `version-${VERSION}`;
+      return match;
+    });
 
     if (content !== original) {
       writeFileSync(path, content, "utf-8");

@@ -1,10 +1,56 @@
+---
+title: Changelog
+description: Complete release history, version updates, feature additions, and bug fixes across SyncBoard releases.
+---
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
----
+## [0.13.5] - 2026-07-27
+### Added
+- **Full-text interactive search engine:** Implemented relevancy scoring (+100 Title, +50 Heading, +30 Description, +10 Body), category hierarchy weighting, historical archive demotion (-60), `<mark>` search term highlighting, section deep-linking (`#heading-id`), and `Cmd+K` / `Ctrl+K` keyboard shortcut.
+- **Dedicated Environment Variables Documentation:** Created `doc/environment-variables.md` with complete key reference, rate-limiting overrides, and `.env.example` templates, indexed under System Design & Adapter Modules.
+- **Sticky Top Bar & TOC Offset:** Added sticky glassmorphism header (`sticky top-0 z-50 bg-bg-page/80 backdrop-blur-md`) with TOC top offset increased to `top-28` (`112px`) to eliminate text overlap under the top bar.
+- **Homepage Action Bar:** Placed `[ Privacy ]`, `[ Cookie Settings ]`, and `[ Theme ]` in top-right action bar with uniform button heights.
+
+### Changed
+- **Setup Guide Reorganization:** Consolidated all HTTPS tunneling options (`cloudflared`, `ngrok`, `localtunnel`), local Miro Developer App settings, local Figma Companion import, local Penpot Companion import, and local Figma OAuth App config into Section 6 (`## Local Development`).
+- **Heading Numbering Cleanup:** Removed numerical prefixes from section headers across `README.md`, `doc/setup.md`, and `doc/environment-variables.md` for consistent document styling.
+
+### Fixed
+- **Case-Insensitive Doc Routes:** Normalized slug lookups in `getDocBySlug()` so uppercase URL routes like `/docs/LICENSE` and `/docs/license` resolve 100% case-insensitively.
+- **In-Page Filter Removal:** Removed stale `totalResults` ReferenceError and in-page card filtering from `DocsIndexClient.tsx` so all category cards remain 100% visible while searching.
+- **Infrastructure & Cloud Limits:** Documented Vercel (4.5MB payload limit), Upstash Redis (10k req/day), and Ably Realtime (200k msgs/month) quotas in `doc/architecture/security-and-limits.md` with official documentation links.
+- **Figma & Penpot Architecture Specs:** Updated `doc/architecture/sources.md` to clarify web/desktop selection relay support, Figma Companion scope, and `penpot.openPage()` API definition.
+
+## [0.13.4] - 2026-07-27
+### Added
+- **Root-level documentation indexing:** Added scanner support for `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` in `src/lib/docs.ts`, exposing them as public `/docs/contributing` and `/docs/security` pages.
+- **Footer cookie settings button:** Created reusable `<CookieSettingsButton />` client component allowing users to reopen cookie preferences at any time from footers across public pages.
+- **Reference documentation cards:** Displaying 6 full-featured cards (*Changelog*, *Privacy Policy*, *License & CLA*, *FAQ*, *Contribution Guidelines & CLA*, and *Security Policy*) under the Reference section on `/docs`.
+
+### Changed
+- **Documentation hub layout & typography:** Upgraded `/docs` with wide featured cards, cyan/blue outline borders (`border-accent/40`), and enhanced section category headers (`text-xl md:text-2xl font-black`).
+- **Markdown style compliance:** Removed emojis across all markdown documentation files and documentation components in alignment with project design system standards.
+
+### Fixed
+- **Root doc path resolution bug:** Resolved `ENOENT` error in `getDocBySlug()` by adding explicit `ROOT_DOCS` set checking for root-level markdown files vs `doc/` sub-directories.
+- **Case-insensitive doc slug generation:** Converted generated doc slugs to lowercase in `filenameToSlug()` so `CHANGELOG.md` correctly maps to `/docs/changelog`.
+- **Dual-context markdown link resolution:** Configured relative markdown links (`./doc/setup.md`, `./doc/architecture.md`, `./LICENSE`) to resolve natively on GitHub and internally on the webpage.
+- **Downloaded Miro image asset naming:** Background binary `File` header registration (`/api/miro/update-image`) ensures right-click image downloads in Miro retain original frame titles (`Frame Name.png`).
+
+## [0.13.3] - 2026-07-26
+### Added
+- **Privacy policy page:** New `/docs/privacy` documenting all transient operational data (rate limit IP counters, 45s Redis relay buffers, 5min OAuth states), their legal bases under GDPR, and user rights. Landing page footer now links to it.
+- **Architecture Spec Audit & Remediation:** Updated `doc/architecture.md` to align with `v0.13.3` implementation status — clarifying MCP Client/Server planned status, documenting token-hash rate limiting (`tok:sha256(token)`), geometry preservation (`preserveSize`), widget adoption/retargeting (`replaceSelectedWidget`), 300s Redis SETEX OAuth state handshake (`/api/oauth/store`), 16-char secure pairing ID masking/rotation (`pairingId.ts`), and HTML entity title sanitization (`decodeHtmlEntities`).
+### Changed
+- **Default scale 1x:** All scale defaults changed from 2x to 1x across 6 files — initial states, localStorage fallbacks, import parameter defaults, selection fallbacks, sync fallbacks, and companion relay client. New imports and syncs now default to 1x resolution.
+- **Landing page footer:** Updated from "Zero data stored on server" to "Your designs never leave your tools. No accounts. No permanent storage." — accurate about no design data or permanent storage, while transparent about transient operational data (now documented on `/docs/privacy`).
+### Fixed
+- **Widget title on Place on Canvas:** Both Figma and Penpot import flows now re-assert the widget title via Miro SDK after the background `update-image` PATCH completes — matching the pattern already used in sync and replace flows. This prevents Miro's server-side HTML encoding from overwriting the decoded frame name after the PATCH response.
 
 ## [0.13.2] - 2026-07-25
 ### Security

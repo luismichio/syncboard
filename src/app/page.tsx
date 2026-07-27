@@ -1,11 +1,23 @@
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import CookieSettingsButton from "@/components/CookieSettingsButton";
+import { VERSION } from "@/lib/version";
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page flex flex-col justify-center items-center p-8 relative overflow-hidden">
-      {/* Theme Toggle in top-right */}
-      <div className="absolute top-6 right-6 z-20">
+      {/* Action Controls in top-right */}
+      <div className="absolute top-6 right-6 z-20 flex flex-wrap items-center gap-2">
+        <Link
+          href="/docs/privacy"
+          className="px-2.5 py-1 rounded-lg bg-bg-card border border-border-card text-text-muted hover:text-text-page hover:border-text-muted/40 transition duration-200 inline-flex items-center gap-1.5 text-xs font-mono select-none"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+          </svg>
+          <span>Privacy</span>
+        </Link>
+        <CookieSettingsButton />
         <ThemeToggle />
       </div>
 
@@ -24,7 +36,7 @@ export default function Home() {
       <div className="relative z-10 text-center max-w-xl space-y-6 flex flex-col items-center">
         <header className="space-y-2">
           <div className="inline-block px-3 py-1 text-[10px] font-mono tracking-widest font-semibold border border-accent/40 text-accent rounded-full bg-accent/5 mb-3 animate-pulse">
-            OPEN SOURCE · APACHE 2.0
+            OPEN SOURCE · AGPL 3.0 · v{VERSION}
           </div>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-text-page to-text-muted bg-clip-text text-transparent">
             SyncBoard
@@ -58,7 +70,7 @@ export default function Home() {
         </div>
 
         <footer className="pt-12 text-[10px] text-text-muted font-mono">
-          Made for product teams. Zero data stored on server.
+          <p>Your designs never leave your tools. No accounts. No permanent storage.</p>
         </footer>
       </div>
     </main>

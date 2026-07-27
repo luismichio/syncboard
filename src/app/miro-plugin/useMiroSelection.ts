@@ -205,14 +205,28 @@ export function useMiroSelection(isInitMode: boolean | null) {
             } catch (e) {
               console.error('Failed to broadcast selection:', e);
             }
-          } catch (err) {
-            console.error('Failed to get selection:', err);
+          } catch (err: unknown) {
+            const isConnErr = err instanceof Error && (err.name === 'SdkConnectionError' || err.message.includes('not connected'));
+            if (isConnErr) {
+              console.info('[MiroSelection] Running outside Miro environment (Standalone browser mode).');
+            } else {
+              console.error('Failed to get selection:', err);
+            }
           }
         };
 
         savedHandler = handleSelection;
         await handleSelection();
-        miro.board.ui.on('selection:update', handleSelection);
+        try {
+          miro.board.ui.on('selection:update', handleSelection);
+        } catch (err: unknown) {
+          const isConnErr = err instanceof Error && (err.name === 'SdkConnectionError' || err.message.includes('not connected'));
+          if (isConnErr) {
+            console.info('[MiroSelection] Unable to bind selection listener — standalone browser mode.');
+          } else {
+            console.warn('Failed to bind selection listener:', err);
+          }
+        }
       }
     };
 

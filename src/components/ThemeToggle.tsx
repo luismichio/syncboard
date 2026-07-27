@@ -51,7 +51,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={cycleTheme}
-      className="p-2 rounded-lg bg-bg-card border border-border-card text-text-muted hover:text-text-page hover:border-text-muted/40 transition duration-200 flex items-center gap-2 text-xs font-mono select-none"
+      className="px-2.5 py-1 rounded-lg bg-bg-card border border-border-card text-text-muted hover:text-text-page hover:border-text-muted/40 transition duration-200 inline-flex items-center gap-1.5 text-xs font-mono select-none cursor-pointer"
       title="Toggle Theme (System -> Light -> Dark)"
     >
       {theme === 'system' && (

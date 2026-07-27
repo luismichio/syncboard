@@ -50,6 +50,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# serena & telemetry
+.serena/
+.sift_identity
+.sift_telemetry.json
+
+
 # Agents
 AGENTS.md
 CLAUDE.md

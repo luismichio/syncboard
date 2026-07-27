@@ -120,3 +120,22 @@ SyncBoard requires an internet connection to communicate with Figma, Penpot, and
 ### What image format (PNG or SVG) should I choose?
 * **PNG:** Best for complex vector layouts with heavy drop shadows, gradients, embedded images, or thousands of sub-nodes. PNGs are rendered on Figma's servers and imported as flat images, which keeps Miro board panning and zooming highly performant.
 * **SVG:** Best for icons, simple line art, text blocks, and wireframes. SVGs scale infinitely without pixelation, but importing extremely large, complex SVGs can degrade Miro's canvas rendering speed.
+
+### Why does downloading synced images from Miro save with the frame's name instead of `image.png`?
+When an image is first placed in Miro via the Web SDK, Miro defaults the downloadable file asset name to `image.png` or `image.svg`. Immediately after placement or sync, SyncBoard executes a non-blocking background registration call (`/api/miro/update-image`) that uploads a named binary `File` header object (`${frameName}.png`). Miro reads this header and updates its asset manager so that right-clicking and downloading the image from Miro saves it with the exact frame title (e.g. `Login Screen.png`).
+
+### How does SyncBoard handle multiple copies of the same frame on a Miro board?
+If a designer or PM duplicates a synced image widget across a Miro board (e.g. for user flows or annotations), SyncBoard detects all widgets sharing the same `[SyncBoard|fileKey|nodeId]` signature. Instead of cluttering the sidebar with separate entries, SyncBoard consolidates them into a single management card displaying a copy counter badge (e.g. `x3`). Updating format, scale, or clicking "Sync" automatically updates all copies on the board simultaneously.
+
+---
+
+## Licensing, Governance & Dual-Licensing
+
+### Why is SyncBoard licensed under AGPL-3.0?
+SyncBoard is licensed under the **GNU Affero General Public License v3 (AGPL-3.0)**, an OSI-approved copyleft license. Section 13 of AGPL-3.0 ensures that any modified or host-offered cloud versions of SyncBoard must share their source code back with the open-source community, protecting the project from proprietary SaaS exploitation.
+
+### What is the Contributor License Agreement (CLA)?
+SyncBoard uses a standard 1-click Contributor License Agreement (CLA) on pull requests. The CLA ensures that copyright ownership remains consolidated with the maintainer, enabling the project to offer commercial enterprise licenses to companies whose legal policies prohibit AGPL software.
+
+### Can enterprises purchase a commercial license?
+**Yes.** For enterprise organizations that require proprietary deployment without AGPL copyleft obligations or public source-code disclosure, a commercial enterprise license is available. Contact the maintainer for details.

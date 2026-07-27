@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import GithubSlugger from 'github-slugger';
 
 const DOC_DIR = path.resolve(process.cwd(), 'doc');
 
@@ -21,134 +22,229 @@ export interface DocMeta {
   filename: string;
   size: number;
   updatedAt: Date;
+  headings?: DocHeading[];
 }
 
 /**
- * Parses the first heading or frontmatter title from markdown content.
+ * Normalizes a filename or relative path into a web URL slug.
+ * E.g. `architecture/sources.md` -> `architecture-sources`
+ * E.g. `setup.md` -> `setup`
  */
-function extractTitle(md: string, filename: string): string {
-  // Try frontmatter title
-  const fmTitle = md.match(/^---\s*\n(?:.*\n)*?title:\s*["']?(.+?)["']?\s*\n(?:.*\n)*?---/);
-  if (fmTitle) return fmTitle[1];
-
-  // Try first # heading
-  const heading = md.match(/^#\s+(.+)/m);
-  if (heading) return heading[1].trim();
-
-  // Fallback: filename without extension
-  return filename.replace(/\.md$/, '').replace(/[-_]/g, ' ');
+function filenameToSlug(filename: string): string {
+  const cleanPath = filename.replace(/\.mdx?$/, '');
+  if (cleanPath.toUpperCase() === 'README') return 'readme';
+  return cleanPath.replace(/[/\\]/g, '-').toLowerCase();
 }
 
 /**
- * Extracts a short description from markdown (first paragraph after the heading).
+ * Parses YAML frontmatter between `---` delimiters at the start of a markdown string.
+ */
+function parseFrontmatter(md: string): { title?: string; description?: string } {
+  const match = md.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return {};
+  const block = match[1];
+  const result: { title?: string; description?: string } = {};
+
+  for (const line of block.split(/\r?\n/)) {
+    const titleMatch = line.match(/^title:\s*(?:"([^"]+)"|'([^']+)'|(.+))$/);
+    if (titleMatch) {
+      result.title = (titleMatch[1] || titleMatch[2] || titleMatch[3]).trim();
+    }
+    const descMatch = line.match(/^description:\s*(?:"([^"]+)"|'([^']+)'|(.+))$/);
+    if (descMatch) {
+      result.description = (descMatch[1] || descMatch[2] || descMatch[3]).trim();
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Extracts a title from markdown (frontmatter `title` or first `# Heading`).
+ */
+function extractTitle(md: string, fallback: string): string {
+  const fm = parseFrontmatter(md);
+  if (fm.title) return fm.title;
+
+  const h1Match = md.match(/^#\s+(.+)$/m);
+  if (h1Match) return h1Match[1].trim();
+
+  return fallback.replace(/\.mdx?$/, '');
+}
+
+/**
+ * Extracts a short description from markdown (frontmatter description or overview blockquote or first paragraph).
  */
 function extractDescription(md: string): string {
-  // Try frontmatter description
-  const fmDesc = md.match(/^---\s*\n(?:.*\n)*?description:\s*["']?(.+?)["']?\s*\n(?:.*\n)*?---/);
-  if (fmDesc) return fmDesc[1].trim();
+  // 1. Try frontmatter description
+  const fm = parseFrontmatter(md);
+  if (fm.description) return fm.description;
 
   // Skip frontmatter
   const body = md.replace(/^---[\s\S]*?---\s*/, '');
-  
-  // Find the first valid text paragraph (skipping titles, badges, quotes, tables)
+
+  // 2. Try top blockquote summary (> **Overview:** ...)
+  const overviewMatch = body.match(/^>\s*(?:\*\*Overview:\*\*|Overview:)\s*(.+)/m);
+  if (overviewMatch && overviewMatch[1]) {
+    return overviewMatch[1].trim().replace(/[*_`]/g, '').slice(0, 160);
+  }
+
+  // 3. Fallback: Find the first valid text paragraph
+  let inCodeBlock = false;
   const lines = body.split('\n');
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
+    if (trimmed.startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    if (inCodeBlock) continue;
     if (trimmed.startsWith('#')) continue;
     if (trimmed.startsWith('>')) continue;
+    if (trimmed.startsWith('<!--') || trimmed.startsWith('-->')) continue;
     if (trimmed.startsWith('<table') || trimmed.startsWith('<tr') || trimmed.startsWith('<td') || trimmed.startsWith('</table')) continue;
-    // Skip lines starting with markdown links/images (badges or cards)
     if (trimmed.startsWith('[!') || (trimmed.startsWith('[') && (trimmed.includes('badge') || trimmed.includes('shields.io') || trimmed.includes('vercel.com')))) continue;
-    
-    return trimmed.slice(0, 160);
+
+    const cleaned = trimmed.replace(/[*_`]/g, '').slice(0, 160);
+    return cleaned;
   }
   return '';
 }
 
 /**
- * Returns metadata for all markdown documents.
+ * Recursively scans `dir` for `.md` and `.mdx` files.
+ */
+function findDocFiles(dir: string, baseDir: string = dir): string[] {
+  if (!fs.existsSync(dir)) return [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    const relPath = path.relative(baseDir, fullPath);
+
+    if (entry.isDirectory()) {
+      // Ignore internal development logs
+      if (entry.name === 'dev') continue;
+      files.push(...findDocFiles(fullPath, baseDir));
+    } else if (entry.isFile() && /\.(md|mdx)$/i.test(entry.name)) {
+      if (HIDDEN_DOCS.has(entry.name)) continue;
+      files.push(relPath);
+    }
+  }
+
+  return files;
+}
+
+/**
+ * Returns metadata for all documentation files in `doc/` plus `README.md`.
  */
 export function getAllDocs(): DocMeta[] {
-  const files = fs.readdirSync(DOC_DIR)
-    .filter((f) => f.endsWith('.md') && !HIDDEN_DOCS.has(f))
-    .sort();
+  const docFiles = findDocFiles(DOC_DIR);
+  const results: DocMeta[] = [];
 
-  const results = files.map((filename) => {
-    const filepath = path.join(DOC_DIR, filename);
-    const stat = fs.statSync(filepath);
-    const md = fs.readFileSync(filepath, 'utf-8');
-    const slug = filename.replace(/\.md$/, '').toLowerCase();
+  for (const relFile of docFiles) {
+    const filepath = path.join(DOC_DIR, relFile);
+    try {
+      const content = fs.readFileSync(filepath, 'utf-8');
+      const stat = fs.statSync(filepath);
+      const normalizedRelFile = relFile.replace(/\\/g, '/');
+      results.push({
+        slug: filenameToSlug(normalizedRelFile),
+        title: extractTitle(content, relFile),
+        description: extractDescription(content),
+        filename: normalizedRelFile,
+        size: stat.size,
+        updatedAt: stat.mtime,
+        headings: extractHeadings(content),
+      });
+    } catch {
+      // Skip unreadable files
+    }
+  }
 
-    return {
-      slug,
-      title: extractTitle(md, filename),
-      description: extractDescription(md),
-      filename,
-      size: stat.size,
-      updatedAt: stat.mtime,
-    };
-  });
-
-  // Include root README.md as a special doc
-  try {
-    const readmePath = path.resolve(process.cwd(), 'README.md');
-    const stat = fs.statSync(readmePath);
-    const md = fs.readFileSync(readmePath, 'utf-8');
-    results.push({
-      slug: 'readme',
-      title: extractTitle(md, 'README.md'),
-      description: extractDescription(md),
-      filename: 'README.md',
-      size: stat.size,
-      updatedAt: stat.mtime,
-    });
-  } catch {
-    // README.md not found — skip
+  // Include root-level markdown docs (README.md, CONTRIBUTING.md, SECURITY.md)
+  const rootFiles = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md'];
+  for (const rootFile of rootFiles) {
+    const rootFilePath = path.resolve(process.cwd(), rootFile);
+    try {
+      const md = fs.readFileSync(rootFilePath, 'utf-8');
+      const stat = fs.statSync(rootFilePath);
+      results.push({
+        slug: filenameToSlug(rootFile),
+        title: extractTitle(md, rootFile),
+        description: extractDescription(md),
+        filename: rootFile,
+        size: stat.size,
+        updatedAt: stat.mtime,
+        headings: extractHeadings(md),
+      });
+    } catch {
+      // Root file not found — skip
+    }
   }
 
   return results;
 }
 
+const ROOT_DOCS = new Set(['README.md', 'CONTRIBUTING.md', 'SECURITY.md']);
+
 /**
  * Returns metadata and raw content for a single doc by slug.
  */
 export function getDocBySlug(slug: string): { meta: DocMeta; content: string } | null {
-  // Block hidden docs regardless of how they're accessed
-  const filename = `${slug}.md`;
-  if (HIDDEN_DOCS.has(filename)) return null;
-
+  const normalizedSlug = slug.toLowerCase();
   const docs = getAllDocs();
-  const doc = docs.find((d) => d.slug === slug);
+  const doc = docs.find((d) => d.slug === normalizedSlug || d.slug === normalizedSlug.replace(/\//g, '-'));
   if (!doc) return null;
 
-  // Root-level files (README.md) live at project root, not in doc/
-  const baseDir = doc.filename === 'README.md' ? process.cwd() : DOC_DIR;
-  const filepath = path.join(baseDir, doc.filename);
+  // Block hidden docs
+  if (HIDDEN_DOCS.has(path.basename(doc.filename))) return null;
+
+  const isRootDoc = ROOT_DOCS.has(path.basename(doc.filename));
+  const filepath = isRootDoc
+    ? path.resolve(process.cwd(), doc.filename)
+    : path.resolve(DOC_DIR, doc.filename);
   const content = stripFrontmatter(fs.readFileSync(filepath, 'utf-8')).replace(/\r/g, '');
+
   return { meta: doc, content };
 }
 
 /**
  * Extracts h2-h4 headings from raw markdown for TOC generation.
- * Skip frontmatter and code blocks.
+ * Uses official `github-slugger` for 100% ID parity with `rehypeSlug`.
  */
 export function extractHeadings(md: string): DocHeading[] {
   const body = md.replace(/^---[\s\S]*?---\n*/, '');
-  const headingRegex = /^(#{2,4})\s+(.+)$/gm;
+  const lines = body.split('\n');
   const headings: DocHeading[] = [];
-  let match;
-  while ((match = headingRegex.exec(body)) !== null) {
-    const level = match[1].length;
-    const text = match[2].trim();
-    const id = text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-    headings.push({ level, text, id });
+  const slugger = new GithubSlugger();
+
+  let inCodeBlock = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    if (inCodeBlock) continue;
+
+    const match = trimmed.match(/^(#{2,4})\s+(.+)$/);
+    if (match) {
+      const level = match[1].length;
+      const rawText = match[2].trim();
+      const displayText = rawText
+        .replace(/<[^>]+>/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/[`*_~]/g, '')
+        .trim();
+      const id = slugger.slug(rawText);
+      headings.push({ level, text: displayText, id });
+    }
   }
+
   return headings;
 }
 
@@ -162,6 +258,95 @@ export function stripFrontmatter(md: string): string {
  */
 export function getWordCount(md: string): number {
   const body = stripFrontmatter(md);
-  const text = body.replace(/#+\s/g, '').replace(/[\s\n]+/g, ' ').trim();
-  return text.split(/\s+/).length;
+  const text = body.replace(/```[\s\S]*?```/g, '').replace(/<[^>]+>/g, '');
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+export interface SearchResultItem {
+  slug: string;
+  title: string;
+  description: string;
+  filename: string;
+  category: 'Overview' | 'Architecture' | 'Reference' | 'Archives';
+  score: number;
+  matchedSection?: {
+    text: string;
+    id: string;
+  };
+  snippet: string;
+}
+
+function getCategoryBySlug(slug: string): 'Overview' | 'Architecture' | 'Reference' | 'Archives' {
+  if (slug.startsWith('architecture-archive-')) return 'Archives';
+  if (slug.startsWith('architecture')) return 'Architecture';
+  if (['changelog', 'privacy', 'license', 'faq', 'contributing', 'security'].includes(slug)) return 'Reference';
+  return 'Overview';
+}
+
+function getCategoryPenalty(category: 'Overview' | 'Architecture' | 'Reference' | 'Archives'): number {
+  switch (category) {
+    case 'Overview': return 0;
+    case 'Architecture': return -10;
+    case 'Reference': return -20;
+    case 'Archives': return -60; // Historical archives rank lowest
+  }
+}
+
+/**
+ * Searches across document titles, descriptions, section headings, and body content with relevancy scoring and hierarchy demotion.
+ */
+export function searchDocs(query: string): SearchResultItem[] {
+  if (!query || query.trim().length === 0) return [];
+  const q = query.trim().toLowerCase();
+  const docs = getAllDocs();
+  const results: SearchResultItem[] = [];
+
+  for (const doc of docs) {
+    const docData = getDocBySlug(doc.slug);
+    if (!docData) continue;
+    const { content } = docData;
+    const category = getCategoryBySlug(doc.slug);
+
+    const titleMatch = doc.title.toLowerCase().includes(q);
+    const descMatch = doc.description.toLowerCase().includes(q);
+    const headings = doc.headings || [];
+    const matchedHeading = headings.find((h) => h.text.toLowerCase().includes(q));
+
+    const contentLower = content.toLowerCase();
+    const bodyIdx = contentLower.indexOf(q);
+
+    if (titleMatch || descMatch || matchedHeading || bodyIdx !== -1) {
+      let score = getCategoryPenalty(category);
+
+      if (titleMatch) score += 100;
+      if (matchedHeading) score += 50;
+      if (descMatch) score += 30;
+      if (bodyIdx !== -1) {
+        // Count body occurrences (up to 10)
+        const occurrences = (contentLower.split(q).length - 1);
+        score += Math.min(20, 10 + occurrences * 2);
+      }
+
+      let snippet = doc.description;
+      if (bodyIdx !== -1) {
+        const start = Math.max(0, bodyIdx - 35);
+        const end = Math.min(content.length, bodyIdx + q.length + 55);
+        snippet = (start > 0 ? '...' : '') + content.substring(start, end).replace(/\s+/g, ' ') + (end < content.length ? '...' : '');
+      }
+
+      results.push({
+        slug: doc.slug,
+        title: doc.title,
+        description: doc.description,
+        filename: doc.filename,
+        category,
+        score,
+        matchedSection: matchedHeading ? { text: matchedHeading.text, id: matchedHeading.id } : undefined,
+        snippet,
+      });
+    }
+  }
+
+  // Sort by relevancy score descending
+  return results.sort((a, b) => b.score - a.score);
 }
