@@ -76,7 +76,7 @@ SyncBoard can be utilized in two different hosting configurations:
 > **User-Owned OAuth Architecture:** SyncBoard maintains zero user databases and requires no user registration. Every user authenticates directly with their own personal Figma and Miro accounts via standard OAuth 2.0. Access tokens remain stored client-side inside the user's active Miro board session.
 
 For quick testing and evaluation, you can use the official pre-published plugins running on the public Community infrastructure hosted at **`https://syncboard.luiskobayashi.com`**.
-* **Zero Configuration:** Simply install the **SyncBoard** plugin from the Miro Marketplace, and the **SyncBoard Companion** from the Figma Community / Penpot Libraries.
+* **Zero Configuration:** Simply install the official **[SyncBoard Miro App](https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fsyncboard.luiskobayashi.com%2Fapi%2Foauth%2Fmiro%2Fcallback)** to your team, and load the **SyncBoard Companion** in Figma/Penpot.
 * **Plug and Play:** Open the plugins in both tools, copy the Pairing ID from the Miro sidebar, and paste it into the Figma/Penpot companion to connect.
 * **Rate Limits:** To keep the maintainer's shared infrastructure responsive for everyone, the Community version enforces daily rate limits on image exports and node queries.
 

@@ -13,10 +13,15 @@ export default function VideoTabGroupHydrator() {
       const figmaH3 = h3Elements[i];
       const penpotH3 = h3Elements[i + 1];
 
-      const isFigmaHeader = figmaH3.textContent?.toLowerCase().includes("figma");
-      const isPenpotHeader = penpotH3.textContent?.toLowerCase().includes("penpot");
+      const figmaText = (figmaH3.textContent || "").trim().toLowerCase();
+      const penpotText = (penpotH3.textContent || "").trim().toLowerCase();
 
-      if (!isFigmaHeader || !isPenpotHeader) continue;
+      const isFigmaWalkthrough =
+        figmaText.includes("figma") && (figmaText.includes("walkthrough") || figmaText.includes("demo"));
+      const isPenpotWalkthrough =
+        penpotText.includes("penpot") && (penpotText.includes("walkthrough") || penpotText.includes("demo"));
+
+      if (!isFigmaWalkthrough || !isPenpotWalkthrough) continue;
 
       let figmaNode = figmaH3.nextElementSibling as HTMLElement | null;
       while (figmaNode && figmaNode !== penpotH3 && !figmaNode.querySelector("iframe, video, img")) {
