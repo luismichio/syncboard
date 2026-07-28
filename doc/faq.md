@@ -24,7 +24,7 @@ If two users click "Sync" at the exact same moment on the same widget, both requ
 ## Technical Design & Constraints
 
 ### Why is connection metadata duplicated in the image titles?
-SyncBoard stores metadata inside the structured registry (`image.getMetadata().syncboard`), but it also appends a tag like `[SyncBoard|fileKey|nodeId]` to the widget title for three key reasons:
+SyncBoard stores metadata inside the structured registry (`image.getMetadata().syncboard`), but it also appends a tag like `[FigmaSync|fileKey|nodeId]` or `[PenpotSync|fileId|objectId]` to the widget title for three key reasons:
 1. **Durable Copy/Paste Fallback:** When widgets are copied and pasted across different boards or by different users, custom plugin-sandboxed metadata can sometimes be stripped by Miro. Standard text titles are native to the widget and are guaranteed to persist. The plugin uses title-based regex matching as its primary detection route.
 2. **Native Board Searchability:** Miro's search bar indexes standard widget text (including titles) but does not index custom plugin metadata. Having the signature in the title allows users to easily search the board for specific Figma or Penpot frames.
 3. **Human-Readable Auditing:** It provides an immediate visual way for designers and developers to see exactly which source frame a screenshot belongs to without opening developer tools.
@@ -125,7 +125,7 @@ SyncBoard requires an internet connection to communicate with Figma, Penpot, and
 When an image is first placed in Miro via the Web SDK, Miro defaults the downloadable file asset name to `image.png` or `image.svg`. Immediately after placement or sync, SyncBoard executes a non-blocking background registration call (`/api/miro/update-image`) that uploads a named binary `File` header object (`${frameName}.png`). Miro reads this header and updates its asset manager so that right-clicking and downloading the image from Miro saves it with the exact frame title (e.g. `Login Screen.png`).
 
 ### How does SyncBoard handle multiple copies of the same frame on a Miro board?
-If a designer or PM duplicates a synced image widget across a Miro board (e.g. for user flows or annotations), SyncBoard detects all widgets sharing the same `[SyncBoard|fileKey|nodeId]` signature. Instead of cluttering the sidebar with separate entries, SyncBoard consolidates them into a single management card displaying a copy counter badge (e.g. `x3`). Updating format, scale, or clicking "Sync" automatically updates all copies on the board simultaneously.
+If a designer or PM duplicates a synced image widget across a Miro board (e.g. for user flows or annotations), SyncBoard detects all widgets sharing the same `[FigmaSync|fileKey|nodeId]` or `[PenpotSync|fileId|objectId]` signature. Instead of cluttering the sidebar with separate entries, SyncBoard consolidates them into a single management card displaying a copy counter badge (e.g. `x3`). Updating format, scale, or clicking "Sync" automatically updates all copies on the board simultaneously.
 
 ---
 

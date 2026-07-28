@@ -9,6 +9,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.6] - 2026-07-29
+### Changed
+- **Figma Title Signature Standardization:** Standardized Figma widget title metadata signature from `[SyncBoard|...]` to `[FigmaSync|...]` for 1:1 naming symmetry with Penpot's `[PenpotSync|...]`.
+- **Plugin Manifest Network Scoping:** Scoped Figma companion plugin network permissions in `figma-plugin/manifest.json` by removing the overly broad `*.vercel.app` wildcard domain.
+
+### Security
+- **Header-Only Figma Token Transmission:** Removed `?token=` and `?Authorization=` query-parameter fallbacks from `/api/figma/render` to prevent OAuth tokens from appearing in HTTP logs, edge logs, or browser history.
+- **Strict Miro CSRF State Enforcement:** Removed redundant `MIRO_ALLOW_DIRECT_INSTALL_NO_STATE` environment override to ensure state validation is consistently enforced for standard OAuth flows while retaining automatic direct link install detection.
+- **Strict Parameter Format Validation:** Added regex format validation for `boardId` and `itemId` in `/api/miro/update-image` to prevent path traversal in Miro API URLs, and `pairingId` slug validation in `/api/ably/token` GET/POST endpoints.
+- **Relay Request Body Sanitization:** Replaced unsafe type assertion in `/api/relay/request` with explicit object structure validation.
+- **Upstash Redis Request Timeout:** Added a 10-second `AbortController` timeout to all Redis REST requests in `src/lib/relayRedis.ts` to prevent function stalls on transient network latency.
+- **OAuth Callback Security Headers:** Injected `Content-Security-Policy` and `X-Content-Type-Options: nosniff` headers across Figma and Miro HTML callback responses.
+
+### Fixed
+- **Figma Render Route Test Suite:** Updated `src/app/api/figma/render/route.test.ts` to explicitly assert HTTP 401 rejection when tokens are passed via URL query parameters.
+- **Security Policy Supported Versions:** Updated `SECURITY.md` supported versions matrix to reflect active security patching for `0.13.x`.
+
 ## [0.13.5] - 2026-07-27
 ### Added
 - **Full-text interactive search engine:** Implemented relevancy scoring (+100 Title, +50 Heading, +30 Description, +10 Body), category hierarchy weighting, historical archive demotion (-60), `<mark>` search term highlighting, section deep-linking (`#heading-id`), and `Cmd+K` / `Ctrl+K` keyboard shortcut.

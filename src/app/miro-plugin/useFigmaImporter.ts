@@ -170,7 +170,7 @@ export function useFigmaImporter(
 
       const fallbackName = figmaNodeInfo.name || figmaNodeInfo.nodeId;
       const safeName = decodeHtmlEntities(fallbackName);
-      const titleTag = `${safeName} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
+      const titleTag = `${safeName} [FigmaSync|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
 
       const image = await miro.board.createImage({
         url: dataUrl,
@@ -221,7 +221,7 @@ export function useFigmaImporter(
                 // Re-assert the widget title after PATCH to fix any server-side encoding
                 const widget = await miro.board.getById(image.id).catch(() => null);
                 if (widget) {
-                  widget.title = `${safeName} [SyncBoard|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
+                  widget.title = `${safeName} [FigmaSync|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
                   await widget.sync().catch(() => {});
                 }
               }

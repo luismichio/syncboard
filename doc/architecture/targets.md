@@ -29,7 +29,7 @@ Miro is SyncBoard's primary canvas target. SyncBoard pushes screenshots to Miro 
 SyncBoard stores all design connection metadata directly in the Miro widget. No database is required to track which widget maps to which design frame.
 
 ### Signature & Metadata Schema
-* **Figma Title Signature:** `Node Name [SyncBoard|fileKey|nodeId]`
+* **Figma Title Signature:** `Node Name [FigmaSync|fileKey|nodeId]`
 * **Penpot Title Signature:** `Node Name [PenpotSync|fileKey|nodeId]`
 * **Metadata Payload:** Stored on the Miro image widget via `widget.setMetadata('syncboard', ...)`:
 

@@ -269,7 +269,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
         try {
           const widget = await miro.board.getById(item.id);
           if (widget) {
-            const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
+            const tag = platform === 'penpot' ? 'PenpotSync' : 'FigmaSync';
             const titleTag = `${decodeHtmlEntities(nodeName)} [${tag}|${fileKey}|${nodeId}]`;
             widget.title = titleTag;
             await widget.sync();

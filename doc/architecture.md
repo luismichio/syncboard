@@ -56,7 +56,7 @@ While statelessness delivers maximum privacy and zero infrastructure overhead, i
 | Module | Status | Availability | What it covers |
 |---|---|---|---|
 | **[1. Source Adapters](./architecture/sources.md)** | stable / draft | **Figma & Penpot (LIVE)**; Lovable, Stitch, UXPin, Framer, Adobe UXP *(Planned)* | Cloud REST & Penpot event-driven WASM relay; future source specs. |
-| **[2. Target Adapters & Metadata](./architecture/targets.md)** | stable / design | **Miro (LIVE)**; Mural, MS Whiteboard *(Planned)* | Miro SDK v2, REST PATCH, stateless metadata signatures (`[SyncBoard|...]`), `preserveSize`, `replaceSelectedWidget`. |
+| **[2. Target Adapters & Metadata](./architecture/targets.md)** | stable / design | **Miro (LIVE)**; Mural, MS Whiteboard *(Planned)* | Miro SDK v2, REST PATCH, stateless metadata signatures (`[FigmaSync|...]`, `[PenpotSync|...]`), `preserveSize`, `replaceSelectedWidget`. |
 | **[3. Selection Detection & Relay](./architecture/selection-and-relay.md)** | stable | **LIVE** | Real-time Ably WebSocket selection stream, zero-Redis selection payloads, `companionRelayClient.ts`, secure pairing IDs. |
 | **[4. Security & Rate Limits](./architecture/security-and-limits.md)** | stable | **LIVE** | Sliding window rate limiting (`@upstash/ratelimit`), token hashing (`tok:sha256(token)`), Redis `SETEX` 300s OAuth store. |
 | **[5. Testing & Quality Assurance](./architecture/testing.md)** | stable | **LIVE** | 76+ automated Vitest tests, zero-network mocking strategy, and CI pipeline setup. |

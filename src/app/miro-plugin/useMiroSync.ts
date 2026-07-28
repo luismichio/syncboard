@@ -104,7 +104,7 @@ export function useMiroSync(
         for (const selected of selectedItems) {
           const matches = allItems.filter(item => {
             if (item.type === 'image' && item.title) {
-              const tag = selected.platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
+              const tag = selected.platform === 'penpot' ? 'PenpotSync' : 'FigmaSync';
               const regex = new RegExp(`\\[${tag}\\|([^|]+)\\|([^\\]]+)\\]`);
               const match = item.title.match(regex);
               return match && match[1] === selected.fileKey && match[2] === selected.nodeId;
@@ -392,7 +392,7 @@ export function useMiroSync(
             });
 
             // Update widget title to reflect the live frame name
-            const tag = item.platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
+            const tag = item.platform === 'penpot' ? 'PenpotSync' : 'FigmaSync';
             const titleTag = `${decodeHtmlEntities(liveName)} [${tag}|${item.fileKey}|${item.nodeId}]`;
             widget.title = titleTag;
             await widget.sync();

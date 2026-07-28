@@ -105,7 +105,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
               if (item.type === 'image') {
                 // 1. Try title-based parsing first
                 if (item.title) {
-                  const figmaMatch = item.title.match(/^(.*?)\s*\[SyncBoard\|([^|]+)\|([^\]]+)\]$/);
+                  const figmaMatch = item.title.match(/^(.*?)\s*\[FigmaSync\|([^|]+)\|([^\]]+)\]$/);
                   const penpotMatch = item.title.match(/^(.*?)\s*\[PenpotSync\|([^|]+)\|([^\]]+)\]$/);
 
                   if (figmaMatch) {
@@ -174,7 +174,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
                   } | undefined;
                   if (syncData?.fileKey && syncData?.nodeId) {
                     const platform = syncData.platform || 'figma';
-                    const tag = platform === 'penpot' ? 'PenpotSync' : 'SyncBoard';
+                    const tag = platform === 'penpot' ? 'PenpotSync' : 'FigmaSync';
                     synced.push({
                       id: item.id,
                       title: `${syncData.nodeName || 'Unnamed Screen'} [${tag}|${syncData.fileKey}|${syncData.nodeId}]`,

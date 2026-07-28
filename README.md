@@ -1,12 +1,12 @@
 ---
 title: SyncBoard Overview & Features
 description: Stateless, open-source integration tool syncing design screens from Figma and Penpot directly into Miro whiteboards in-place with zero duplicates.
-updated: 2026-07-27
+updated: 2026-07-29
 ---
 
 # SyncBoard (Figma & Penpot to Miro Sync Engine)
 
-[![Version 0.13.5](https://img.shields.io/badge/version-0.13.5-%23007ACC?style=flat-square)](https://github.com/luismichio/syncboard/blob/dev/package.json)
+[![Version 0.13.6](https://img.shields.io/badge/version-0.13.6-%23007ACC?style=flat-square)](https://github.com/luismichio/syncboard/blob/dev/package.json)
 [![OSI Approved License](https://img.shields.io/badge/license-AGPLv3-%23A81C7D?style=flat-square&label=OSI%20Approved)](https://github.com/luismichio/syncboard/blob/dev/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-%23007ACC.svg?style=flat-square&logo=typescript&logoColor=white)](https://github.com/luismichio/syncboard/blob/dev/tsconfig.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-%23FF6B6B?style=flat-square)](https://github.com/luismichio/syncboard/issues/new)
