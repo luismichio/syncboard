@@ -9,11 +9,10 @@ description: "Security architecture, vulnerability reporting procedures, zero-pe
 
 We actively monitor and patch security vulnerabilities in SyncBoard. Security updates are applied to the following versions:
 
-| Version | Supported |
-| ------- | --------- |
-| < 0.5.x | No     |
-| 0.5.x   | No     |
-| 0.6.x   | Yes    |
+| Version  | Supported       |
+| -------- | --------------- |
+| < 0.13.x | No              |
+| 0.13.x   | Yes ✅          |
 
 Always ensure you are running the latest release to receive active security updates.
 

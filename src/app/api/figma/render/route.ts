@@ -8,16 +8,9 @@ async function handler(request: Request) {
   const format = searchParams.get('format') || 'png';
   const scaleParam = searchParams.get('scale');
   
-  // Read token from Authorization header, or query parameters as fallback
-  let figmaToken = request.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!figmaToken) {
-    const authQuery = searchParams.get('Authorization');
-    if (authQuery) {
-      figmaToken = authQuery.replace('Bearer ', '');
-    } else {
-      figmaToken = searchParams.get('token') || undefined;
-    }
-  }
+  // Token must be provided via Authorization header — never via query params,
+  // as query strings appear in server logs, CDN access logs, and browser history.
+  const figmaToken = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '').trim() || null;
 
   if (!fileKey || !nodeId) {
     return NextResponse.json(

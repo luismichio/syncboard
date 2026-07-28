@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { withRateLimit } from '@/lib/rate-limit';
 import { generateAblyToken } from '@/lib/relayAbly';
 
+// pairingId must be a safe alphanumeric slug — prevents unusual characters
+// from reaching Ably channel name construction.
+const PAIRING_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
+
 async function postHandler(request: Request) {
   try {
     const body: unknown = await request.json().catch(() => null);
@@ -12,6 +16,13 @@ async function postHandler(request: Request) {
     if (!pairingId) {
       return NextResponse.json(
         { error: 'pairingId is required.' },
+        { status: 400 }
+      );
+    }
+
+    if (!PAIRING_ID_RE.test(pairingId)) {
+      return NextResponse.json(
+        { error: 'Invalid pairingId format.' },
         { status: 400 }
       );
     }
@@ -43,9 +54,9 @@ async function getHandler(request: Request) {
     }
 
     const trimmed = pairingId.trim();
-    if (!trimmed) {
+    if (!PAIRING_ID_RE.test(trimmed)) {
       return NextResponse.json(
-        { error: 'pairingId must not be empty.' },
+        { error: 'Invalid pairingId format.' },
         { status: 400 }
       );
     }

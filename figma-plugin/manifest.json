@@ -12,7 +12,6 @@
     "allowedDomains": [
       "https://*.ably.com",
       "https://*.ably-realtime.com",
-      "https://*.vercel.app",
       "https://*.luiskobayashi.com",
       "https://*.gitpod.io",
       "https://*.github.dev"

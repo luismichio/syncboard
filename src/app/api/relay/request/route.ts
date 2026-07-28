@@ -61,7 +61,11 @@ function buildCommand(body: RelayRequestBody, requestId: string): RelayCommand {
 
 async function handler(request: Request) {
   try {
-    const body = (await request.json()) as RelayRequestBody;
+    const rawBody: unknown = await request.json().catch(() => null);
+    if (!rawBody || typeof rawBody !== 'object') {
+      return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+    }
+    const body = rawBody as RelayRequestBody;
     const pairingId = body.pairingId?.trim();
 
     if (!pairingId) {

@@ -51,6 +51,15 @@ async function handler(request: Request) {
       );
     }
 
+    // Validate boardId and itemId format to prevent path injection in Miro API URLs.
+    // Real Miro board IDs: alphanumeric + base64url chars (e.g. uXjVM_xyz123=)
+    // Real Miro item IDs: large integers as strings (e.g. 3458764523456789)
+    const BOARD_ID_RE = /^[A-Za-z0-9_=|-]{1,128}$/;
+    const ITEM_ID_RE  = /^[A-Za-z0-9_-]{1,64}$/;
+    if (!BOARD_ID_RE.test(String(boardId)) || !ITEM_ID_RE.test(String(itemId))) {
+      return NextResponse.json({ error: 'Invalid boardId or itemId format' }, { status: 400 });
+    }
+
     let arrayBuffer: ArrayBuffer;
 
     if (dataUrl) {

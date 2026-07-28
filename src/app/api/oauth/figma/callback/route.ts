@@ -120,7 +120,14 @@ ${HTML_HEAD}
   </div>
 </body>
 </html>`,
-      { headers: { 'Content-Type': 'text/html' }, status: 400 }
+      {
+        headers: {
+          'Content-Type': 'text/html',
+          'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'",
+          'X-Content-Type-Options': 'nosniff',
+        },
+        status: 400,
+      }
     );
     errorResponse.cookies.delete('figma_oauth_state');
     return errorResponse;
@@ -236,7 +243,11 @@ ${HTML_HEAD}
 `;
 
     const response = new NextResponse(htmlResponse, {
-      headers: { 'Content-Type': 'text/html' },
+      headers: {
+        'Content-Type': 'text/html',
+        'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'",
+        'X-Content-Type-Options': 'nosniff',
+      },
     });
     response.cookies.delete('figma_oauth_state');
     return response;

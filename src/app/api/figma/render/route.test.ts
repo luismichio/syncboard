@@ -120,23 +120,12 @@ describe('GET /api/figma/render', () => {
     expect(res.headers.get('Content-Type')).toBe('image/svg+xml');
   });
 
-  it('accepts token from query parameter as fallback', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch');
-    fetchMock
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ images: { '1:2': mockImageUrl } }), { status: 200 })
-      )
-      .mockResolvedValueOnce(new Response(Buffer.from('data'), { status: 200 }));
-
+  it('rejects token provided via query parameter (must use Authorization header)', async () => {
     const { GET } = await import('./route');
+    // Token in query string should NOT be accepted — tokens in URLs appear in logs
     const res = await GET(createRequest({ fileKey: 'abc', nodeId: '1:2', token: 'query-token' }));
-    expect(res.status).toBe(200);
-
-    // Verify query token was used instead of Bearer header
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const figmaUrl = fetchMock.mock.calls[0][0] as string;
-    expect(figmaUrl).toContain('/images/abc?ids=1:2');
-    const figmaOpts = fetchMock.mock.calls[0][1] as RequestInit;
-    expect((figmaOpts.headers as Record<string, string>).Authorization).toBe('Bearer query-token');
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error).toContain('Missing Figma Authorization');
   });
 });

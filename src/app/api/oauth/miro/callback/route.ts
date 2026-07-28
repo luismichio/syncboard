@@ -87,8 +87,10 @@ export async function GET(request: NextRequest) {
   const redirectUri = `${appUrl}/api/oauth/miro/callback`;
 
   // 1. Verify CSRF State or Direct Miro App Installation Callback
-  // Direct installation callbacks from Miro's app-install URL return code with empty/missing state
-  const isDirectInstall = (!stateCookie && (!stateParam || stateParam.trim() === '')) || process.env.MIRO_ALLOW_DIRECT_INSTALL_NO_STATE === 'true';
+  // Direct installation callbacks from Miro's app-install URL return an authorization
+  // code with no state parameter and no prior cookie. We detect this by checking that
+  // both the cookie and the state param are absent/empty — no env-var override needed.
+  const isDirectInstall = !stateCookie && (!stateParam || stateParam.trim() === '');
 
   if (!isDirectInstall && stateCookie !== stateParam) {
     const csrfResponse = new NextResponse(
@@ -123,7 +125,14 @@ ${HTML_HEAD}
   </div>
 </body>
 </html>`,
-      { headers: { 'Content-Type': 'text/html' }, status: 400 }
+      {
+        headers: {
+          'Content-Type': 'text/html',
+          'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'",
+          'X-Content-Type-Options': 'nosniff',
+        },
+        status: 400,
+      }
     );
     errorResponse.cookies.delete('miro_oauth_state');
     return errorResponse;
@@ -240,7 +249,11 @@ ${HTML_HEAD}
 `;
 
     const response = new NextResponse(htmlResponse, {
-      headers: { 'Content-Type': 'text/html' },
+      headers: {
+        'Content-Type': 'text/html',
+        'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'",
+        'X-Content-Type-Options': 'nosniff',
+      },
     });
     response.cookies.delete('miro_oauth_state');
     return response;
