@@ -18,11 +18,11 @@ describe('Docs Engine Utilities (src/lib/docs.ts)', () => {
 
     expect(lowercaseSetup).toBeDefined();
     expect(uppercaseSetup).toBeDefined();
-    expect(lowercaseSetup?.slug).toBe(uppercaseSetup?.slug);
+    expect(lowercaseSetup?.meta.slug).toBe(uppercaseSetup?.meta.slug);
 
     const licenseLower = getDocBySlug('license');
     const licenseUpper = getDocBySlug('LICENSE');
-    expect(licenseLower?.slug).toBe(licenseUpper?.slug);
+    expect(licenseLower?.meta.slug).toBe(licenseUpper?.meta.slug);
   });
 
   it('extractHeadings correctly parses markdown h2 and h3 headings for TOC', () => {
