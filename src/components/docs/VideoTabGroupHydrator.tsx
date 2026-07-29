@@ -23,15 +23,19 @@ export default function VideoTabGroupHydrator() {
 
       if (!isFigmaWalkthrough || !isPenpotWalkthrough) continue;
 
+      const hasMedia = (el: HTMLElement) =>
+        el.matches("iframe, video, img, [class*='aspect-video']") ||
+        el.querySelector("iframe, video, img, [class*='aspect-video']") !== null;
+
       let figmaNode = figmaH3.nextElementSibling as HTMLElement | null;
-      while (figmaNode && figmaNode !== penpotH3 && !figmaNode.querySelector("iframe, video, img")) {
+      while (figmaNode && figmaNode !== penpotH3 && !hasMedia(figmaNode)) {
         figmaNode = figmaNode.nextElementSibling as HTMLElement | null;
       }
 
       let penpotNode = penpotH3.nextElementSibling as HTMLElement | null;
       while (
         penpotNode &&
-        !penpotNode.querySelector("iframe, video, img") &&
+        !hasMedia(penpotNode) &&
         penpotNode.tagName !== "H2" &&
         penpotNode.tagName !== "H3" &&
         penpotNode.tagName !== "HR"
@@ -39,7 +43,7 @@ export default function VideoTabGroupHydrator() {
         penpotNode = penpotNode.nextElementSibling as HTMLElement | null;
       }
 
-      if (!figmaNode || !penpotNode) continue;
+      if (!figmaNode || !penpotNode || figmaNode === penpotH3) continue;
 
       if (figmaH3.dataset.tabHydrated === "true") continue;
       figmaH3.dataset.tabHydrated = "true";

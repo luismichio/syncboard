@@ -120,15 +120,26 @@ function rehypeDocLinks(docFilename: string) {
         if (pathPart && (pathPart.endsWith(".md") || pathPart.startsWith("doc/") || pathPart.startsWith("."))) {
           // Resolve relative path against document directory
           const targetPath = path.normalize(path.join(docDir, pathPart)).replace(/\\/g, "/");
-          const cleanTarget = targetPath.replace(/^\/?(doc\/)?/, "");
+          const cleanTarget = targetPath.replace(/^(\.\.\/|\.\/)+/, "").replace(/^\/?(doc\/)?/, "");
+          const baseName = path.basename(pathPart).toLowerCase();
 
-          if (pathPart.toLowerCase().endsWith("readme.md")) {
+          if (baseName === "readme.md") {
             node.properties.href = `/docs/readme${hash ? "#" + hash : ""}`;
             return;
           }
 
-          if (pathPart.toLowerCase().endsWith("license") || pathPart.toLowerCase().endsWith("license.md")) {
+          if (baseName === "license" || baseName === "license.md") {
             node.properties.href = `/docs/license${hash ? "#" + hash : ""}`;
+            return;
+          }
+
+          if (baseName === "security" || baseName === "security.md") {
+            node.properties.href = `/docs/security${hash ? "#" + hash : ""}`;
+            return;
+          }
+
+          if (baseName === "contributing" || baseName === "contributing.md") {
+            node.properties.href = `/docs/contributing${hash ? "#" + hash : ""}`;
             return;
           }
 
@@ -136,7 +147,8 @@ function rehypeDocLinks(docFilename: string) {
             (d) =>
               d.filename.toLowerCase() === targetPath.toLowerCase() ||
               d.filename.toLowerCase() === cleanTarget.toLowerCase() ||
-              d.slug === cleanTarget.replace(/\.md$/, "").replace(/\//g, "-").toLowerCase()
+              d.slug === cleanTarget.replace(/\.md$/, "").replace(/\//g, "-").toLowerCase() ||
+              d.slug === baseName.replace(/\.md$/, "")
           );
 
           if (matched) {

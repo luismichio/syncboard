@@ -15,26 +15,14 @@ SyncBoard's companion plugins stream active canvas selections in real time over 
 
 ### Figma Walkthrough
 
-<div className="my-6 aspect-video w-full overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe
-    className="w-full h-full"
-    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0"
-    title="Figma Frame Selection Relay Demo"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  ></iframe>
+<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
+  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
 </div>
 
 ### Penpot Walkthrough
 
-<div className="my-6 aspect-video w-full overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe
-    className="w-full h-full"
-    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0"
-    title="Penpot Frame Selection Relay Demo"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  ></iframe>
+<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
+  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
 </div>
 
 * **Key Highlights:**
@@ -50,26 +38,14 @@ Update selected screens in-place on Miro canvas. Toggle **"Also update all board
 
 ### Figma Walkthrough
 
-<div className="my-6 aspect-video w-full overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe
-    className="w-full h-full"
-    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0"
-    title="Figma One-Click Sync Demo"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  ></iframe>
+<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
+  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
 </div>
 
 ### Penpot Walkthrough
 
-<div className="my-6 aspect-video w-full overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe
-    className="w-full h-full"
-    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0"
-    title="Penpot One-Click Sync Demo"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  ></iframe>
+<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
+  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
 </div>
 
 * **Key Highlights:**
@@ -85,26 +61,14 @@ Adopt any existing image widget on your Miro board (even non-SyncBoard imports o
 
 ### Figma Walkthrough
 
-<div className="my-6 aspect-video w-full overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe
-    className="w-full h-full"
-    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0"
-    title="Figma Widget Adoption Demo"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  ></iframe>
+<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
+  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
 </div>
 
 ### Penpot Walkthrough
 
-<div className="my-6 aspect-video w-full overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe
-    className="w-full h-full"
-    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0"
-    title="Penpot Widget Adoption Demo"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  ></iframe>
+<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
+  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
 </div>
 
 * **Key Highlights:**
@@ -120,26 +84,14 @@ Update image pixel content on Miro canvas while preserving custom layout dimensi
 
 ### Figma Walkthrough
 
-<div className="my-6 aspect-video w-full overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe
-    className="w-full h-full"
-    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0"
-    title="Figma Geometry Preservation Demo"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  ></iframe>
+<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
+  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
 </div>
 
 ### Penpot Walkthrough
 
-<div className="my-6 aspect-video w-full overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe
-    className="w-full h-full"
-    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0"
-    title="Penpot Geometry Preservation Demo"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  ></iframe>
+<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
+  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
 </div>
 
 * **Key Highlights:**
@@ -154,14 +106,8 @@ Choose between crisp vector **SVG** exports (ideal for responsive text and icons
 
 ### Figma & Penpot Resolution Walkthrough
 
-<div className="my-6 aspect-video w-full overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe
-    className="w-full h-full"
-    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0"
-    title="Vector SVG vs HD PNG Resolution Control Demo"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  ></iframe>
+<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
+  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
 </div>
 
 ---
@@ -173,7 +119,7 @@ To prevent unauthorized users on public whiteboards from reading your live desig
 In the Miro sidebar UI, the Pairing ID input field is masked (`●●●●●●●●`) with an interactive toggle button to reveal or copy the key securely.
 
 ```text
-Pairing ID:  [ ●●●●●●●●●●●●●●●● ]  [ 👁️ Reveal ]  [ 📋 Copy ]
+Pairing ID:  [ ●●●●●●●●●●●●●●●● ]  [ Reveal ]  [ Copy ]
 ```
 
 * **Key Security Highlights:**
