@@ -15,7 +15,8 @@ const NAMED_ENTITIES: Record<string, string> = {
   '&apos;': "'",
 };
 
-export function decodeHtmlEntities(value: string): string {
+export function decodeHtmlEntities(value?: string | null): string {
+  if (!value) return '';
   let result = value;
 
   // Replace named entities

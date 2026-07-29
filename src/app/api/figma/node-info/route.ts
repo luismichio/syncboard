@@ -16,7 +16,7 @@ async function handler(request: Request) {
     }
 
     // Call Figma's REST API to get node details (including the document name)
-    const figmaUrl = `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${nodeId}`;
+    const figmaUrl = `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`;
     const response = await fetch(figmaUrl, {
       headers: {
         Authorization: token,

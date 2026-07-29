@@ -31,7 +31,7 @@ export function useFigmaImporter(
       setFigmaNodeInfo({
         fileKey: parsed.fileKey,
         nodeId: parsed.nodeId,
-        name: null as unknown as string,
+        name: 'Loading...',
       });
       if (figmaToken) {
         try {

@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **OAuth Callback Security Headers:** Injected `Content-Security-Policy` and `X-Content-Type-Options: nosniff` headers across Figma and Miro HTML callback responses.
 
 ### Fixed
+- **Null-Safe HTML Entity Decoding:** Made `decodeHtmlEntities` null-safe and updated `useFigmaImporter.ts` initial `figmaNodeInfo.name` state from `null` to `'Loading...'`, preventing `TypeError` iframe crashes ("The page couldn't load") when pasting Figma links into the Miro plugin. Encoded `nodeId` in `/api/figma/node-info`.
 - **Figma Render Route Test Suite:** Updated `src/app/api/figma/render/route.test.ts` to explicitly assert HTTP 401 rejection when tokens are passed via URL query parameters.
 - **Security Policy Supported Versions:** Updated `SECURITY.md` supported versions matrix to reflect active security patching for `0.13.x`.
 
