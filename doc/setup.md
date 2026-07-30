@@ -20,7 +20,9 @@ If you are using the official Community hosted version (`syncboard.luiskobayashi
 
 * **Official Miro App Install Link:** [Install SyncBoard to Miro Team](https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fsyncboard.luiskobayashi.com%2Fapi%2Foauth%2Fmiro%2Fcallback)
 
-#### For Self-Hosters (Register Miro Developer App)
+#### For Self-Hosters (1-Click Vercel Deploy or Custom Registration)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,ABLY_API_KEY,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN&project-name=syncboard&repository-name=syncboard)
 
 Miro is the whiteboard target. Both Figma and Penpot sync go through Miro.
 

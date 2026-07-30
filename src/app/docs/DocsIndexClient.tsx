@@ -9,6 +9,8 @@ import CookieSettingsButton from '@/components/CookieSettingsButton';
 import ThemeToggle from '@/components/ThemeToggle';
 import { DISPLAY } from '@/lib/version';
 
+import QuickStartSection from '@/components/docs/QuickStartSection';
+
 export interface DocItemMeta {
   slug: string;
   title: string;
@@ -183,6 +185,9 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
 
           <DocSearchInput value={searchQuery} onChange={setSearchQuery} />
         </div>
+
+        {/* Interactive Quick Start Guide (Community vs Self-Hosted Vercel Deploy) */}
+        {!searchQuery && <QuickStartSection />}
 
         {/* Tier 1: GETTING STARTED & OVERVIEW */}
         {(readmeSlug || gettingStartedSlugs.length > 0) && (
