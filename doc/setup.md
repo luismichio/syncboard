@@ -65,7 +65,8 @@ To enable automatic canvas selection detection in the Miro sidebar without insta
 #### For Community Version
 1. Go to the Figma Community and search for **"SyncBoard Companion"**.
 2. Click **Save** or **Run** to add it to your Figma account (works in both Figma Browser and Desktop).
-3. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion, and click **Connect**.
+3. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion input, and click **Connect**.
+4. **File Pairing (First Time Only):** If prompted with *"Pair Figma Design File — This Figma file is not linked to Miro yet"*, paste the URL of your current Figma design file into the input and click **Link**. This permanently links the document metadata (`figma.root`) so you will never be asked again for that file.
 
 #### For Self-Hosted Version
 > [!NOTE]
@@ -76,8 +77,9 @@ To enable automatic canvas selection detection in the Miro sidebar without insta
 3. Click the Figma logo (menu button) in the top-left, then select **Plugins > Development > Import plugin from manifest...**.
 4. Choose the `manifest.json` file inside the local `figma-plugin/` folder you copied.
 5. Once imported, run the plugin: **Plugins > Development > SyncBoard Figma Companion**.
-6. Click **Configure** in the settings bar at the top of the plugin, type your own custom hosted SyncBoard domain (e.g. `https://syncboard.yourdomain.com`), and click **Save**.
+6. **Configure Host Domain:** Click the **Configure** button at the top of the plugin to open **SyncBoard Host Settings**. Enter your custom self-hosted domain (e.g. `https://syncboard.yourdomain.com`) and click **Save**.
 7. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion, and click **Connect**.
+8. **File Pairing (First Time Only):** If prompted with *"Pair Figma Design File — This Figma file is not linked to Miro yet"*, paste the URL of your current Figma design file into the input and click **Link**. This permanently links the document metadata (`figma.root`) so you will never be asked again for that file.
 
 ---
 

@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 - **Undo (Ctrl+Z) Platform Notice & FAQ:** Added inline UI micro-notes (`API syncs cannot be undone with Ctrl+Z`) under primary action buttons in `SyncTab` and `ImportTab`, plus a dedicated entry in `doc/faq.md` under Technical Design & Constraints explaining that Miro API updates bypass client-side undo history.
+- **Figma Companion Setup & Host Settings Documentation:** Updated `doc/setup.md` to explicitly document the first-time *"Pair Figma Design File"* prompt steps in the Figma Companion plugin, and updated self-hosting configuration instructions to reference the exact **SyncBoard Host Settings** UI title.
 
 ## [0.13.6] - 2026-07-29
 ### Added
