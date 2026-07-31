@@ -164,6 +164,10 @@ export function SyncTab({
             >
               {syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED'}
             </button>
+
+            <p className="text-[9px] font-mono text-text-muted/60 text-center mt-1.5">
+              API syncs cannot be undone with Ctrl+Z
+            </p>
           </div>
         ) : (
           <div className="p-8 rounded-md border border-dashed border-border-card text-center text-xs text-text-muted py-12">

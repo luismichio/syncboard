@@ -61,6 +61,9 @@ SyncBoard automatically resolves the Figma `fileKey` through a multi-layered fal
 ### Does SyncBoard support Miro's native Desktop App?
 **Yes.** Because SyncBoard has been fully migrated to use the cloud-based Ably Relay transport rather than native local loopback ports, the Miro sidebar plugin functions identically in both standard web browsers and Miro's native Electron desktop client. 
 
+### Is it possible to use Ctrl+Z (Undo) in Miro to revert a sync or placement?
+**No.** Programmatic image creations and binary replacements via the Miro REST API or Web SDK bypass Miro's native client-side Undo/Redo history buffer (`Ctrl+Z` / `Cmd+Z`). Hitting `Ctrl+Z` after a sync will either have no effect or undo an earlier manual user edit on the canvas. If you need to refresh or revert a synced image, click **Sync** again to pull a fresh render from your design tool.
+
 ### Which web browsers are supported for running the Penpot companion?
 The Penpot companion plugin runs within Penpot's standard plugin iframe environment. It is fully supported in all modern evergreen browsers (Chrome, Edge, Firefox, Safari, and Brave). 
 * *Note:* If you are using Brave or strict tracking protection in Firefox, ensure that third-party cookie/local storage blocking is relaxed for the Penpot and SyncBoard domains to allow Ably WebSocket connections and pairing ID persistence.

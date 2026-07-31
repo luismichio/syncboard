@@ -209,6 +209,10 @@ export function ImportTab({
                   >
                     REPLACE SELECTED
                   </button>
+
+                  <p className="text-[9px] font-mono text-text-muted/60 text-center mt-1.5">
+                    API syncs cannot be undone with Ctrl+Z
+                  </p>
                 </div>
               )}
             </div>
@@ -326,6 +330,10 @@ export function ImportTab({
               >
                 REPLACE SELECTED
               </button>
+
+              <p className="text-[9px] font-mono text-text-muted/60 text-center mt-1.5">
+                API syncs cannot be undone with Ctrl+Z
+              </p>
             </div>
           )}
         </div>

@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - **UX Honesty — Crop Platform Limitation:** Renamed "Preserve widget size" to "Keep canvas size" and added a sub-note in all three occurrences (SyncTab, ImportTab Figma, ImportTab Penpot): *"Size locked. Crop resets — Miro API limitation."* Miro does not expose crop state (mask coordinates) in its REST API or Web SDK v2, so crop cannot be preserved programmatically. This is a hard platform ceiling, not a code limitation.
 
+### Added
+- **Undo (Ctrl+Z) Platform Notice & FAQ:** Added inline UI micro-notes (`API syncs cannot be undone with Ctrl+Z`) under primary action buttons in `SyncTab` and `ImportTab`, plus a dedicated entry in `doc/faq.md` under Technical Design & Constraints explaining that Miro API updates bypass client-side undo history.
+
 ## [0.13.6] - 2026-07-29
 ### Added
 - **Interactive Quick Start Guide & Vercel 1-Click Deploy:** Implemented `QuickStartSection.tsx` on `/docs` with tabbed guides for Community (Cloud Hosted) vs Self-Hosted deployment. Added direct 1-click Miro install URL button (`Install to Miro Team ↗`) and official 1-click Vercel Deploy badges (`Deploy with Vercel`) across `/docs`, `README.md`, and `doc/setup.md`.
