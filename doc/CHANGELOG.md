@@ -9,6 +9,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.7] - 2026-07-31
+### Fixed
+- **Keep Canvas Size — Geometry Preservation Rewrite:** Fixed the "Preserve widget size" feature (renamed "Keep canvas size") which was broken since its introduction in `0.10.0`. The root causes were: (1) the geometry PATCH used the wrong endpoint (`/items/{id}` with a JSON body) instead of the image-specific endpoint (`/images/{id}` with multipart form data); (2) the `preserveSize=true` path skipped the geometry write entirely, relying on an undocumented `style.fit: 'contain'` field that the Miro API ignores; (3) both paths were therefore always leaving the widget at Miro's auto-calculated size.
+
+  New implementation: before the binary upload, the server reads the current canvas `geometry.width` via a snapshot GET. After the upload, it re-applies the target width via the correct image endpoint using a multipart form with up to 3 retry attempts, each followed by a GET verification to confirm the width stuck. Both paths now work correctly: `preserveSize=true` restores the pre-upload snapshot width; `preserveSize=false` applies the client-provided natural Figma/Penpot width.
+
+- **UX Honesty — Crop Platform Limitation:** Renamed "Preserve widget size" to "Keep canvas size" and added a sub-note in all three occurrences (SyncTab, ImportTab Figma, ImportTab Penpot): *"Size locked. Crop resets — Miro API limitation."* Miro does not expose crop state (mask coordinates) in its REST API or Web SDK v2, so crop cannot be preserved programmatically. This is a hard platform ceiling, not a code limitation.
+
 ## [0.13.6] - 2026-07-29
 ### Added
 - **Interactive Quick Start Guide & Vercel 1-Click Deploy:** Implemented `QuickStartSection.tsx` on `/docs` with tabbed guides for Community (Cloud Hosted) vs Self-Hosted deployment. Added direct 1-click Miro install URL button (`Install to Miro Team ↗`) and official 1-click Vercel Deploy badges (`Deploy with Vercel`) across `/docs`, `README.md`, and `doc/setup.md`.

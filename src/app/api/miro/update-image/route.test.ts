@@ -48,13 +48,17 @@ describe('POST /api/miro/update-image', () => {
 
   it('updates image via Miro PATCH using pre-fetched dataUrl (fast path)', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
-    // Image PATCH (resource + title)
+    // Image PATCH (resource upload)
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
     );
-    // Item PATCH (geometry only)
+    // Geometry PATCH (apply width)
     fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify({ id: 'image-123', data: { geometry: { width: 400 } } }), { status: 200 })
+      new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
+    );
+    // Geometry GET verify
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ geometry: { width: 400 } }), { status: 200 })
     );
 
     const { POST } = await import('./route');
@@ -91,6 +95,7 @@ describe('POST /api/miro/update-image', () => {
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ id: 'item-1' }), { status: 200 })
       );
+    // No width provided — geometry step is skipped
 
     const { POST } = await import('./route');
     const res = await POST(
@@ -107,6 +112,45 @@ describe('POST /api/miro/update-image', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
+  });
+
+  it('preserves widget size: snapshot, upload, restore geometry', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    // Snapshot GET (current canvas width)
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ geometry: { width: 350 } }), { status: 200 })
+    );
+    // Image PATCH (resource upload)
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
+    );
+    // Geometry PATCH (restore to 350)
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: 'image-123' }), { status: 200 })
+    );
+    // Geometry GET verify
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ geometry: { width: 350 } }), { status: 200 })
+    );
+
+    const { POST } = await import('./route');
+    const res = await POST(
+      createPostRequest({
+        boardId: 'board-1',
+        itemId: 'item-1',
+        fileKey: 'file-1',
+        nodeId: '1:2',
+        nodeName: 'My Frame',
+        dataUrl: 'data:image/png;base64,ZmFrZS1wbmctZGF0YQ==',
+        preserveSize: true,
+      }, { miroToken: 'miro-tok' })
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    // Verify all 4 fetches were called (snapshot + upload + geo-patch + geo-verify)
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it('tags Penpot items with [PenpotSync] marker and succeeds', async () => {

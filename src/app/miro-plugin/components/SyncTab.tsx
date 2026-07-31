@@ -112,16 +112,21 @@ export function SyncTab({
               </span>
             </label>
 
-            <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={preserveSize}
-                onChange={(e) => setPreserveSize(e.target.checked)}
-                className="accent-accent w-3 h-3"
-              />
-              <span className="text-[10px] text-text-muted font-mono">
-                Preserve widget size
-              </span>
+            <label className="flex flex-col gap-0.5 mt-1.5 cursor-pointer select-none">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={preserveSize}
+                  onChange={(e) => setPreserveSize(e.target.checked)}
+                  className="accent-accent w-3 h-3"
+                />
+                <span className="text-[10px] text-text-muted font-mono">
+                  Keep canvas size
+                </span>
+              </div>
+              <p className="ml-5 text-[8px] font-mono text-text-muted/50 leading-tight">
+                Size locked. Crop resets — Miro API limitation.
+              </p>
             </label>
 
             {syncAllCopies && (

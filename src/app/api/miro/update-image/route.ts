@@ -125,8 +125,27 @@ async function handler(request: Request) {
     const file = new File([arrayBuffer], fileName, { type: mimeType });
 
     const authHeaders = { Authorization: `Bearer ${miroToken}` };
+    const imageUrl_ = `https://api.miro.com/v2/boards/${boardId}/images/${itemId}`;
 
-    // Step 1: Upload the image resource.
+    // ── Preserve Size: snapshot current geometry BEFORE upload ──
+    // Miro recalculates widget dimensions from the new image's intrinsic pixel size
+    // when a new resource is supplied. We read the current canvas width now so we can
+    // restore it after the upload, locking the widget at its current size.
+    let snapshotWidth: number | null = null;
+    if (preserveSize) {
+      try {
+        const snapRes = await fetch(imageUrl_, { headers: authHeaders });
+        if (snapRes.ok) {
+          const snapData = await snapRes.json() as { geometry?: { width?: number }; width?: number };
+          // geometry.width is at the top level of the Miro image API response
+          snapshotWidth = snapData.geometry?.width ?? snapData.width ?? null;
+        }
+      } catch {
+        // If snapshot fails, proceed — upload will still succeed at Miro's auto-size
+      }
+    }
+
+    // Step 1: Upload the image resource (binary replacement).
     // NOTE: title is deliberately NOT sent here — Miro's REST API may HTML-encode
     // title strings differently from the Miro SDK. The widget title is set exclusively
     // via miro.board.createImage({ title }) during import and preserved here by omitting
@@ -134,14 +153,7 @@ async function handler(request: Request) {
     // correctly then reverts to an HTML-encoded form.
     const imageForm = new FormData();
     imageForm.append('resource', file);
-
-    const imageData: Record<string, unknown> = {};
-    if (preserveSize) {
-      imageData.style = { fit: 'contain' };
-    }
-    imageForm.append('data', JSON.stringify(imageData));
-
-    const imageUrl_ = `https://api.miro.com/v2/boards/${boardId}/images/${itemId}`;
+    imageForm.append('data', JSON.stringify({}));
     const imageRes = await fetch(imageUrl_, {
       method: 'PATCH',
       headers: authHeaders,
@@ -156,27 +168,50 @@ async function handler(request: Request) {
       );
     }
 
-    // Step 2: Apply geometry via the generic item update endpoint (JSON body)
-    // only when preserveSize is NOT active.
-    if (width && !preserveSize) {
-      const targetWidth = Math.round(Number(width));
-      const itemUrl = `https://api.miro.com/v2/boards/${boardId}/items/${itemId}`;
-      const geometryRes = await fetch(itemUrl, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeaders,
-        },
-        body: JSON.stringify({
-          data: {
-            geometry: { width: targetWidth },
-          },
-        }),
-      });
+    // Step 2: Re-apply geometry after upload.
+    // Miro recalculates widget dimensions when a new resource is supplied.
+    // We correct this by sending a geometry PATCH on the image-specific endpoint
+    // (/images/{id}) using multipart form data — NOT the generic /items/{id}
+    // JSON endpoint, which uses a different schema and does not work for images.
+    //
+    // preserveSize=true  → restore the pre-upload snapshot width (lock canvas size)
+    // preserveSize=false → apply the client-provided width (natural Figma/Penpot size)
+    const targetWidth: number | null = preserveSize
+      ? (snapshotWidth !== null ? Math.round(snapshotWidth) : null)
+      : (width ? Math.round(Number(width)) : null);
 
-      if (!geometryRes.ok) {
-        const errData = await geometryRes.json().catch(() => ({}));
-        console.warn('Miro item geometry update failed (image already uploaded):', errData.message);
+    if (targetWidth) {
+      const MAX_ATTEMPTS = 3;
+      const RETRY_DELAY_MS = 800;
+
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+
+        const geoForm = new FormData();
+        geoForm.append('data', JSON.stringify({ geometry: { width: targetWidth } }));
+
+        const geoRes = await fetch(imageUrl_, {
+          method: 'PATCH',
+          headers: authHeaders,
+          body: geoForm,
+        });
+
+        if (!geoRes.ok) {
+          const errData = await geoRes.json().catch(() => ({}));
+          console.warn(`Geometry PATCH attempt ${attempt + 1}/${MAX_ATTEMPTS} failed:`, errData.message);
+          continue;
+        }
+
+        // Verify the geometry stuck before declaring success
+        const verifyRes = await fetch(imageUrl_, { headers: authHeaders });
+        if (verifyRes.ok) {
+          const verifyData = await verifyRes.json() as { geometry?: { width?: number }; width?: number };
+          const confirmedWidth = verifyData.geometry?.width ?? verifyData.width;
+          if (confirmedWidth !== undefined && Math.abs(Math.round(confirmedWidth) - targetWidth) <= 1) {
+            break; // Width confirmed — done
+          }
+          console.warn(`Geometry attempt ${attempt + 1}: confirmed=${confirmedWidth}, target=${targetWidth}`);
+        }
       }
     }
 
