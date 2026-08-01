@@ -1,4 +1,4 @@
-const PAIRING_ID_STORAGE_KEY = 'syncboard_pairing_id';
+const PAIRING_ID_STORAGE_KEY = 'syncingboard_pairing_id';
 const PAIRING_ID_PREFIX = 'sb_';
 const PAIRING_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 const PAIRING_LENGTH = 16;

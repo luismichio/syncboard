@@ -255,12 +255,12 @@ export async function callPenpotMcpTool(
  * Queries local selection inside the active Figma Desktop App via SyncBridge.
  */
 export async function callFigmaSelectionTauri(): Promise<{ id: string; name: string; fileKey: string } | null> {
-  if (typeof window === 'undefined' || localStorage.getItem('syncboard_use_tauri') !== 'true') {
+  if (typeof window === 'undefined' || localStorage.getItem('syncingboard_use_tauri') !== 'true') {
     return null;
   }
 
   try {
-    const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/detect-figma', {
+    const res = await fetch('https://local-syncingboard.luiskobayashi.com:4401/detect-figma', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       targetAddressSpace: 'loopback',

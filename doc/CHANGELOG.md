@@ -1,6 +1,6 @@
 ---
 title: Changelog
-description: Complete release history, version updates, feature additions, and bug fixes across SyncBoard releases.
+description: Complete release history, version updates, feature additions, and bug fixes across SyncingBoard releases.
 ---
 
 # Changelog
@@ -19,14 +19,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 - **Undo (Ctrl+Z) Platform Notice & FAQ:** Added inline UI micro-notes (`API syncs cannot be undone with Ctrl+Z`) under primary action buttons in `SyncTab` and `ImportTab`, plus a dedicated entry in `doc/faq.md` under Technical Design & Constraints explaining that Miro API updates bypass client-side undo history.
-- **Figma Companion Setup & Host Settings Documentation:** Updated `doc/setup.md` to explicitly document the first-time *"Pair Figma Design File"* prompt steps in the Figma Companion plugin, and updated self-hosting configuration instructions to reference the exact **SyncBoard Host Settings** UI title.
+- **Figma Companion Setup & Host Settings Documentation:** Updated `doc/setup.md` to explicitly document the first-time *"Pair Figma Design File"* prompt steps in the Figma Companion plugin, and updated self-hosting configuration instructions to reference the exact **SyncingBoard Host Settings** UI title.
 
 ## [0.13.6] - 2026-07-29
 ### Added
 - **Interactive Quick Start Guide & Vercel 1-Click Deploy:** Implemented `QuickStartSection.tsx` on `/docs` with tabbed guides for Community (Cloud Hosted) vs Self-Hosted deployment. Added direct 1-click Miro install URL button (`Install to Miro Team ↗`) and official 1-click Vercel Deploy badges (`Deploy with Vercel`) across `/docs`, `README.md`, and `doc/setup.md`.
-- **Figma Title Signature Standardization:** Standardized Figma widget title metadata signature from `[SyncBoard|...]` to `[FigmaSync|...]` for 1:1 naming symmetry with Penpot's `[PenpotSync|...]`.
+- **Figma Title Signature Standardization:** Standardized Figma widget title metadata signature from `[SyncingBoard|...]` to `[FigmaSync|...]` for 1:1 naming symmetry with Penpot's `[PenpotSync|...]`.
 - **Plugin Manifest Network Scoping:** Scoped Figma companion plugin network permissions in `figma-plugin/manifest.json` by removing the overly broad `*.vercel.app` wildcard domain.
-- **Documentation & FAQ Comprehensive Audit:** Updated `README.md` and `doc/faq.md` to clarify Figma Companion plugin scope (only needed for selection detection), updated fileKey resolution FAQ to explain multi-layered fallback, updated image download filename phrasing, replaced placeholder video embeds in `doc/features.md` with "Coming Soon" cards, updated `VideoTabGroupHydrator` to support `[class*='aspect-video']` placeholder containers so Figma/Penpot tabs hydrate properly, linked official [Security Policy (`/docs/security`)](/docs/security) and [Privacy Policy (`/docs/privacy`)](/docs/privacy), added platform API limits FAQ entry with a link to [Security, Rate Limits & Quotas Architecture](/docs/architecture-security-and-limits), fixed rehype doc link resolution for root markdown files, clarified enterprise commercial licensing availability (directing to `contact-syncboard@luiskobayashi.com`), and added FAQ entries covering frame renaming, one-way sync safeguards, uninstallation persistence, and private Figma workspace support.
+- **Documentation & FAQ Comprehensive Audit:** Updated `README.md` and `doc/faq.md` to clarify Figma Companion plugin scope (only needed for selection detection), updated fileKey resolution FAQ to explain multi-layered fallback, updated image download filename phrasing, replaced placeholder video embeds in `doc/features.md` with "Coming Soon" cards, updated `VideoTabGroupHydrator` to support `[class*='aspect-video']` placeholder containers so Figma/Penpot tabs hydrate properly, linked official [Security Policy (`/docs/security`)](/docs/security) and [Privacy Policy (`/docs/privacy`)](/docs/privacy), added platform API limits FAQ entry with a link to [Security, Rate Limits & Quotas Architecture](/docs/architecture-security-and-limits), fixed rehype doc link resolution for root markdown files, clarified enterprise commercial licensing availability (directing to `contact@syncingboard.com`), and added FAQ entries covering frame renaming, one-way sync safeguards, uninstallation persistence, and private Figma workspace support.
 
 ### Security
 - **Header-Only Figma Token Transmission:** Removed `?token=` and `?Authorization=` query-parameter fallbacks from `/api/figma/render` to prevent OAuth tokens from appearing in HTTP logs, edge logs, or browser history.
@@ -94,7 +94,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Tightened Miro callback state policy with controlled direct-install bypass behind `MIRO_ALLOW_DIRECT_INSTALL_NO_STATE=true`.
 
 ### Fixed
-- **Sync metadata integrity:** `handleGroupSettingChange` now merges updates into existing `syncboard` metadata instead of overwriting the object, preserving `fileKey/nodeId/nodeName/platform/width/height`.
+- **Sync metadata integrity:** `handleGroupSettingChange` now merges updates into existing `syncingboard` metadata instead of overwriting the object, preserving `fileKey/nodeId/nodeName/platform/width/height`.
 - **Post-sync metadata completeness:** `useMiroSync` now persists `fileKey`, `nodeId`, and `nodeName` in metadata updates so fallback selection parsing remains reliable when titles are edited.
 - **Rate-limit identifier correctness:** `miro:update-image` now keys limits by Authorization bearer token instead of attempting to read a body token that no longer exists.
 - **HTML entity decode for frame names:** Names containing HTML entities (e.g. `Expanded&#61;True`) now display correctly as their actual characters (`Expanded=True`). Created `src/lib/decodeHtmlEntities.ts` and applied at all name entry points — relay response (`companionRelayClient.ts`), Penpot selection/export (`usePenpotImporter.ts`), Figma REST API and companion selection (`useFigmaImporter.ts`), sync name cache (`useMiroSync.ts`), and display components (`SyncTab.tsx`, `ImportTab.tsx`).
@@ -151,7 +151,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **"Place on Canvas" & "Replace Selected" Status Feedback:** Both features now properly use the color-coded status bar. Success messages have `✓` prefix (green success), and progress messages are shown during the render/export phase before the image is placed or replaced. Figma and Penpot import flows both report "Rendering Figma frame..." / "Exporting Penpot frame..." while the server generates the image.
 - **Penpot Cross-Page Shape Search:** `findShapeById` in `public/penpot-companion-plugin.js` now falls back to searching all pages (`penpot.pages`) when a shape is not found on the current page. Previously, syncing a Penpot image only worked if the original frame was on the page currently open in Penpot — shapes on other pages caused a hard sync failure. Also fixed a latent bug where `findShapeById` was called without `await` in the export-shape handler.
 - **Penpot Export Timeout:** Increased relay timeout for `export_shape` from 18s to 120s in `companionRelayClient.ts`. Some complex Penpot shapes take up to 66s to export — the previous 30s window was still too tight.
-- **Companion Plugin Logging:** Added `[SyncBoard]` console logs to `findShapeById` and `exportShapeBuffer` to distinguish which search path succeeds (selection, current page, cross-page, or `penpot.export` fallback) and how `penpot.pages` behaves.
+- **Companion Plugin Logging:** Added `[SyncingBoard]` console logs to `findShapeById` and `exportShapeBuffer` to distinguish which search path succeeds (selection, current page, cross-page, or `penpot.export` fallback) and how `penpot.pages` behaves.
 - **Documentation:** Added Penpot export performance characteristics to `doc/architecture.md` (selection fastest → same page → other page slowest). Removed session-level render cache to prevent stale image data on re-sync.
 
 ### Documentation
@@ -197,12 +197,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.10.0] - 2026-07-22
 
 ### Added
-- **"Replace Selected" — Adopt Any Image into SyncBoard:** New button in Import tab that replaces a manually-pasted or third-party image widget with a SyncBoard-managed copy, keeping the widget ID intact to preserve connectors, comments, links, and frame membership.
+- **"Replace Selected" — Adopt Any Image into SyncingBoard:** New button in Import tab that replaces a manually-pasted or third-party image widget with a SyncingBoard-managed copy, keeping the widget ID intact to preserve connectors, comments, links, and frame membership.
   - "Replace selected" button below each Import button (Figma/Penpot), enabled when a frame is selected.
   - Reads the current Miro board selection and adopts any image-type widgets.
-  - Attaches `syncboard` metadata (adoption) or updates it (re-targeting to a different frame).
+  - Attaches `syncingboard` metadata (adoption) or updates it (re-targeting to a different frame).
   - Then renders and pushes the new image via the standard sync API.
-  - Non-SyncBoard images become recognised copies; existing SyncBoard widgets can be re-targeted to a different frame.
+  - Non-SyncingBoard images become recognised copies; existing SyncingBoard widgets can be re-targeted to a different frame.
 - **SEO & Analytics Overhaul:** Made the public site discoverable and measurable.
   - Added `robots.ts` (disallow `/api/` and `/miro-plugin`) and dynamic `sitemap.ts` covering all docs pages.
   - Added Open Graph tags (`og:title`, `og:description`, `og:image`, `og:url`, `og:type`) and Twitter Cards (`summary_large_image`).
@@ -271,7 +271,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Figma Companion Plugin (Cloud Relay):** Built a Figma companion plugin that enables real-time selection auto-detect over the cloud relay using Ably.
   - Created `figma-plugin/` directory containing `manifest.json`, local sandbox controller `code.js`, and `ui.html` message relay bridge.
   - Implemented the hosted `public/figma-companion-ui.html` static asset with pairing connection status indicators, Ably subscriptions, and parent window message listeners.
-  - Added a configuration panel in the local plugin UI so self-hosts can easily point the companion to their own deployed SyncBoard domain URL.
+  - Added a configuration panel in the local plugin UI so self-hosts can easily point the companion to their own deployed SyncingBoard domain URL.
   - Refactored `useFigmaImporter.ts` to fallback to Cloud Relay queries (Figma Companion) if the local Tauri MCP server/SyncBridge is not running.
 - **White-Labeling & Marketplace Setup Docs:** Updated setup and architectural guides detailing the plug-and-play Community installation paths from official marketplaces, alongside a customization guide for renaming plugins, updating brand logo icons, and adjusting CSS theme variables.
 
@@ -315,7 +315,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 - **Secure Key Generation:** Migrated pairing ID and OAuth state generation to cryptographically secure random generators using `window.crypto.getRandomValues`.
 - **Redis OAuth Token Cache:** Replaced the vulnerable global in-memory OAuth state cache with Upstash Redis storage featuring a 300-second TTL and automatic deletion on consumption.
-- **CORS Origin Whitelisting:** Configured Tauri's local Axum bridge server to validate CORS `Origin` headers against a whitelist of trusted domains (`https://syncboard.luiskobayashi.com`, `http://localhost:3000`, `http://localhost:1420`).
+- **CORS Origin Whitelisting:** Configured Tauri's local Axum bridge server to validate CORS `Origin` headers against a whitelist of trusted domains (`https://syncingboard.com`, `http://localhost:3000`, `http://localhost:1420`).
 - **Dynamic OAuth Host Detection:** Configured OAuth endpoints to dynamically parse request headers (`host` and `x-forwarded-proto`) to compute redirect URIs, resolving state/cookie CSRF errors on Vercel preview environments and custom subdomains.
 - **Miro Direct Install Bypass:** Allowed empty state parameter validation in the Miro callback if no local CSRF cookie exists, enabling developers to install the app directly from the Miro Developer Dashboard (which does not provide a state parameter).
 
@@ -430,7 +430,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 - **Documentation Site:** Replaced `/dashboard` with a full documentation site at `/docs`. Renders `doc/*.md` as styled pages with TOC sidebar, syntax highlighting, heading anchor links, and a metadata bar (last updated, word count).
 - **Agent-Friendly Docs API:** Added `GET /api/docs/list` (JSON index) and `GET /api/docs/raw?file=<filename>` (raw markdown) for AI agent consumption. `backlog.md` is hidden from public.
-- **Token Fingerprinting:** Token storage keys now include a `deploymentFingerprint()` hash of `window.location.origin` to prevent collisions across SyncBoard deployments.
+- **Token Fingerprinting:** Token storage keys now include a `deploymentFingerprint()` hash of `window.location.origin` to prevent collisions across SyncingBoard deployments.
 - **19 API Route Tests:** Test suites for `/api/figma/render`, `/api/figma/render-batch`, `/api/figma/node-info`, and `/api/miro/update-image` (38 total, all passing).
 
 ### Changed
@@ -483,7 +483,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 - **Tauri HTTPS Bridge & Penpot Companion Plugin Schema:** Created the system specifications and architecture design for the loopback bridge.
 - **Penpot Companion Plugin:** Created `penpot-companion-plugin.html` script which connects the Penpot editor tab directly to the Tauri proxy over WebSockets.
-- **Tauri client support:** Configured `penpotMcpClient.ts` to connect to Tauri secure loopback `local.syncboard.com` when the bridge toggle is active.
+- **Tauri client support:** Configured `penpotMcpClient.ts` to connect to Tauri secure loopback `local-syncingboard.luiskobayashi.com` when the bridge toggle is active.
 - **Figma Tauri support:** Enabled local Figma selection detection through the Tauri proxy inside `useFigmaImporter.ts`.
 - **Sidebar settings toggle:** Added a Connect/Disconnect widget in the settings tab for "SyncBridge" along with a pairing ID generator and clipboard copy utility.
 
@@ -496,7 +496,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Penpot Sync Integration:** Added support for syncing Penpot frames to the Miro canvas side-by-side with Figma.
 - **Penpot MCP Client Integration:** Created `penpotMcpClient.ts` communicating with the local Penpot MCP server over HTTP JSON-RPC POST requests to prevent SSE timeout locks.
 - **Penpot Client Importer:** Built `usePenpotImporter.ts` validating frame URLs, detecting selection frames, and placing SVGs on the canvas.
-- **Miro Update API Platform Handling:** Updated `/api/miro/update-image` to support and output platform-specific title tags (`PenpotSync` vs. `SyncBoard`).
+- **Miro Update API Platform Handling:** Updated `/api/miro/update-image` to support and output platform-specific title tags (`PenpotSync` vs. `SyncingBoard`).
 - **Consolidated Selection UI:** Grouped duplicate canvas screens in the sidebar under a single frame card, rendering a copy counter badge (e.g. `x3`) in the top-right and batch-applying format/scale changes to all selected copies.
 - **CORS Support for Penpot MCP:** Patched the local Penpot MCP server code (`PenpotMcpServer.ts`) to support cross-origin requests, enabling browser-based plugin communication.
 
@@ -514,7 +514,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Vitest Unit Test Suite:** Configured Vitest and jsdom environments for frontend testing. Added test coverage for Figma URL parsing and OAuth token validation helpers.
 - **Husky Pre-Push Hook:** Added automated pre-push hook integration ensuring lint, test, and production builds pass before any git push.
 - **Themed Auth Popups:** Integrated a dynamic, client-side script in all OAuth auth and callback popup windows to detect the active theme configuration (`light`, `dark`, or `system` pref) from localStorage and dynamically style background, text, buttons, and loading states to match.
-- **Name-First Title Format:** Changed the image title structure to show the clean human-readable design name first, followed by the sync metadata (`Name [SyncBoard|fileKey|nodeId]`). Adapted selection hook parsing, fallback generation, and copy-matching logic accordingly.
+- **Name-First Title Format:** Changed the image title structure to show the clean human-readable design name first, followed by the sync metadata (`Name [SyncingBoard|fileKey|nodeId]`). Adapted selection hook parsing, fallback generation, and copy-matching logic accordingly.
 
 ### Fixed
 - **OAuth CSRF Security:** Implemented cryptographic random `state` validation via secure, HTTP-only cookie validation for Figma and Miro callback routes.
@@ -533,7 +533,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.1.6] - 2026-07-09
 
 ### Added
-- **SyncBoard Custom Logo:** Integrated `public/syncboard_logo.svg` as the application's favicon and main sidebar logo, styled with dynamic CSS mask-image logic.
+- **SyncingBoard Custom Logo:** Integrated `public/syncingboard_logo.svg` as the application's favicon and main sidebar logo, styled with dynamic CSS mask-image logic.
 - **Offline Font Optimization:** Replaced external Google Font loads with standard system font fallback stacks, preventing Next.js Turbopack compilation crashes in offline or restricted-network environments.
 
 ---
@@ -573,7 +573,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Vercel Serverless Configurations:** Created `vercel.json` to extend the serverless function execution timeout `maxDuration` to 60 seconds (applicable for Pro/Enterprise) to support heavy asset downloads.
 
 ### Changed
-- **Vercel Deploy Destination:** Updated the target destination repository URL in the "Deploy with Vercel" markdown button to point to the active `luismichio/syncboard` repository.
+- **Vercel Deploy Destination:** Updated the target destination repository URL in the "Deploy with Vercel" markdown button to point to the active `luismichio/syncingboard` repository.
 - **Rate Limits Documentation:** Expanded the `README.md` to detail both Figma and Miro rate limits, highlighting plan limitations (Starter vs. Pro) and the built-in Miro request throttle delay.
 
 ---

@@ -5,10 +5,10 @@ description: Register your target whiteboard, configure your source adapter (Fig
 
 # Setup & Deployment
 
-SyncBoard is split into **source adapters** (Figma, Penpot) and a **target adapter** (Miro). Most teams use either Figma or Penpot as their source, not both. This guide follows the same structure --- complete the common target setup, then skip to your chosen source section.
+SyncingBoard is split into **source adapters** (Figma, Penpot) and a **target adapter** (Miro). Most teams use either Figma or Penpot as their source, not both. This guide follows the same structure --- complete the common target setup, then skip to your chosen source section.
 
 > [!IMPORTANT]
-> **User-Owned OAuth Architecture:** SyncBoard maintains zero user databases and requires no account registration. Every end-user authenticates directly with their own personal Figma and Miro accounts via OAuth 2.0. Access tokens are stored exclusively inside the client-side Miro board session.
+> **User-Owned OAuth Architecture:** SyncingBoard maintains zero user databases and requires no account registration. Every end-user authenticates directly with their own personal Figma and Miro accounts via OAuth 2.0. Access tokens are stored exclusively inside the client-side Miro board session.
 
 ---
 
@@ -16,13 +16,13 @@ SyncBoard is split into **source adapters** (Figma, Penpot) and a **target adapt
 
 #### For Community Version (Hosted Demo)
 
-If you are using the official Community hosted version (`syncboard.luiskobayashi.com`), you can install the official Miro plugin directly to your Miro team with 1 click:
+If you are using the official Community hosted version (`syncingboard.com`), you can install the official Miro plugin directly to your Miro team with 1 click:
 
-* **Official Miro App Install Link:** [Install SyncBoard to Miro Team](https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fsyncboard.luiskobayashi.com%2Fapi%2Foauth%2Fmiro%2Fcallback)
+* **Official Miro App Install Link:** [Install SyncingBoard to Miro Team](https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fsyncingboard.com%2Fapi%2Foauth%2Fmiro%2Fcallback)
 
 #### For Self-Hosters (1-Click Vercel Deploy or Custom Registration)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,ABLY_API_KEY,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN&project-name=syncboard&repository-name=syncboard)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncingboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,ABLY_API_KEY,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN&project-name=syncingboard&repository-name=syncingboard)
 
 Miro is the whiteboard target. Both Figma and Penpot sync go through Miro.
 
@@ -49,8 +49,8 @@ Only needed if you sync from **Figma**. Penpot-only users can skip to the Penpot
 
 1. Go to the Figma Developer Portal: **[https://www.figma.com/developers/apps](https://www.figma.com/developers/apps)**.
 2. Click **Create a new app**.
-3. Choose a custom name for your app (e.g., `MySyncBoard` or `Custom-Sync-Engine`).
-   > To comply with branding guidelines, do not name public apps exactly `SyncBoard`.
+3. Choose a custom name for your app (e.g., `MySyncingBoard` or `Custom-Sync-Engine`).
+   > To comply with branding guidelines, do not name public apps exactly `SyncingBoard`.
 4. Set the Redirect URI to:
    ```
    https://YOUR_DOMAIN.com/api/oauth/figma/callback
@@ -63,7 +63,7 @@ Only needed if you sync from **Figma**. Penpot-only users can skip to the Penpot
 To enable automatic canvas selection detection in the Miro sidebar without installing the SyncBridge desktop app, you can load the Figma Companion Plugin in your workspace:
 
 #### For Community Version
-1. Go to the Figma Community and search for **"SyncBoard Companion"**.
+1. Go to the Figma Community and search for **"SyncingBoard Companion"**.
 2. Click **Save** or **Run** to add it to your Figma account (works in both Figma Browser and Desktop).
 3. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion input, and click **Connect**.
 4. **File Pairing (First Time Only):** If prompted with *"Pair Figma Design File — This Figma file is not linked to Miro yet"*, paste the URL of your current Figma design file into the input and click **Link**. This permanently links the document metadata (`figma.root`) so you will never be asked again for that file.
@@ -76,8 +76,8 @@ To enable automatic canvas selection detection in the Miro sidebar without insta
 2. Open the **Figma Desktop Application** and open any design file.
 3. Click the Figma logo (menu button) in the top-left, then select **Plugins > Development > Import plugin from manifest...**.
 4. Choose the `manifest.json` file inside the local `figma-plugin/` folder you copied.
-5. Once imported, run the plugin: **Plugins > Development > SyncBoard Figma Companion**.
-6. **Configure Host Domain:** Click the **Configure** button at the top of the plugin to open **SyncBoard Host Settings**. Enter your custom self-hosted domain (e.g. `https://syncboard.yourdomain.com`) and click **Save**.
+5. Once imported, run the plugin: **Plugins > Development > SyncingBoard Figma Companion**.
+6. **Configure Host Domain:** Click the **Configure** button at the top of the plugin to open **SyncingBoard Host Settings**. Enter your custom self-hosted domain (e.g. `https://syncingboard.com`) and click **Save**.
 7. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion, and click **Connect**.
 8. **File Pairing (First Time Only):** If prompted with *"Pair Figma Design File — This Figma file is not linked to Miro yet"*, paste the URL of your current Figma design file into the input and click **Link**. This permanently links the document metadata (`figma.root`) so you will never be asked again for that file.
 
@@ -87,14 +87,14 @@ To enable automatic canvas selection detection in the Miro sidebar without insta
 
 ### Install Penpot Companion Plugin
 
-To use SyncBoard with **Penpot**, install the Companion Plugin in your Penpot workspace:
+To use SyncingBoard with **Penpot**, install the Companion Plugin in your Penpot workspace:
 
 #### For Community Version
 1. In Penpot, open any design file.
 2. In the right-hand panel, click the **Plugins** tab (puzzle icon).
-3. Search for **"SyncBoard Companion"** inside the Penpot Templates & Libraries, or click the `+` button and paste the official Community manifest URL:
+3. Search for **"SyncingBoard Companion"** inside the Penpot Templates & Libraries, or click the `+` button and paste the official Community manifest URL:
    ```
-   https://syncboard.luiskobayashi.com/penpot-manifest.json
+   https://syncingboard.com/penpot-manifest.json
    ```
 4. Click **Install**, open the companion sidebar, copy the **Pairing ID** from your Miro sidebar, and click **Connect**.
 
@@ -103,11 +103,11 @@ To use SyncBoard with **Penpot**, install the Companion Plugin in your Penpot wo
 2. In the right-hand panel, click the **Plugins** tab (puzzle icon).
 3. Click the `+` button and paste your own custom hosted manifest URL:
    ```
-   https://syncboard.yourdomain.com/penpot-manifest.json
+   https://syncingboard.com/penpot-manifest.json
    ```
 4. Click **Install**, open the companion sidebar, copy the **Pairing ID** from your Miro sidebar, and click **Connect**.
 
-> **Note:** The Penpot Companion communicates over the cloud relay (public HTTPS). No local server or desktop app is required. Rendering happens locally in your browser tab; transport goes through SyncBoard's relay.
+> **Note:** The Penpot Companion communicates over the cloud relay (public HTTPS). No local server or desktop app is required. Rendering happens locally in your browser tab; transport goes through SyncingBoard's relay.
 
 #### Local Development Installation
 
@@ -122,7 +122,7 @@ To use SyncBoard with **Penpot**, install the Companion Plugin in your Penpot wo
 If the Penpot Companion plugin shows "offline" in the Miro plugin:
 
 1. Make sure both the Miro plugin and the Penpot Companion use the **exact same Pairing ID**.
-2. Check that your SyncBoard deployment is reachable and `ABLY_API_KEY` is configured correctly.
+2. Check that your SyncingBoard deployment is reachable and `ABLY_API_KEY` is configured correctly.
 3. Open the browser DevTools console in the Penpot tab --- look for Ably connection errors (CSP blocking the CDN script, or token timeout).
 
 ---
@@ -139,7 +139,7 @@ These cloud accounts are required to run the real-time relays and enforce persis
 1. Go to **[Upstash Console](https://console.upstash.com/)** and create a free account.
 2. Click **Create Database**:
    - Select **Redis** as the database type.
-   - Choose a name (e.g., `syncboard-relay`).
+   - Choose a name (e.g., `syncingboard-relay`).
    - Select the region closest to your Vercel deployment (e.g., `us-east-1` or `eu-west-1`).
    - **TLS** should be enabled by default (required).
 3. After creation, copy the **REST URL** and **REST Token** --- you'll use them as `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in the deploy step.
@@ -168,7 +168,7 @@ These cloud accounts are required to run the real-time relays and enforce persis
 Vercel is the simplest deployment path --- one-click deploy with zero server management. However, other hosts work too (see [Alternatives](#~alternative-hosting) below).
 
 1. Click the deploy button to clone and deploy instantly:
-   [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,ABLY_API_KEY)
+   [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncingboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,ABLY_API_KEY)
 
 2. Or import your fork manually from the Vercel Dashboard.
 
@@ -176,7 +176,7 @@ Vercel is the simplest deployment path --- one-click deploy with zero server man
 
    | Variable | Needed For | Example |
    | :--- | :--- | :--- |
-   | `NEXT_PUBLIC_APP_URL` | **Both** | `https://syncboard.yourdomain.com` |
+   | `NEXT_PUBLIC_APP_URL` | **Both** | `https://syncingboard.com` |
    | `MIRO_CLIENT_ID` | **Both** | From Miro Developer App |
    | `MIRO_CLIENT_SECRET` | **Both** | From Miro Developer App |
    | `FIGMA_CLIENT_ID` | **Figma only** | From Figma Developer App |
@@ -185,7 +185,7 @@ Vercel is the simplest deployment path --- one-click deploy with zero server man
    | `UPSTASH_REDIS_REST_TOKEN` | **Penpot only** | From Upstash Console (used for Penpot image relay) |
    | `ABLY_API_KEY` | **Figma (selection relay) & Penpot** | From Ably Console (WebSocket broker) |
 
-   > Do NOT add a trailing slash to `NEXT_PUBLIC_APP_URL`. Example: `https://syncboard.yourdomain.com` (no `/` at the end).
+   > Do NOT add a trailing slash to `NEXT_PUBLIC_APP_URL`. Example: `https://syncingboard.com` (no `/` at the end).
    >
    > For a complete reference of all environment variables, rate-limiting overrides, and `.env.example` templates, see [Environment Variables Reference](environment-variables.md).
 
@@ -193,7 +193,7 @@ Vercel is the simplest deployment path --- one-click deploy with zero server man
 
 ### Alternative Hosting
 
-Vercel is the default, but SyncBoard is a standard Next.js app and runs on any host that supports Node.js serverless or containerized workloads. The main difference is the response body limit:
+Vercel is the default, but SyncingBoard is a standard Next.js app and runs on any host that supports Node.js serverless or containerized workloads. The main difference is the response body limit:
 
 | Host | Response Body Limit | Image Payload Limit | Notes |
 | :--- | :--- | :--- | :--- |
@@ -312,7 +312,7 @@ For testing and coding on your local machine (commands work on Windows, macOS, a
    ```
 
 3. **Expose Localhost via HTTPS Tunnel (Required for Miro Integration Testing):**
-   To test the SyncBoard plugin inside a Miro whiteboard (`https://miro.com`), you must expose your local dev server (`http://localhost:3000`) over an HTTPS tunnel. You can use **cloudflared, ngrok, localtunnel**, or any tunnel provider of your choice:
+   To test the SyncingBoard plugin inside a Miro whiteboard (`https://miro.com`), you must expose your local dev server (`http://localhost:3000`) over an HTTPS tunnel. You can use **cloudflared, ngrok, localtunnel**, or any tunnel provider of your choice:
 
    ```bash
    # Option A: Using cloudflared (Free, no account required)
@@ -342,7 +342,7 @@ For testing and coding on your local machine (commands work on Windows, macOS, a
      1. Open the **Figma Desktop Application** (local manifest import requires the desktop app).
      2. Open any design file ➔ Click Figma menu ➔ **Plugins > Development > Import plugin from manifest...**
      3. Select `figma-plugin/manifest.json` from your local workspace folder.
-     4. Run the plugin (**Plugins > Development > SyncBoard Figma Companion**), click **Configure** in the top settings bar, and enter your HTTPS tunnel domain (`https://YOUR_TUNNEL_URL`).
+     4. Run the plugin (**Plugins > Development > SyncingBoard Figma Companion**), click **Configure** in the top settings bar, and enter your HTTPS tunnel domain (`https://YOUR_TUNNEL_URL`).
      5. Copy the **Pairing ID** from your local Miro sidebar, paste it into the companion, and click **Connect**.
 
    * **Penpot Companion (Local Manifest Import):**
@@ -425,7 +425,7 @@ cd tauri-bridge/src-tauri/resources
 mkcert \
   -cert-file cert.pem \
   -key-file key.pem \
-  local-syncboard.luiskobayashi.com \
+  local-syncingboard.luiskobayashi.com \
   127.0.0.1 \
   localhost
 ```
@@ -433,7 +433,7 @@ mkcert \
 **Windows (PowerShell):**
 ```powershell
 cd tauri-bridge\src-tauri\resources
-mkcert -cert-file cert.pem -key-file key.pem local-syncboard.luiskobayashi.com 127.0.0.1 localhost
+mkcert -cert-file cert.pem -key-file key.pem local-syncingboard.luiskobayashi.com 127.0.0.1 localhost
 ```
 
 **Step 4 --- Rebuild:**
@@ -448,16 +448,16 @@ yarn tauri dev      # development
 
 ### DNS Loopback Record
 
-SyncBoard uses a public DNS A record pointing to `127.0.0.1` so that `local-syncboard.luiskobayashi.com` resolves to your local machine with valid TLS.
+SyncingBoard uses a public DNS A record pointing to `127.0.0.1` so that `local-syncingboard.luiskobayashi.com` resolves to your local machine with valid TLS.
 
-- **Domain:** `local-syncboard.luiskobayashi.com`
+- **Domain:** `local-syncingboard.luiskobayashi.com`
 - **Type:** `A`
 - **Value:** `127.0.0.1`
 
 If you fork this project with your own domain:
-1. Add an A record (`local-syncboard` -> `127.0.0.1`) with your DNS provider.
+1. Add an A record (`local-syncingboard` -> `127.0.0.1`) with your DNS provider.
    > Squarespace DNS does not accept dots in the Host field. Use a dash (`-`) as a separator.
-2. Update all occurrences of `local-syncboard.luiskobayashi.com` in:
+2. Update all occurrences of `local-syncingboard.luiskobayashi.com` in:
    - `public/penpot-companion-ui.html`
    - `src/app/miro-plugin/companionRelayClient.ts`
    - `tauri-bridge/index.html`
@@ -469,11 +469,11 @@ If you fork this project with your own domain:
 Some routers block public domains from resolving to loopback addresses. Add a manual override to your `hosts` file:
 
 ```
-127.0.0.1 local-syncboard.luiskobayashi.com
+127.0.0.1 local-syncingboard.luiskobayashi.com
 ```
 
 - **Windows:** `C:\Windows\System32\drivers\etc\hosts` (run Notepad as Administrator)
-- **macOS / Linux:** `sudo sh -c 'echo "127.0.0.1 local-syncboard.luiskobayashi.com" >> /etc/hosts'`
+- **macOS / Linux:** `sudo sh -c 'echo "127.0.0.1 local-syncingboard.luiskobayashi.com" >> /etc/hosts'`
 
 Then flush DNS:
 - **Windows:** `ipconfig /flushdns`
@@ -482,7 +482,7 @@ Then flush DNS:
 
 ### Automated GitHub Releases
 
-SyncBoard includes a GitHub Actions pipeline that compiles installer packages automatically:
+SyncingBoard includes a GitHub Actions pipeline that compiles installer packages automatically:
 
 **To trigger a release:**
 1. Increment the version in `tauri-bridge/src-tauri/tauri.conf.json` and `tauri-bridge/package.json`.
@@ -504,22 +504,22 @@ SyncBoard includes a GitHub Actions pipeline that compiles installer packages au
 
 ## Customization & White-Labeling (Optional)
 
-If you are self-hosting SyncBoard and want to integrate it as part of your company's internal design tool suite, you can customize the naming, logos, and accent colors to match your brand guidelines.
+If you are self-hosting SyncingBoard and want to integrate it as part of your company's internal design tool suite, you can customize the naming, logos, and accent colors to match your brand guidelines.
 
 ### Renaming & Configuring the Plugins
 * **Figma Companion:** 
   * Edit the `"name"` property inside `figma-plugin/manifest.json`.
-  * **Domain Access Configuration:** If you are self-hosting on a custom domain (e.g. `https://syncboard.mycompany.com`), you must append your custom domain to the `"allowedDomains"` array inside `figma-plugin/manifest.json`. Figma blocks all network requests to domains not whitelisted in this file.
+  * **Domain Access Configuration:** If you are self-hosting on a custom domain (e.g. `https://syncingboard.com`), you must append your custom domain to the `"allowedDomains"` array inside `figma-plugin/manifest.json`. Figma blocks all network requests to domains not whitelisted in this file.
 * **Penpot Companion:** Edit the `"name"` and `"description"` properties inside `public/penpot-manifest.json`.
 * **Miro Sidebar:** Edit the app name in your private Miro developer portal console settings.
 
 ### Customizing Logo Icons
-* **Penpot Companion:** Replace `public/syncboard_logo.svg` with your custom company icon (maintaining the same filename so the manifest automatically references it).
+* **Penpot Companion:** Replace `public/syncingboard_logo.svg` with your custom company icon (maintaining the same filename so the manifest automatically references it).
 * **Figma Companion:** When publishing the plugin to your private Figma Organization directory, upload your custom square icon asset (SVG or PNG) in the Figma Publisher console page.
 * **Miro Sidebar:** Upload your custom app icon asset in your private Miro developer app settings page.
 
 ### Adjusting Theme Colors
-SyncBoard uses standard CSS variable tokens to define themes. You can change these colors to match your design system's branding:
+SyncingBoard uses standard CSS variable tokens to define themes. You can change these colors to match your design system's branding:
 * **Miro Sidebar UI:** Update the `--accent` (brand cyan) and color tokens inside `src/app/globals.css`.
 * **Figma Companion UI:** Update the root variable tokens inside `public/figma-companion-ui.html`.
 * **Penpot Companion UI:** Update the root variable tokens inside `public/penpot-companion-ui.html`.

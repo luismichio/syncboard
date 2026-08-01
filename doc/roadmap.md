@@ -1,11 +1,11 @@
 ---
 title: Product Roadmap
-description: Strategic milestones, upcoming features, and future architecture plans for SyncBoard.
+description: Strategic milestones, upcoming features, and future architecture plans for SyncingBoard.
 ---
 
 # Product Roadmap
 
-This roadmap outlines planned features, architecture expansions, and research targets for SyncBoard.
+This roadmap outlines planned features, architecture expansions, and research targets for SyncingBoard.
 
 ---
 
@@ -15,7 +15,7 @@ This roadmap outlines planned features, architecture expansions, and research ta
 * **Selection Auto-Detect UX:** Streamline the Pairing ID handshake and status indicators across Penpot and Figma companion plugins.
 * **Animated GIF & Video Sync:** Export and sync Figma prototype animations and video frames into Miro as live animated GIF and playable video widgets.
 * **Image Compression & Format Conversion:** Optimize synced image buffers with WebP/AVIF compression and format conversions before uploading to whiteboard widgets.
-* **Local Document & Data Parsing:** Extend SyncBoard to import and render local Office documents, PDFs, and Markdown files onto whiteboards.
+* **Local Document & Data Parsing:** Extend SyncingBoard to import and render local Office documents, PDFs, and Markdown files onto whiteboards.
 * **MCP Server Integration:** Model Context Protocol (MCP) server integration (`mcp-roadmap.md`) allowing AI coding agents (Antigravity, Claude, Cursor) to inspect Miro canvas selections and trigger sync operations.
 * **Multi-Whiteboard Platform Expansion (Target Whiteboards):** Expand target whiteboard adapters beyond Miro to support Mural, Microsoft Whiteboard, Excalidraw, and tldraw.
 * **Adobe UXP Companion:** Extender plugin for Adobe XD / Photoshop canvas surfaces.

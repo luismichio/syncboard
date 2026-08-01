@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>SyncBoard Companion UI</title>
+  <title>SyncingBoard Companion UI</title>
   <style>
     :root {
       --bg-page: #0b0c0d;
@@ -186,7 +186,7 @@
 <body>
   <div class="container">
     <header>
-      <h2>SyncBoard Companion</h2>
+      <h2>SyncingBoard Companion</h2>
       <p class="subtitle">Penpot Companion Relay</p>
       <span class="version-badge">v0.13.6 Community</span>
     </header>
@@ -240,7 +240,7 @@
     const pluginBadge = document.getElementById('plugin-badge');
     const logBox = document.getElementById('log');
 
-    const savedId = localStorage.getItem('syncboard_pairing_id');
+    const savedId = localStorage.getItem('syncingboard_pairing_id');
     if (savedId) {
       pairingInput.value = savedId;
     }
@@ -351,7 +351,7 @@
 
       await disconnectAbly();
 
-      localStorage.setItem('syncboard_pairing_id', pairingId);
+      localStorage.setItem('syncingboard_pairing_id', pairingId);
       currentPairingId = pairingId;
 
       updateStatus('connecting', 'Connecting');

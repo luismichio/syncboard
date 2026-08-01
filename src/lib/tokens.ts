@@ -7,7 +7,7 @@ export interface TokenData {
 
 /**
  * Derives a short deployment fingerprint from the app URL.
- * This prevents token collisions when multiple SyncBoard instances
+ * This prevents token collisions when multiple SyncingBoard instances
  * share the same Miro board storage namespace.
  */
 function deploymentFingerprint(): string {

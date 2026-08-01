@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>SyncBoard Figma Companion</title>
+  <title>SyncingBoard Figma Companion</title>
   <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
   <style>
     :root {
@@ -187,7 +187,7 @@
 <body>
   <div class="container">
     <header>
-      <div class="subtitle">SyncBoard Companion</div>
+      <div class="subtitle">SyncingBoard Companion</div>
       <h2>Figma Companion Relay</h2>
       <div class="version-badge">v0.13.6 Community</div>
     </header>
@@ -288,7 +288,7 @@
 
     let savedId = null;
     try {
-      savedId = localStorage.getItem('syncboard_pairing_id');
+      savedId = localStorage.getItem('syncingboard_pairing_id');
     } catch (e) {
       // localStorage is blocked in this sandbox
     }
@@ -406,7 +406,7 @@
         });
 
         try {
-          localStorage.setItem('syncboard_pairing_id', pairingId);
+          localStorage.setItem('syncingboard_pairing_id', pairingId);
         } catch (e) {
           // localStorage is blocked in this sandbox
         }

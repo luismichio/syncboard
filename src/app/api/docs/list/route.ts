@@ -20,7 +20,7 @@ export async function GET() {
       updatedAt: d.updatedAt.toISOString(),
       rawUrl: `/api/docs/raw?file=${d.filename}`,
       htmlUrl: `/docs/${d.slug}`,
-      githubUrl: `https://github.com/luismichio/syncboard/blob/main/doc/${d.filename}`,
+      githubUrl: `https://github.com/luismichio/syncingboard/blob/main/doc/${d.filename}`,
     })),
   });
 }

@@ -65,19 +65,19 @@ export async function generateMetadata(props: {
   const doc = getDocBySlug(slug);
   if (!doc) return {};
 
-  const title = `${doc.meta.title} — SyncBoard Docs`;
-  const description = doc.meta.description || "SyncBoard documentation";
+  const title = `${doc.meta.title} — SyncingBoard Docs`;
+  const description = doc.meta.description || "SyncingBoard documentation";
 
   return {
     title,
     description,
     alternates: {
-      canonical: `https://syncboard.luiskobayashi.com/docs/${slug}`,
+      canonical: `https://syncingboard.com/docs/${slug}`,
     },
     openGraph: {
       title,
       description,
-      url: `https://syncboard.luiskobayashi.com/docs/${slug}`,
+      url: `https://syncingboard.com/docs/${slug}`,
       type: "article",
     },
     twitter: {
@@ -97,8 +97,8 @@ function rehypeDocLinks(docFilename: string) {
       if (node.tagName === "a" && typeof node.properties?.href === "string") {
         let href = node.properties.href;
 
-        // Convert GitHub repository doc links (e.g. https://github.com/luismichio/syncboard/blob/dev/doc/setup.md) into relative paths
-        const githubBlobMatch = href.match(/^https?:\/\/github\.com\/luismichio\/syncboard\/blob\/[^/]+\/(.+)$/i);
+        // Convert GitHub repository doc links (e.g. https://github.com/luismichio/syncingboard/blob/dev/doc/setup.md) into relative paths
+        const githubBlobMatch = href.match(/^https?:\/\/github\.com\/luismichio\/syncingboard\/blob\/[^/]+\/(.+)$/i);
         if (githubBlobMatch) {
           href = githubBlobMatch[1];
         }
@@ -234,7 +234,7 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <Link href="/" className="hover:opacity-80 transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg">
-              <span className="text-lg font-bold tracking-tight">SyncBoard</span>
+              <span className="text-lg font-bold tracking-tight">SyncingBoard</span>
             </Link>
             <span className="text-text-muted font-mono text-xs shrink-0" aria-hidden="true">/</span>
             <Link href="/docs" className="text-xs font-mono text-text-muted hover:text-text-page transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm">
@@ -245,7 +245,7 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <a
-              href={`https://github.com/luismichio/syncboard/blob/main/doc/${doc.meta.filename}`}
+              href={`https://github.com/luismichio/syncingboard/blob/main/doc/${doc.meta.filename}`}
               target="_blank"
               rel="noreferrer"
               className="hidden sm:inline-flex px-4 py-2 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -375,8 +375,8 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
             <CookieSettingsButton />
             <ThemeToggle />
           </div>
-          <a href="https://github.com/luismichio/syncboard" target="_blank" rel="noreferrer" className="hover:text-text-page transition">
-            github.com/luismichio/syncboard
+          <a href="https://github.com/luismichio/syncingboard" target="_blank" rel="noreferrer" className="hover:text-text-page transition">
+            github.com/luismichio/syncingboard
           </a>
         </div>
       </footer>

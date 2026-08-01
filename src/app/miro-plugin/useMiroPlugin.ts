@@ -109,8 +109,8 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
   /**
    * Adopt or re-target image widgets on the board to a chosen Figma/Penpot frame.
    *
-   * - For non-SyncBoard images: attaches syncboard metadata (adoption).
-   * - For existing SyncBoard images: updates syncboard.key (re-targeting).
+   * - For non-SyncingBoard images: attaches syncingboard metadata (adoption).
+   * - For existing SyncingBoard images: updates syncingboard metadata (re-targeting).
    * - Then replaces the image content with the chosen frame render.
    *
    * The widget ID never changes → connectors, comments, links, frame membership all survive.
@@ -146,11 +146,11 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
       }[] = [];
 
       for (const img of images) {
-        // Read existing metadata (re-targeting if syncboard already exists)
+        // Read existing metadata (re-targeting if syncingboard already exists)
         const existingMeta = await img.getMetadata() as Record<string, unknown> | undefined;
-        const existingSync = existingMeta?.syncboard as Record<string, unknown> | undefined;
+        const existingSync = existingMeta?.syncingboard as Record<string, unknown> | undefined;
 
-        // Attach/update syncboard metadata with the new frame info
+        // Attach/update syncingboard metadata with the new frame info
         const syncMeta: Record<string, unknown> = {
           fileKey,
           nodeId,
@@ -165,7 +165,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
           syncMeta.width = existingSync.width;
         }
 
-        await img.setMetadata('syncboard', syncMeta);
+        await img.setMetadata('syncingboard', syncMeta);
         await img.sync();
 
         adoptedItems.push({

@@ -3,15 +3,15 @@ import { getAllDocs } from '@/lib/docs';
 import { DocsIndexClient } from './DocsIndexClient';
 
 export const metadata: Metadata = {
-  title: 'Documentation — SyncBoard',
-  description: 'Architecture specifications, setup guides, release notes, and configuration reference for self-hosting SyncBoard.',
+  title: 'Documentation — SyncingBoard',
+  description: 'Architecture specifications, setup guides, release notes, and configuration reference for self-hosting SyncingBoard.',
   alternates: {
-    canonical: 'https://syncboard.luiskobayashi.com/docs',
+    canonical: 'https://syncingboard.com/docs',
   },
   openGraph: {
-    title: 'Documentation — SyncBoard',
-    description: 'Architecture specifications, setup guides, release notes, and configuration reference for self-hosting SyncBoard.',
-    url: 'https://syncboard.luiskobayashi.com/docs',
+    title: 'Documentation — SyncingBoard',
+    description: 'Architecture specifications, setup guides, release notes, and configuration reference for self-hosting SyncingBoard.',
+    url: 'https://syncingboard.com/docs',
   },
 };
 

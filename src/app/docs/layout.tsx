@@ -14,7 +14,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           borderTop: "1px solid var(--border-card)",
         }}
       >
-        SyncBoard {DISPLAY}
+        SyncingBoard {DISPLAY}
       </footer>
     </>
   );

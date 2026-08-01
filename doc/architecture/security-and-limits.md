@@ -7,13 +7,13 @@ description: Sliding-window rate limiting, SHA-256 token hashing, 300s Redis SET
 
 > **Status:** stable — implemented throttles and security controls.
 
-SyncBoard includes built-in security mechanisms and rate limit throttles to comply with Figma and Miro API restrictions while protecting public demo infrastructure.
+SyncingBoard includes built-in security mechanisms and rate limit throttles to comply with Figma and Miro API restrictions while protecting public demo infrastructure.
 
 ---
 
 ## Rate Limiting Engine & Token-Hash Keys
 
-SyncBoard implements a sliding-window rate limiter (`@upstash/ratelimit` via `src/lib/rate-limit.ts`) and global IP edge throttle (`src/middleware.ts`).
+SyncingBoard implements a sliding-window rate limiter (`@upstash/ratelimit` via `src/lib/rate-limit.ts`) and global IP edge throttle (`src/middleware.ts`).
 
 * **Token-Hash Identification (IP-Proof):** Callers are identified primarily by SHA-256 hashes of their OAuth tokens (`tok:sha256(token)`) or pairing IDs (`relay:sha256(pairingId)`). This prevents VPN/IP cycling attacks, as each request requires a valid user-authenticated token. Client IP (`ip:clientIp`) is used as a fallback only when no token or pairing ID is present.
 * **Backend Auto-Detection:** Uses Upstash Redis when `UPSTASH_REDIS_REST_URL` is configured (required for Vercel serverless). On persistent infrastructure (Docker/VPS/ECS), falls back to an in-memory sliding window `Map`.
@@ -36,9 +36,9 @@ SyncBoard implements a sliding-window rate limiter (`@upstash/ratelimit` via `sr
 
 ## Platform API Quotas & Optimizations
 
-* **Figma API Quotas:** Starter (Free) plan is limited to 6 image requests per month. Paid plans allow 10–20 requests/min. For detailed tier limits, see the official [Figma REST API Rate Limits Documentation](https://developers.figma.com/docs/rest-api/rate-limits/). SyncBoard optimizes consumption by batching requested frames from the same file into single HTTP requests (`/api/figma/render-batch`).
+* **Figma API Quotas:** Starter (Free) plan is limited to 6 image requests per month. Paid plans allow 10–20 requests/min. For detailed tier limits, see the official [Figma REST API Rate Limits Documentation](https://developers.figma.com/docs/rest-api/rate-limits/). SyncingBoard optimizes consumption by batching requested frames from the same file into single HTTP requests (`/api/figma/render-batch`).
 * **Penpot API Quotas:** Penpot does not enforce API rate limits or monthly export caps. Rendering runs locally in the Penpot browser tab.
-* **Miro API Quotas:** Miro limits image updates (`PATCH`) to 50 requests/min per user token. For detailed rate tier specifications, see the official [Miro REST API Rate Limiting Reference](https://developers.miro.com/reference/rate-limiting). SyncBoard enforces a **500ms delay** between consecutive widget updates to ensure compliance.
+* **Miro API Quotas:** Miro limits image updates (`PATCH`) to 50 requests/min per user token. For detailed rate tier specifications, see the official [Miro REST API Rate Limiting Reference](https://developers.miro.com/reference/rate-limiting). SyncingBoard enforces a **500ms delay** between consecutive widget updates to ensure compliance.
 * **Batch Limit:** Community plan limits sync to **3 unique images per batch**. UI warning banner in `SyncTab.tsx` disables the sync button when exceeded.
 * **Scale Restriction:** Community plan scale dropdown is limited to 1x and 2x (`MAX_SCALE=2`). Self-host deployments support 1x–4x (`MAX_SCALE=4`).
 

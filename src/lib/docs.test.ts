@@ -40,7 +40,7 @@ describe('Docs Engine Utilities (src/lib/docs.ts)', () => {
   });
 
   it('getWordCount accurately estimates total words in markdown text', () => {
-    const text = 'SyncBoard is a stateless design sync engine for Miro.';
+    const text = 'SyncingBoard is a stateless design sync engine for Miro.';
     const wordCount = getWordCount(text);
     expect(wordCount).toBe(9);
   });

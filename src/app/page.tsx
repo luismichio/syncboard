@@ -39,7 +39,7 @@ export default function Home() {
             OPEN SOURCE · AGPL 3.0 · v{VERSION}
           </div>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-text-page to-text-muted bg-clip-text text-transparent">
-            SyncBoard
+            SyncingBoard
           </h1>
           <p className="text-sm font-semibold tracking-wider font-mono uppercase text-accent pt-1">
             Stateless Figma/Penpot-Miro Pipeline
@@ -60,7 +60,7 @@ export default function Home() {
             DOCUMENTATION
           </Link>
           <a
-            href="https://github.com/luismichio/syncboard"
+            href="https://github.com/luismichio/syncingboard"
             target="_blank"
             rel="noreferrer"
             className="px-6 py-3 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200"

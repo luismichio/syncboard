@@ -1,11 +1,11 @@
 ---
 title: "Contribution Guidelines & CLA"
-description: "Guidelines for contributing to SyncBoard, signing off commits under DCO, running unit tests, and CLA compliance."
+description: "Guidelines for contributing to SyncingBoard, signing off commits under DCO, running unit tests, and CLA compliance."
 ---
 
-# Contributing to SyncBoard
+# Contributing to SyncingBoard
 
-First off, thank you for taking the time to contribute! Contributions from the community help make SyncBoard better for everyone.
+First off, thank you for taking the time to contribute! Contributions from the community help make SyncingBoard better for everyone.
 
 By contributing to this project, you agree to abide by our contribution guidelines and terms.
 
@@ -16,7 +16,7 @@ By contributing to this project, you agree to abide by our contribution guidelin
 
 ## Developer Certificate of Origin (DCO) & Licensing
 
-To ensure that all code in SyncBoard remains open-source and legally unencumbered, we use the **Developer Certificate of Origin (DCO)**. 
+To ensure that all code in SyncingBoard remains open-source and legally unencumbered, we use the **Developer Certificate of Origin (DCO)**. 
 
 By submitting a Pull Request, you certify that:
 1. **You authored the contribution**, or you have the legal right to submit it under the GNU Affero General Public License v3 (AGPL-3.0) and CLA terms.
@@ -37,7 +37,7 @@ To set up your local workspace for development:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/luismichio/syncboard.git
+   git clone https://github.com/luismichio/syncingboard.git
    ```
 2. **Install dependencies:**
    ```bash

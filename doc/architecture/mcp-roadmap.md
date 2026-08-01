@@ -1,20 +1,20 @@
 ---
 title: Model Context Protocol (MCP) Roadmap Architecture
-description: Planned specifications for SyncBoard as an MCP Client (Lovable/Stitch) and MCP Server exposing sync tools to AI agents.
+description: Planned specifications for SyncingBoard as an MCP Client (Lovable/Stitch) and MCP Server exposing sync tools to AI agents.
 ---
 
 # Model Context Protocol (MCP) Roadmap Architecture
 
 > **PLANNED FEATURE / FUTURE ROADMAP SPECIFICATION**
-> **Overview:** SyncBoard's proposed Model Context Protocol (MCP) layer defines future capabilities for acting as an **MCP client** to consume design-source MCP servers (Lovable, Stitch) and as an **MCP server** to expose SyncBoard tools to AI agents. *Note: Neither the MCP client nor the MCP server are implemented in the v0.13.3 production build.*
+> **Overview:** SyncingBoard's proposed Model Context Protocol (MCP) layer defines future capabilities for acting as an **MCP client** to consume design-source MCP servers (Lovable, Stitch) and as an **MCP server** to expose SyncingBoard tools to AI agents. *Note: Neither the MCP client nor the MCP server are implemented in the v0.13.3 production build.*
 
 ---
 
-## SyncBoard as MCP Client (Planned)
+## SyncingBoard as MCP Client (Planned)
 
 > **Status:** draft / planned — transport design verified with `@modelcontextprotocol/sdk` v1.29.0+ (*not installed in v0.13.3 package.json*).
 
-SyncBoard can act as a **remote MCP client** using the official `@modelcontextprotocol/sdk` (v1.29.0+). This enables SyncBoard (running on Vercel serverless) to call MCP servers over HTTP like any REST API — no subprocess management required for remote MCP endpoints.
+SyncingBoard can act as a **remote MCP client** using the official `@modelcontextprotocol/sdk` (v1.29.0+). This enables SyncingBoard (running on Vercel serverless) to call MCP servers over HTTP like any REST API — no subprocess management required for remote MCP endpoints.
 
 ### Supported MCP Transports
 | Transport | SDK Transport Class | Used For | Serverless Compatible? |
@@ -38,7 +38,7 @@ async function callLovableTool(accessToken: string, tool: string, args: object) 
   });
 
   const client = new Client(
-    { name: "syncboard", version: "1.0.0" },
+    { name: "syncingboard", version: "1.0.0" },
     { capabilities: {} }
   );
 
@@ -49,11 +49,11 @@ async function callLovableTool(accessToken: string, tool: string, args: object) 
 
 ---
 
-## SyncBoard as MCP Server (Planned)
+## SyncingBoard as MCP Server (Planned)
 
 > **NOT AVAILABLE YET (PLANNED FEATURE / FUTURE ROADMAP SPECIFICATION)**
 
-SyncBoard can act as an **MCP server** — exposing its own tools to AI agents (Claude Desktop, Cursor, pi, custom scripts).
+SyncingBoard can act as an **MCP server** — exposing its own tools to AI agents (Claude Desktop, Cursor, pi, custom scripts).
 
 ### Exposed Tools
 | Tool | Description | Example Agent Prompt |
@@ -63,13 +63,13 @@ SyncBoard can act as an **MCP server** — exposing its own tools to AI agents (
 | **`get_status`** | Check sync freshness of a specific widget | "Is the home screen up to date?" |
 | **`batch_sync`** | Sync multiple frames in one call | "Sync all Figma frames to Miro" |
 | **`list_projects`** | List connected source projects | "What designs are available?" |
-| **`list_sources`** | Show design accounts linked to SyncBoard | "Which Figma account is connected?" |
+| **`list_sources`** | Show design accounts linked to SyncingBoard | "Which Figma account is connected?" |
 
 ### Symmetric Architecture Diagram
 ```mermaid
 graph TD
   agents["AI Agents<br/>(Claude / Cursor / pi)"]
-  server["SyncBoard MCP Server<br/>Exposes: sync_frame, list_*, get_status"]
+  server["SyncingBoard MCP Server<br/>Exposes: sync_frame, list_*, get_status"]
   figma["Figma REST API"]
   lovable["Lovable MCP HTTP"]
   stitch["Stitch MCP stdio"]

@@ -98,7 +98,7 @@ export default function MiroPluginPage() {
 
       setDefaultPngScale(safeScale);
       setImportScale(safeScale);
-      setUseTauri(localStorage.getItem('syncboard_use_tauri') === 'true');
+      setUseTauri(localStorage.getItem('syncingboard_use_tauri') === 'true');
       setPairingId(getOrCreatePairingId());
     });
 
@@ -110,7 +110,7 @@ export default function MiroPluginPage() {
 
     const check = async () => {
       try {
-        const res = await fetch('https://local-syncboard.luiskobayashi.com:4401/health', {
+        const res = await fetch('https://local-syncingboard.luiskobayashi.com:4401/health', {
           method: 'GET',
           signal: AbortSignal.timeout(3000),
           targetAddressSpace: 'loopback',
@@ -118,7 +118,7 @@ export default function MiroPluginPage() {
         if (res.status !== 200) throw new Error('unreachable');
       } catch {
         setUseTauri(false);
-        localStorage.setItem('syncboard_use_tauri', 'false');
+        localStorage.setItem('syncingboard_use_tauri', 'false');
       }
     };
 
@@ -192,7 +192,7 @@ export default function MiroPluginPage() {
         if (!widget || widget.type !== 'image') continue;
 
         const metadata = (await widget.getMetadata()) as Record<string, unknown> | undefined;
-        const syncData = metadata?.syncboard as Record<string, unknown> | undefined;
+        const syncData = metadata?.syncingboard as Record<string, unknown> | undefined;
 
         if (!syncData) continue;
 
@@ -201,7 +201,7 @@ export default function MiroPluginPage() {
           [key]: value,
         };
 
-        await widget.setMetadata('syncboard', updated);
+        await widget.setMetadata('syncingboard', updated);
         await widget.sync();
       }
 

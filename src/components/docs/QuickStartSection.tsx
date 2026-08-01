@@ -7,7 +7,7 @@ export function QuickStartSection() {
   const [activeTab, setActiveTab] = useState<'community' | 'selfhosted'>('community');
 
   const vercelDeployUrl =
-    'https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,ABLY_API_KEY,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN&project-name=syncboard&repository-name=syncboard';
+    'https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncingboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,ABLY_API_KEY,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN&project-name=syncingboard&repository-name=syncingboard';
 
   return (
     <div className="mb-14 rounded-2xl border border-border-card bg-bg-card/70 p-6 md:p-8 backdrop-blur-md shadow-sm transition-all">
@@ -19,7 +19,7 @@ export function QuickStartSection() {
             <h2 className="text-xl font-extrabold tracking-tight text-text-page">Quick Start Guide</h2>
           </div>
           <p className="text-xs text-text-muted font-sans">
-            Choose your deployment mode to get SyncBoard up and running in minutes.
+            Choose your deployment mode to get SyncingBoard up and running in minutes.
           </p>
         </div>
 
@@ -64,11 +64,11 @@ export function QuickStartSection() {
                   <h3 className="text-sm font-bold text-text-page">Install Miro Plugin</h3>
                 </div>
                 <p className="text-xs text-text-muted leading-relaxed mb-4">
-                  Add SyncBoard to your Miro team workspace with zero server setup or infrastructure required.
+                  Add SyncingBoard to your Miro team workspace with zero server setup or infrastructure required.
                 </p>
               </div>
               <a
-                href="https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fsyncboard.luiskobayashi.com%2Fapi%2Foauth%2Fmiro%2Fcallback"
+                href="https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fsyncingboard.com%2Fapi%2Foauth%2Fmiro%2Fcallback"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-accent text-bg-page font-mono text-xs font-bold hover:opacity-90 transition"
@@ -87,7 +87,7 @@ export function QuickStartSection() {
                   <h3 className="text-sm font-bold text-text-page">Connect Figma</h3>
                 </div>
                 <p className="text-xs text-text-muted leading-relaxed mb-4">
-                  Authorize 1-click read-only Figma access in Miro SyncBoard App settings. <span className="text-text-page font-medium">Optional:</span> install Figma Desktop plugin for live frame selection.
+                  Authorize 1-click read-only Figma access in Miro SyncingBoard App settings. <span className="text-text-page font-medium">Optional:</span> install Figma Desktop plugin for live frame selection.
                 </p>
               </div>
               <Link
@@ -130,9 +130,9 @@ export function QuickStartSection() {
               <span className="inline-block font-mono text-[10px] font-bold text-accent uppercase tracking-wider">
                 1-Click Personal Serverless Deployment
               </span>
-              <h3 className="text-base font-bold text-text-page">Deploy SyncBoard on Vercel</h3>
+              <h3 className="text-base font-bold text-text-page">Deploy SyncingBoard on Vercel</h3>
               <p className="text-xs text-text-muted leading-relaxed">
-                Deploy your own isolated, zero-trust SyncBoard proxy engine. Automatically clones the repository to your GitHub account and prompts for environment credentials.
+                Deploy your own isolated, zero-trust SyncingBoard proxy engine. Automatically clones the repository to your GitHub account and prompts for environment credentials.
               </p>
             </div>
 
@@ -157,7 +157,7 @@ export function QuickStartSection() {
               <span className="font-mono text-xs font-bold text-accent">Step 1</span>
               <h4 className="text-xs font-bold text-text-page mt-1 mb-1">Click Deploy Button</h4>
               <p className="text-[11px] text-text-muted leading-normal">
-                Clones `syncboard` to your GitHub account and provisions Next.js App Router serverless endpoints on Vercel.
+                Clones `syncingboard` to your GitHub account and provisions Next.js App Router serverless endpoints on Vercel.
               </p>
             </div>
 

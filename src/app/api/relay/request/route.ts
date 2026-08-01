@@ -82,7 +82,7 @@ async function handler(request: Request) {
     if (!online) {
       const platformName = platform === 'figma' ? 'Figma' : 'Penpot';
       return NextResponse.json(
-        { error: `SyncBoard companion is offline. Open your ${platformName} companion plugin and connect using this pairing ID.` },
+        { error: `SyncingBoard companion is offline. Open your ${platformName} companion plugin and connect using this pairing ID.` },
         { status: 404 }
       );
     }

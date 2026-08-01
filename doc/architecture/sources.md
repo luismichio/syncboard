@@ -5,15 +5,15 @@ description: Cloud REST integration for Figma and event-driven Penpot WASM relay
 
 # Source Adapters Architecture
 
-> **Overview:** SyncBoard reads design data from source design tools through platform-specific adapters. Two are implemented (**Figma**, **Penpot**); five more are under research (**UXPin**, **Framer**, **Lovable**, **Stitch**, **Adobe UXP**).
+> **Overview:** SyncingBoard reads design data from source design tools through platform-specific adapters. Two are implemented (**Figma**, **Penpot**); five more are under research (**UXPin**, **Framer**, **Lovable**, **Stitch**, **Adobe UXP**).
 
 **Implementation Note (v0.13.3):** While `SyncSourceAdapter` represents the target architectural interface for future integrations (Lovable, Stitch), `v0.13.3` currently implements Figma and Penpot directly via custom serverless endpoints (`/api/figma/...`, `/api/relay/...`) and dedicated React importer hooks (`useFigmaImporter`, `usePenpotImporter`).
 
 ```mermaid
 graph TD
   miro["Miro Plugin<br/>(any browser)"]
-  api["SyncBoard API<br/>(Next.js/Vercel)"]
-  relay["SyncBoard Cloud Relay<br/>(Ably WebSocket + Redis)"]
+  api["SyncingBoard API<br/>(Next.js/Vercel)"]
+  relay["SyncingBoard Cloud Relay<br/>(Ably WebSocket + Redis)"]
   figma["Figma Cloud<br/>(api.figma.com/v1)"]
   penpot["Penpot Companion Plugin<br/>(in design.penpot.app tab)"]
 
@@ -39,9 +39,9 @@ Figma provides a robust public web API that renders design frames to images in t
 Figma enforces access control on `figma.fileKey` in its client-side plugin API:
 * **Private/Organization Plugins:** Can query `figma.fileKey` automatically by setting `"enablePrivatePluginApi": true` in `manifest.json`.
 * **Public/Community Plugins:** Figma blocks access to `figma.fileKey` (returns `undefined`) to preserve document privacy.
-* **The Metadata Workaround:** To support public community installations, SyncBoard implements a document-level linking bridge:
+* **The Metadata Workaround:** To support public community installations, SyncingBoard implements a document-level linking bridge:
   1. The first time a Figma file is opened, the user pastes the Figma URL once in the Companion UI.
-  2. The plugin extracts `fileKey` and saves it in document metadata using `figma.root.setPluginData('syncboard_file_key', fileKey)`.
+  2. The plugin extracts `fileKey` and saves it in document metadata using `figma.root.setPluginData('syncingboard_file_key', fileKey)`.
   3. This metadata persists within the `.fig` file in Figma's cloud, enabling companion selection auto-detection.
 
 ---
@@ -53,7 +53,7 @@ Figma enforces access control on `figma.fileKey` in its client-side plugin API:
 Unlike Figma, Penpot does **not** provide a public cloud REST API for rendering frames into PNG/SVG. Syncing Penpot designs uses an event-driven cloud relay to coordinate the designer's active Penpot browser tab:
 
 * **The Cloud Limitation:** Rendering Penpot designs in the cloud would require booting a headless browser instance (Puppeteer/Playwright), loading the heavy WebAssembly editor, and taking screenshots — requiring expensive compute nodes.
-* **The Event-Driven Relay Solution:** SyncBoard uses the designer's **active Penpot browser tab** as the renderer, coordinated via **Ably WebSockets** for instant real-time delivery and an ephemeral **Upstash Redis** cache for heavy binary result storage.
+* **The Event-Driven Relay Solution:** SyncingBoard uses the designer's **active Penpot browser tab** as the renderer, coordinated via **Ably WebSockets** for instant real-time delivery and an ephemeral **Upstash Redis** cache for heavy binary result storage.
 * **Direct Selection (0 Redis Commands):** Selection payloads (`id`, `name`, `fileKey`) are published directly over the Ably WebSocket channel back to the Miro plugin sidebar, bypassing Redis entirely.
 * **Hybrid Image Storage (Single-Read Redis):** Heavy PNG/SVG renders are posted to `/api/relay/penpot/result` (stored in Redis with a 45s TTL) and a tiny `'result-ready'` notification event is published over Ably. The Miro plugin receives the WebSocket event and reads/deletes the image with a single `GET /api/relay/response` call (3 Redis commands total per export: 1 SET, 1 GET, 1 DEL).
 

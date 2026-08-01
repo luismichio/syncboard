@@ -1,5 +1,5 @@
 /**
- * Rate limiting for SyncBoard public demo.
+ * Rate limiting for SyncingBoard public demo.
  *
  * Identifies users by their OAuth token hash (or pairingId for Penpot relay),
  * not by IP. This makes rate limiting immune to VPN cycling — an attacker
@@ -284,7 +284,7 @@ class RedisBackend implements RateLimiterBackend {
                   redis,
                   limiter: Ratelimit.slidingWindow(cfg.limit, `${cfg.window} s`),
                   analytics: false,
-                  prefix: `syncboard:rl:${getPlan()}`,
+                  prefix: `syncingboard:rl:${getPlan()}`,
                 })
               );
             }
@@ -298,7 +298,7 @@ class RedisBackend implements RateLimiterBackend {
                     redis,
                     limiter: Ratelimit.slidingWindow(w.limit, `${w.window} s`),
                     analytics: false,
-                    prefix: `syncboard:rl:${getPlan()}`,
+                    prefix: `syncingboard:rl:${getPlan()}`,
                   })
                 );
               }

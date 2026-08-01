@@ -120,7 +120,7 @@ export function useMiroSync(
             let storedWidth: number | undefined;
             try {
               const metadata = (await match.getMetadata()) as Record<string, unknown> | undefined;
-              const syncData = metadata?.syncboard as { 
+              const syncData = metadata?.syncingboard as { 
                 format?: 'png' | 'svg'; 
                 scale?: number;
                 platform?: 'figma' | 'penpot';
@@ -378,8 +378,8 @@ export function useMiroSync(
           const widget = await miro.board.getById(item.id);
           if (widget && 'setMetadata' in widget && typeof widget.setMetadata === 'function') {
             const existingMeta = await widget.getMetadata().catch(() => ({})) as Record<string, unknown>;
-            const existingSyncboard = existingMeta?.syncboard as Record<string, unknown> | undefined;
-            await widget.setMetadata('syncboard', {
+            const existingSyncingboard = existingMeta?.syncingboard as Record<string, unknown> | undefined;
+            await widget.setMetadata('syncingboard', {
               fileKey: item.fileKey,
               nodeId: item.nodeId,
               nodeName: liveName,
@@ -387,8 +387,8 @@ export function useMiroSync(
               scale: item.scale || 2,
               platform: item.platform || 'figma',
               // Preserve natural dimensions from the original import if they exist
-              ...(existingSyncboard?.width ? { width: existingSyncboard.width } : {}),
-              ...(existingSyncboard?.height ? { height: existingSyncboard.height } : {}),
+              ...(existingSyncingboard?.width ? { width: existingSyncingboard.width } : {}),
+              ...(existingSyncingboard?.height ? { height: existingSyncingboard.height } : {}),
             });
 
             // Update widget title to reflect the live frame name

@@ -162,7 +162,7 @@ export function usePenpotImporter(
         throw new Error('image.setMetadata is not supported.');
       }
 
-      await image.setMetadata('syncboard', {
+      await image.setMetadata('syncingboard', {
         fileKey: capturedFileId,
         nodeId: capturedObjectId,
         nodeName: resolvedName,

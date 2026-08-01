@@ -1,13 +1,13 @@
 ---
 title: Privacy
-description: SyncBoard privacy policy — what transient operational data we process, your GDPR rights, and how we never store your design data.
+description: SyncingBoard privacy policy — what transient operational data we process, your GDPR rights, and how we never store your design data.
 ---
 
 # Privacy
 
 **Last updated:** 2026-07-26
 
-SyncBoard is designed with privacy as a core principle. Your design data stays in your tools — we never store your frames, images, or personal files.
+SyncingBoard is designed with privacy as a core principle. Your design data stays in your tools — we never store your frames, images, or personal files.
 
 ---
 
@@ -66,7 +66,7 @@ The public documentation site uses Google Analytics (G-Q4W94QDWWC) to measure an
 
 ## Self-hosted deployment
 
-If you self-host SyncBoard (via Docker or Vercel clone), **no data leaves your infrastructure** except what you explicitly configure:
+If you self-host SyncingBoard (via Docker or Vercel clone), **no data leaves your infrastructure** except what you explicitly configure:
 
 - Ably: Optional — only needed for Penpot relay. You can run Figma-only without it.
 - Redis: Optional — rate limiting falls back to in-memory on persistent hosts.
@@ -82,4 +82,4 @@ Since we store no personal data beyond ephemeral IP counters, there is nothing t
 - **Decline analytics:** Click "DECLINE" on the cookie banner
 - **Use self-hosted:** Clone the repo and run on your own infrastructure
 
-For any questions, open an issue on [GitHub](https://github.com/luismichio/syncboard).
+For any questions, open an issue on [GitHub](https://github.com/luismichio/syncingboard).

@@ -11,15 +11,15 @@ export function AppHeader({ tokensLoading, figmaToken, miroToken }: AppHeaderPro
         <div
           className="w-6 h-6 mt-0.5 bg-accent shrink-0"
           style={{
-            maskImage: 'url(/syncboard_logo.svg)',
-            WebkitMaskImage: 'url(/syncboard_logo.svg)',
+            maskImage: 'url(/syncingboard_logo.svg)',
+            WebkitMaskImage: 'url(/syncingboard_logo.svg)',
             maskSize: 'contain',
             maskRepeat: 'no-repeat',
             maskPosition: 'center',
           }}
         />
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-accent leading-none">SyncBoard</h2>
+          <h2 className="text-xl font-bold tracking-tight text-accent leading-none">SyncingBoard</h2>
           <p className="text-[10px] text-text-muted mt-0.5">Stateless Design-Miro Pipeline</p>
         </div>
       </div>

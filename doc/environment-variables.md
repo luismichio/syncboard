@@ -1,11 +1,11 @@
 ---
 title: Environment Variables
-description: Complete reference for all configuration keys, secret keys, cloud credentials, and rate-limiting options in SyncBoard.
+description: Complete reference for all configuration keys, secret keys, cloud credentials, and rate-limiting options in SyncingBoard.
 ---
 
 # Environment Variables Reference
 
-This document provides a comprehensive reference of all environment variables supported by SyncBoard. Environment variables are configured in `.env.local` for local development or set in your hosting platform (Vercel, AWS ECS, Netlify, Railway, Docker).
+This document provides a comprehensive reference of all environment variables supported by SyncingBoard. Environment variables are configured in `.env.local` for local development or set in your hosting platform (Vercel, AWS ECS, Netlify, Railway, Docker).
 
 ---
 
@@ -13,7 +13,7 @@ This document provides a comprehensive reference of all environment variables su
 
 | Variable | Type | Required | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `NEXT_PUBLIC_APP_URL` | String | **Yes** | None | The full public HTTPS URL of your deployment (e.g. `https://syncboard.yourdomain.com`). **Do not include a trailing slash.** Used for OAuth redirects and CORS policy matching. |
+| `NEXT_PUBLIC_APP_URL` | String | **Yes** | None | The full public HTTPS URL of your deployment (e.g. `https://syncingboard.com`). **Do not include a trailing slash.** Used for OAuth redirects and CORS policy matching. |
 
 ---
 
@@ -47,7 +47,7 @@ This document provides a comprehensive reference of all environment variables su
 
 ## Rate Limiting & Protection Controls
 
-SyncBoard includes an optional 3-layer protection engine. All rate limits are active when `UPSTASH_REDIS_REST_URL` is configured.
+SyncingBoard includes an optional 3-layer protection engine. All rate limits are active when `UPSTASH_REDIS_REST_URL` is configured.
 
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |

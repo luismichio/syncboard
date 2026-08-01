@@ -48,7 +48,7 @@ export async function middleware(request: NextRequest) {
       redis,
       limiter: Ratelimit.slidingWindow(GLOBAL_CATCH_ALL_LIMIT, `${GLOBAL_CATCH_ALL_WINDOW} s`),
       analytics: false,
-      prefix: "syncboard:rl:global",
+      prefix: "syncingboard:rl:global",
     });
 
     const ip =

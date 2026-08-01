@@ -7,7 +7,7 @@ description: "Security architecture, vulnerability reporting procedures, zero-pe
 
 ## Supported Versions
 
-We actively monitor and patch security vulnerabilities in SyncBoard. Security updates are applied to the following versions:
+We actively monitor and patch security vulnerabilities in SyncingBoard. Security updates are applied to the following versions:
 
 | Version  | Supported       |
 | -------- | --------------- |
@@ -20,7 +20,7 @@ Always ensure you are running the latest release to receive active security upda
 
 ## Security Posture
 
-SyncBoard is designed with a **zero-persistent-storage, cloud-relay-first** architecture that minimizes attack surface:
+SyncingBoard is designed with a **zero-persistent-storage, cloud-relay-first** architecture that minimizes attack surface:
 
 ### Authentication & Token Handling
 
@@ -33,14 +33,14 @@ SyncBoard is designed with a **zero-persistent-storage, cloud-relay-first** arch
 
 - **Community Plan rate limiting** — per-user token-based throttling on all sync endpoints. Identifiers are hashed with SHA-256 to avoid storing raw tokens in rate-limit counters. A global daily backstop (500 syncs/day) prevents free-tier budget exhaustion regardless of attacker IP cycling.
 - **Token-based identification** — rate limit keys use `SHA256(OAuth token)` or `SHA256(pairingId)` instead of client IP, making the limiter immune to VPN/proxy cycling. IP fallback only applies to unauthenticated requests (tightly capped at 5 req/min).
-- **CORS origin whitelisting** on all API routes — only trusted domains (`https://syncboard.yourdomain.com`, `http://localhost:3000`) are permitted.
+- **CORS origin whitelisting** on all API routes — only trusted domains (`https://syncingboard.com`, `http://localhost:3000`) are permitted.
 - **Generic error responses** — API endpoints sanitize exceptions to avoid leaking stack traces or internal paths to clients.
 - **Orphan endpoint cleanup** — unused relay routes (`/api/relay/penpot/poll`, `/api/relay/penpot/register`) have been removed to reduce the attack surface.
 
 ### Transport Security
 
 - **Penpot sync uses the cloud relay** (Ably WebSocket + Upstash Redis over public HTTPS), not localhost WebSocket or HTTP calls. This avoids exposure to **Private Network Access (PNA)** restrictions and prevents browsers from making mixed-content requests from `https://` origins to local servers.
-- **Figma sync is cloud-native** — the Figma Render API delivers images directly to Miro via the SyncBoard relay. No local servers or desktop agents are required for day-to-day sync.
+- **Figma sync is cloud-native** — the Figma Render API delivers images directly to Miro via the SyncingBoard relay. No local servers or desktop agents are required for day-to-day sync.
 - **SyncBridge (Tauri)** is fully **optional** — only needed for large images (>4.5MB), Adobe UXP integration, or local LLMs. When enabled, it uses a locally-trusted HTTPS certificate (`mkcert`) for secure communication with Miro Desktop (Electron).
 
 ### Surface Area Reduction
@@ -52,7 +52,7 @@ SyncBoard is designed with a **zero-persistent-storage, cloud-relay-first** arch
 
 ### GDPR & Data Protection
 
-SyncBoard's architecture is designed for **data minimization by default**, making self-hosted deployments naturally GDPR-compliant:
+SyncingBoard's architecture is designed for **data minimization by default**, making self-hosted deployments naturally GDPR-compliant:
 
 #### Data Flow Summary
 
@@ -66,14 +66,14 @@ SyncBoard's architecture is designed for **data minimization by default**, makin
 
 #### Self-Hosting (Recommended for GDPR)
 
-SyncBoard is open source. Self-hosting on your own infrastructure (Docker, VPS, ECS) means **no data leaves your control**:
+SyncingBoard is open source. Self-hosting on your own infrastructure (Docker, VPS, ECS) means **no data leaves your control**:
 
 - All OAuth tokens stay in your browser session or your Redis instance
 - Image data flows through your Vercel/Next.js deployment and your Redis
 - No third party accesses your design data
-- You are the data controller and processor — no DPA needed with SyncBoard project
+- You are the data controller and processor — no DPA needed with SyncingBoard project
 
-#### Public Instance (syncboard.luiskobayashi.com)
+#### Public Instance (syncingboard.com)
 
 If using the public demo instance, the operator acts as a **data processor**. The following sub-processors are involved:
 
@@ -85,13 +85,13 @@ If using the public demo instance, the operator acts as a **data processor**. Th
 
 #### Your Rights (Art. 15-22 GDPR)
 
-Since SyncBoard stores **no persistent user data**:
+Since SyncingBoard stores **no persistent user data**:
 
 - **Right to access / erasure:** There is no database with user records to access or delete. OAuth tokens are ephemeral (300s TTL or browser session lifetime).
 - **Right to data portability:** We do not store any personal data that could be exported.
 - **Right to object:** Self-hosting eliminates all third-party data processing.
 
-For any GDPR-related inquiries about the public instance, contact: `security-syncboard@luiskobayashi.com`
+For any GDPR-related inquiries about the public instance, contact: `security@syncingboard.com`
 
 ---
 
@@ -99,9 +99,9 @@ For any GDPR-related inquiries about the public instance, contact: `security-syn
 
 **Do not open public GitHub issues for security vulnerabilities.**
 
-If you discover a security vulnerability or exploit in SyncBoard, please report it privately:
+If you discover a security vulnerability or exploit in SyncingBoard, please report it privately:
 
-- **Email:** security-syncboard@luiskobayashi.com
+- **Email:** security@syncingboard.com
 
 When reporting, include:
 
@@ -117,4 +117,4 @@ We will:
 
 Please keep the details confidential until we have had reasonable time to secure our users' environments and release a fix.
 
-Thank you for helping keep SyncBoard secure!
+Thank you for helping keep SyncingBoard secure!

@@ -16,7 +16,7 @@ export interface SyncedImage {
  * Manages the global window.miro SDK registration, selection:update listeners,
  * and releases listeners cleanly on unmount to prevent duplicate triggers.
  * Reads image-specific format/scale preferences and platform from Miro widget metadata.
- * Also exposes isAnyImageSelected — true when any image widget (even non-SyncBoard) is selected.
+ * Also exposes isAnyImageSelected — true when any image widget (even non-SyncingBoard) is selected.
  */
 export function useMiroSelection(isInitMode: boolean | null) {
   const [selectedItems, setSelectedItems] = useState<SyncedImage[]>([]);
@@ -113,7 +113,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
                     let scale = 1;
                     try {
                       const metadata = (await item.getMetadata()) as Record<string, unknown> | undefined;
-                      const syncData = metadata?.syncboard as { format?: 'png' | 'svg'; scale?: number } | undefined;
+                      const syncData = metadata?.syncingboard as { format?: 'png' | 'svg'; scale?: number } | undefined;
                       if (syncData) {
                         format = syncData.format || 'png';
                         scale = syncData.scale || 1;
@@ -138,7 +138,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
                     let scale = 1;
                     try {
                       const metadata = (await item.getMetadata()) as Record<string, unknown> | undefined;
-                      const syncData = metadata?.syncboard as { format?: 'png' | 'svg'; scale?: number } | undefined;
+                      const syncData = metadata?.syncingboard as { format?: 'png' | 'svg'; scale?: number } | undefined;
                       if (syncData) {
                         format = syncData.format || 'svg';
                         scale = syncData.scale || 1;
@@ -164,7 +164,7 @@ export function useMiroSelection(isInitMode: boolean | null) {
                 // 2. Fallback to metadata query (if title is empty or modified)
                 try {
                   const metadata = (await item.getMetadata()) as Record<string, unknown> | undefined;
-                  const syncData = metadata?.syncboard as {
+                  const syncData = metadata?.syncingboard as {
                     fileKey?: string;
                     nodeId?: string;
                     nodeName?: string;

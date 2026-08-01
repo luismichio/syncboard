@@ -1,5 +1,5 @@
-// SyncBoard Companion Plugin - Penpot background runner
-penpot.ui.open('SyncBoard Companion', './penpot-companion-ui.html', {
+// SyncingBoard Companion Plugin - Penpot background runner
+penpot.ui.open('SyncingBoard Companion', './penpot-companion-ui.html', {
   width: 320,
   height: 600,
 });
@@ -36,7 +36,7 @@ async function findShapeById(shapeId) {
     const selMatch = penpot.selection.find((s) => s && s.id === shapeId);
     if (selMatch) return selMatch;
     // Do NOT fall back to the current selection if shapeId doesn't match.
-    // The stored nodeId in SyncBoard metadata is the source of truth.
+    // The stored nodeId in SyncingBoard metadata is the source of truth.
   }
 
   // 2. Use official getShapeById API on current page (O(1) internal map lookup)

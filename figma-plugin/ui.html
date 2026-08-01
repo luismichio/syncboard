@@ -111,14 +111,14 @@
 </head>
 <body>
   <div id="settings-bar">
-    <span>SyncBoard Host Settings</span>
+    <span>SyncingBoard Host Settings</span>
     <span id="settings-toggle">Configure</span>
   </div>
 
   <div id="settings-panel">
-    <div style="font-size: 9px; color: #6b7280; text-transform: uppercase;">SyncBoard Host Domain (Self-Hosts)</div>
+    <div style="font-size: 9px; color: #6b7280; text-transform: uppercase;">SyncingBoard Host Domain (Self-Hosts)</div>
     <div class="panel-row">
-      <input type="text" id="host-input" placeholder="https://syncboard.vercel.app" />
+      <input type="text" id="host-input" placeholder="https://syncingboard.com" />
       <button id="save-btn">Save</button>
     </div>
   </div>
@@ -126,7 +126,7 @@
   <iframe id="companion-iframe" src="about:blank"></iframe>
 
   <script>
-    const DEFAULT_HOST = 'https://syncboard.vercel.app';
+    const DEFAULT_HOST = 'https://syncingboard.com';
     const iframe = document.getElementById('companion-iframe');
     const hostInput = document.getElementById('host-input');
     const saveBtn = document.getElementById('save-btn');

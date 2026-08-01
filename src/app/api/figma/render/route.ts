@@ -82,8 +82,8 @@ async function handler(request: Request) {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'no-store, max-age=0',
-        'X-SyncBoard-Scale': String(scaleParam ? Number(scaleParam) : 2),
-        'X-SyncBoard-Format': format,
+        'X-SyncingBoard-Scale': String(scaleParam ? Number(scaleParam) : 2),
+        'X-SyncingBoard-Format': format,
       },
     });
   } catch (err) {

@@ -1,17 +1,17 @@
 ---
 title: Features & Video Demos
-description: Explore SyncBoard's core capabilities in action with short video walkthroughs, GIFs, and screenshots.
+description: Explore SyncingBoard's core capabilities in action with short video walkthroughs, GIFs, and screenshots.
 ---
 
-# SyncBoard Features & Video Demos
+# SyncingBoard Features & Video Demos
 
-Explore how SyncBoard bridges design tools (**Figma** & **Penpot**) with interactive canvas whiteboards (**Miro**) in real time.
+Explore how SyncingBoard bridges design tools (**Figma** & **Penpot**) with interactive canvas whiteboards (**Miro**) in real time.
 
 ---
 
 ## Frame Selection & Detection Relay
 
-SyncBoard's companion plugins stream active canvas selections in real time over **Ably WebSockets**. Selecting a frame in Figma Desktop/Web or Penpot instantly populates the Miro sidebar panel — with **zero server polling** and **zero Redis overhead**.
+SyncingBoard's companion plugins stream active canvas selections in real time over **Ably WebSockets**. Selecting a frame in Figma Desktop/Web or Penpot instantly populates the Miro sidebar panel — with **zero server polling** and **zero Redis overhead**.
 
 ### Figma Walkthrough
 
@@ -28,7 +28,7 @@ SyncBoard's companion plugins stream active canvas selections in real time over 
 * **Key Highlights:**
   * Active selection relay across open design tabs and companion plugins.
   * Direct WebSocket channel pairing (`penpot:${pairingId}`).
-  * Password-masked pairing key security (`●●●●●●●●`).
+  * Multi-selection grouping in the sidebar.
 
 ---
 
@@ -57,7 +57,7 @@ Update selected screens in-place on Miro canvas. Toggle **"Also update all board
 
 ## Widget Adoption & Retargeting ("Replace Selected")
 
-Adopt any existing image widget on your Miro board (even non-SyncBoard imports or copy-pasted screenshots) or retarget an existing widget to a new Figma/Penpot frame **without changing widget IDs**.
+Adopt any existing image widget on your Miro board (even non-SyncingBoard imports or copy-pasted screenshots) or retarget an existing widget to a new Figma/Penpot frame **without changing widget IDs**.
 
 ### Figma Walkthrough
 
@@ -114,7 +114,7 @@ Choose between crisp vector **SVG** exports (ideal for responsive text and icons
 
 ## Password-Masked Pairing Key Security
 
-To prevent unauthorized users on public whiteboards from reading your live design selection channel, SyncBoard uses cryptographically random **16-character Pairing IDs** (`pairingId.ts`).
+To prevent unauthorized users on public whiteboards from reading your live design selection channel, SyncingBoard uses cryptographically random **16-character Pairing IDs** (`pairingId.ts`).
 
 In the Miro sidebar UI, the Pairing ID input field is masked (`●●●●●●●●`) with an interactive toggle button to reveal or copy the key securely.
 
@@ -131,6 +131,6 @@ Pairing ID:  [ ●●●●●●●●●●●●●●●● ]  [ Reveal ]  [
 
 ## Explore More Documentation
 
-* [Quickstart Setup Guide](/docs/setup) — Learn how to set up SyncBoard in 2 minutes.
-* [System Architecture](/docs/architecture) — Learn how SyncBoard's 3-layer adapter system works.
+* [Quickstart Setup Guide](/docs/setup) — Learn how to set up SyncingBoard in 2 minutes.
+* [System Architecture](/docs/architecture) — Learn how SyncingBoard's 3-layer adapter system works.
 * [Frequently Asked Questions](/docs/faq) — Common questions about pricing, privacy, and self-hosting.

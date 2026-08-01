@@ -17,7 +17,7 @@ Understanding where image bytes travel is critical for evaluating hosting costs,
 ```mermaid
 graph LR
   miro["Miro Plugin"]
-  sbApi["SyncBoard API<br/>(Next.js on Vercel)"]
+  sbApi["SyncingBoard API<br/>(Next.js on Vercel)"]
   figmaApi["Figma API<br/>(api.figma.com/v1/images)"]
   miroApi["Miro API"]
 
@@ -33,7 +33,7 @@ graph LR
 graph LR
   penpot["Penpot Companion Plugin<br/>(Active Browser Tab)"]
   redis["Upstash Redis<br/>(SETEX 45s TTL)"]
-  sbApi["SyncBoard API<br/>(Vercel Endpoint)"]
+  sbApi["SyncingBoard API<br/>(Vercel Endpoint)"]
   miroApi["Miro API"]
 
   penpot -->|"POST /api/relay/penpot/result"| redis

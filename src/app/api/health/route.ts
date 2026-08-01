@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   return NextResponse.json({
     status: "ok",
-    name: "SyncBoard",
+    name: "SyncingBoard",
     version: packageJson.version,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),

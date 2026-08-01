@@ -68,7 +68,7 @@ export function useFigmaImporter(
   const detectLocalFigmaSelection = async () => {
     setIsDetectingLocal(true);
     
-    const useTauri = typeof window !== 'undefined' && localStorage.getItem('syncboard_use_tauri') === 'true';
+    const useTauri = typeof window !== 'undefined' && localStorage.getItem('syncingboard_use_tauri') === 'true';
     if (useTauri) {
       try {
         const { callFigmaSelectionTauri } = await import('./companionRelayClient');
@@ -183,7 +183,7 @@ export function useFigmaImporter(
         if (typeof image.setMetadata !== 'function') {
           throw new Error("image.setMetadata is not a function on the returned object");
         }
-        await image.setMetadata('syncboard', {
+        await image.setMetadata('syncingboard', {
           fileKey: figmaNodeInfo.fileKey,
           nodeId: figmaNodeInfo.nodeId,
           nodeName: safeName,

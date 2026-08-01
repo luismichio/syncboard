@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-const CONSENT_KEY = 'syncboard_cookie_consent';
+const CONSENT_KEY = 'syncingboard_cookie_consent';
 
 export default function CookieConsent() {
   const [visible, setVisible] = useState(false);

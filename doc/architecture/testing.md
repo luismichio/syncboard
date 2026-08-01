@@ -1,17 +1,17 @@
 ---
 title: Testing & Quality Assurance
-description: Technical breakdown of SyncBoard's 63+ automated Vitest test suites covering token security, rate limiting, URL parsers, and API route handlers.
+description: Technical breakdown of SyncingBoard's 63+ automated Vitest test suites covering token security, rate limiting, URL parsers, and API route handlers.
 ---
 
 # Testing & Quality Assurance
 
-SyncBoard enforces strict automated testing across security, rate limiting, URL parsing, and serverless API endpoints using **Vitest**.
+SyncingBoard enforces strict automated testing across security, rate limiting, URL parsing, and serverless API endpoints using **Vitest**.
 
 ---
 
 ## Testing Strategy & Infrastructure
 
-SyncBoard's test suite runs inside **Vitest** (`yarn test`) in zero-network isolation. All external Figma, Miro, Ably, and Upstash Redis network calls are mocked to ensure 100% deterministic test execution in under 3 seconds.
+SyncingBoard's test suite runs inside **Vitest** (`yarn test`) in zero-network isolation. All external Figma, Miro, Ably, and Upstash Redis network calls are mocked to ensure 100% deterministic test execution in under 3 seconds.
 
 ```mermaid
 graph TD
@@ -25,7 +25,7 @@ graph TD
 
 ## Test Suites Breakdown
 
-SyncBoard includes **76 passing automated tests** across 11 specialized test files:
+SyncingBoard includes **76 passing automated tests** across 11 specialized test files:
 
 | Test File | Category | Focus Area & Assertions |
 | :--- | :--- | :--- |

@@ -146,14 +146,14 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="hover:opacity-80 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg">
-              <span className="text-lg font-bold tracking-tight">SyncBoard</span>
+              <span className="text-lg font-bold tracking-tight">SyncingBoard</span>
             </Link>
             <span className="text-text-muted font-mono text-xs" aria-hidden="true">/</span>
             <span className="text-xs font-mono text-accent font-semibold">docs</span>
           </div>
           <div className="flex items-center gap-3">
             <a
-              href="https://github.com/luismichio/syncboard"
+              href="https://github.com/luismichio/syncingboard"
               target="_blank"
               rel="noreferrer"
               className="hidden sm:inline-flex px-4 py-2 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -176,7 +176,7 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
               DOCUMENTATION HUB
             </div>
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-text-page">
-              SyncBoard Documentation
+              SyncingBoard Documentation
             </h1>
             <p className="text-sm text-text-muted max-w-2xl leading-relaxed">
               Explore quickstart setup guides, system architecture specifications, API rate limits, self-hosting cost breakdowns, and security standards.
@@ -196,7 +196,7 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
               icon={RocketIcon}
               category="Getting Started"
               title="Overview, Setup & Video Demos"
-              description="Everything you need to set up SyncBoard and see core features in action."
+              description="Everything you need to set up SyncingBoard and see core features in action."
               count={(readmeSlug ? 1 : 0) + gettingStartedSlugs.length}
             />
 
@@ -391,12 +391,12 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
             <ThemeToggle />
           </div>
           <a
-            href="https://github.com/luismichio/syncboard"
+            href="https://github.com/luismichio/syncingboard"
             target="_blank"
             rel="noreferrer"
             className="hover:text-text-page transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
           >
-            github.com/luismichio/syncboard
+            github.com/luismichio/syncingboard
           </a>
         </div>
       </footer>

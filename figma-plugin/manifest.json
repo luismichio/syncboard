@@ -1,5 +1,5 @@
 {
-  "name": "SyncBoard Figma Companion",
+  "name": "SyncingBoard Figma Companion",
   "id": "1660413000378332441",
   "api": "1.0.0",
   "main": "code.js",
@@ -12,6 +12,7 @@
     "allowedDomains": [
       "https://*.ably.com",
       "https://*.ably-realtime.com",
+      "https://*.syncingboard.com",
       "https://*.luiskobayashi.com",
       "https://*.gitpod.io",
       "https://*.github.dev"
@@ -21,6 +22,6 @@
       "http://localhost:3001",
       "http://localhost:1420"
     ],
-    "reasoning": "SyncBoard requires connection to the Ably WebSocket network to receive sync signals from Miro, and your hosted Next.js API endpoints to fetch pairing tokens."
+    "reasoning": "SyncingBoard requires connection to the Ably WebSocket network to receive sync signals from Miro, and your hosted Next.js API endpoints to fetch pairing tokens."
   }
 }

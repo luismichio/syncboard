@@ -45,8 +45,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "SyncBoard Bridge ${{ github.ref_name }}"
-          releaseBody: "Release build of the SyncBoard local loopback bridge application."
+          releaseName: "SyncingBoard Bridge ${{ github.ref_name }}"
+          releaseBody: "Release build of the SyncingBoard local loopback bridge application."
           releaseDraft: true
           prerelease: false
           projectPath: tauri-bridge

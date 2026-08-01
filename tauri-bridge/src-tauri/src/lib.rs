@@ -145,7 +145,8 @@ async fn add_cors_and_pna(
         .to_string();
 
     let allowed_origins = [
-        "https://syncboard.luiskobayashi.com",
+        "https://syncingboard.com",
+        "https://syncingboard.com",
         "http://localhost:3000",
         "http://localhost:1420",
     ];
@@ -223,7 +224,7 @@ async fn start_https_server(state: AppState) {
 
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 4401));
     state.log("Bridge", format!("Listening on https://localhost:4401")).await;
-    state.log("Bridge", "Ready \u{2014} accepting connections from Penpot Companion Plugin and SyncBoard Miro plugin.").await;
+    state.log("Bridge", "Ready \u{2014} accepting connections from Penpot Companion Plugin and SyncingBoard Miro plugin.").await;
 
     if let Err(e) = axum_server::bind_rustls(addr, config)
         .serve(app.into_make_service())
@@ -357,7 +358,7 @@ async fn handle_health() -> impl IntoResponse {
 
 /// Called once by the Miro plugin when the user first connects to the bridge.
 async fn handle_miro_connect(State(state): State<AppState>) -> impl IntoResponse {
-    state.log("Miro", "Connected \u{2014} SyncBoard plugin is now linked to SyncBridge").await;
+    state.log("Miro", "Connected \u{2014} SyncingBoard plugin is now linked to SyncBridge").await;
     (StatusCode::OK, Json(serde_json::json!({ "status": "connected" })))
 }
 

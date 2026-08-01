@@ -5,7 +5,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const docs = getAllDocs();
 
   const docEntries: MetadataRoute.Sitemap = docs.map((doc) => ({
-    url: `https://syncboard.luiskobayashi.com/docs/${doc.slug}`,
+    url: `https://syncingboard.com/docs/${doc.slug}`,
     lastModified: new Date(doc.updatedAt),
     changeFrequency: "weekly" as const,
     priority: 0.8,
@@ -13,13 +13,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     {
-      url: "https://syncboard.luiskobayashi.com",
+      url: "https://syncingboard.com",
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 1.0,
     },
     {
-      url: "https://syncboard.luiskobayashi.com/docs",
+      url: "https://syncingboard.com/docs",
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.9,

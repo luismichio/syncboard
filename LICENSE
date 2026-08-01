@@ -614,9 +614,9 @@ copy of the Program in return for a fee.
 
 ### ADDITIONAL TRADEMARK & BRANDING GUIDELINES
 
-While this software is licensed under the GNU Affero General Public License v3 (AGPL-3.0), the name "SyncBoard", the SyncBoard logo, and related brand assets are trademarks of the copyright holders.
+While this software is licensed under the GNU Affero General Public License v3 (AGPL-3.0), the name "SyncingBoard", the SyncingBoard logo, and related brand assets are trademarks of the copyright holders.
 
-If you deploy, self-host, or distribute a modified version of this software for public use, SaaS, or commercial services, you MUST rebrand the application. You must choose a name, logo, and design style that are distinct from "SyncBoard" to prevent user confusion and security/phishing risks. Description of the project's open-source origin (e.g. "Powered by SyncBoard") is permitted.
+If you deploy, self-host, or distribute a modified version of this software for public use, SaaS, or commercial services, you MUST rebrand the application. You must choose a name, logo, and design style that are distinct from "SyncingBoard" to prevent user confusion and security/phishing risks. Description of the project's open-source origin (e.g. "Powered by SyncingBoard") is permitted.
 
 ---
 
@@ -624,5 +624,5 @@ If you deploy, self-host, or distribute a modified version of this software for 
 
 By submitting a Pull Request, issue, patch, or code contribution to this repository, you agree that:
 
-1. **Grant of Rights:** You grant SyncBoard (and its copyright holders) a perpetual, worldwide, non-exclusive, royalty-free, transferable, and sublicensable license to use, reproduce, modify, adapt, publish, translate, create derivative works from, distribute, and commercialize your contribution under AGPLv3 or any alternative dual-licensing / commercial licensing terms offered by the project maintainers.
+1. **Grant of Rights:** You grant SyncingBoard (and its copyright holders) a perpetual, worldwide, non-exclusive, royalty-free, transferable, and sublicensable license to use, reproduce, modify, adapt, publish, translate, create derivative works from, distribute, and commercialize your contribution under AGPLv3 or any alternative dual-licensing / commercial licensing terms offered by the project maintainers.
 2. **Original Work:** You represent that your contribution is your original creation and that you have full legal right to grant these rights.
