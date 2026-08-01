@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.13.7] - 2026-07-31
+## [0.14.0] - 2026-08-01
 ### Fixed
 - **Keep Canvas Size — Geometry Preservation Rewrite:** Fixed the "Preserve widget size" feature (renamed "Keep canvas size") which was broken since its introduction in `0.10.0`. The root causes were: (1) the geometry PATCH used the wrong endpoint (`/items/{id}` with a JSON body) instead of the image-specific endpoint (`/images/{id}` with multipart form data); (2) the `preserveSize=true` path skipped the geometry write entirely, relying on an undocumented `style.fit: 'contain'` field that the Miro API ignores; (3) both paths were therefore always leaving the widget at Miro's auto-calculated size.
 
