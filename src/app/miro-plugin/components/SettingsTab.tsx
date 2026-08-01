@@ -197,7 +197,7 @@ export function SettingsTab({
 
       <div className="mt-6 pt-4 border-t border-border-card">
         <a
-          href="https://syncingboard.com/docs"
+          href="https://www.syncingboard.com/docs"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-text-muted hover:text-accent transition-colors"

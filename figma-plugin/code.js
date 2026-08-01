@@ -90,14 +90,14 @@ figma.ui.onmessage = async (msg) => {
 
       figma.ui.postMessage({
         action: 'host-result',
-        host: host || 'https://syncingboard.com',
+        host: host || 'https://www.syncingboard.com',
         fileKey: figma.fileKey || docFileKey || savedFileKey || ''
       });
     } catch (err) {
       console.error("[SyncingBoard] get-host failed:", err);
       figma.ui.postMessage({
         action: 'host-result',
-        host: 'https://syncingboard.com',
+        host: 'https://www.syncingboard.com',
         fileKey: ''
       });
     }
@@ -135,7 +135,7 @@ figma.ui.onmessage = async (msg) => {
         const host = await figma.clientStorage.getAsync('syncingboard_host_url');
         figma.ui.postMessage({
           action: 'host-result',
-          host: host || 'https://syncingboard.com',
+          host: host || 'https://www.syncingboard.com',
           fileKey: msg.fileKey
         });
       }

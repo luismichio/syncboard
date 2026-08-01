@@ -24,6 +24,6 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       allow: "/",
       disallow: ["/api/", "/miro-plugin"],
     },
-    sitemap: "https://syncingboard.com/sitemap.xml",
+    sitemap: "https://www.syncingboard.com/sitemap.xml",
   };
 }

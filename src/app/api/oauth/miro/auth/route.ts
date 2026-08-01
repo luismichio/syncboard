@@ -3,7 +3,8 @@ import crypto from 'crypto';
 
 export async function GET(request: NextRequest) {
   const miroClientId = process.env.MIRO_CLIENT_ID;
-  const host = request.headers.get('host') || 'localhost:3000';
+  let host = request.headers.get('host') || 'localhost:3000';
+  if (host === 'syncingboard.com') host = 'www.syncingboard.com';
   const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
   const appUrl = `${protocol}://${host}`;
   const redirectUri = `${appUrl}/api/oauth/miro/callback`;

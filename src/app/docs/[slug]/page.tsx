@@ -72,12 +72,12 @@ export async function generateMetadata(props: {
     title,
     description,
     alternates: {
-      canonical: `https://syncingboard.com/docs/${slug}`,
+      canonical: `https://www.syncingboard.com/docs/${slug}`,
     },
     openGraph: {
       title,
       description,
-      url: `https://syncingboard.com/docs/${slug}`,
+      url: `https://www.syncingboard.com/docs/${slug}`,
       type: "article",
     },
     twitter: {

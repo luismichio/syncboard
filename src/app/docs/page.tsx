@@ -6,12 +6,12 @@ export const metadata: Metadata = {
   title: 'Documentation — SyncingBoard',
   description: 'Architecture specifications, setup guides, release notes, and configuration reference for self-hosting SyncingBoard.',
   alternates: {
-    canonical: 'https://syncingboard.com/docs',
+    canonical: 'https://www.syncingboard.com/docs',
   },
   openGraph: {
     title: 'Documentation — SyncingBoard',
     description: 'Architecture specifications, setup guides, release notes, and configuration reference for self-hosting SyncingBoard.',
-    url: 'https://syncingboard.com/docs',
+    url: 'https://www.syncingboard.com/docs',
   },
 };
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import CookieConsent from "@/components/CookieConsent";
 
-const SITE_URL = "https://syncingboard.com";
+const SITE_URL = "https://www.syncingboard.com";
 
 import { headers } from "next/headers";
 

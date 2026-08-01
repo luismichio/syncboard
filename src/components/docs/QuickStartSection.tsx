@@ -68,7 +68,7 @@ export function QuickStartSection() {
                 </p>
               </div>
               <a
-                href="https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fsyncingboard.com%2Fapi%2Foauth%2Fmiro%2Fcallback"
+                href="https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fwww.syncingboard.com%2Fapi%2Foauth%2Fmiro%2Fcallback"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-accent text-bg-page font-mono text-xs font-bold hover:opacity-90 transition"

@@ -145,7 +145,7 @@ async fn add_cors_and_pna(
         .to_string();
 
     let allowed_origins = [
-        "https://syncingboard.com",
+        "https://www.syncingboard.com",
         "https://syncingboard.com",
         "http://localhost:3000",
         "http://localhost:1420",

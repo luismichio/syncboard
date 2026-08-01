@@ -81,7 +81,8 @@ export async function GET(request: NextRequest) {
 
   const figmaClientId = process.env.FIGMA_CLIENT_ID;
   const figmaClientSecret = process.env.FIGMA_CLIENT_SECRET;
-  const host = request.headers.get('host') || 'localhost:3000';
+  let host = request.headers.get('host') || 'localhost:3000';
+  if (host === 'syncingboard.com') host = 'www.syncingboard.com';
   const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
   const appUrl = `${protocol}://${host}`;
   const redirectUri = `${appUrl}/api/oauth/figma/callback`;
