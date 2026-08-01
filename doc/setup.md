@@ -18,7 +18,7 @@ SyncingBoard is split into **source adapters** (Figma, Penpot) and a **target ad
 
 If you are using the official Community hosted version (`syncingboard.com`), you can install the official Miro plugin directly to your Miro team with 1 click:
 
-* **Official Miro App Install Link:** [Install SyncingBoard to Miro Team](https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fsyncingboard.com%2Fapi%2Foauth%2Fmiro%2Fcallback)
+* **Official Miro App Install Link:** [Install SyncingBoard to Miro Team](https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fwww.syncingboard.com%2Fapi%2Foauth%2Fmiro%2Fcallback)
 
 #### For Self-Hosters (1-Click Vercel Deploy or Custom Registration)
 
