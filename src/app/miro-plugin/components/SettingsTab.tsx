@@ -112,7 +112,7 @@ export function SettingsTab({
 
           <div className="p-3 rounded-lg bg-bg-card border border-border-card flex flex-col gap-2 animate-fade-in">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-semibold text-text-page">Miro Pairing ID</span>
+              <span className="text-xs font-semibold text-text-page">Pairing ID</span>
               <div className="flex gap-1.5">
                 <button
                   onClick={onRegeneratePairingId}
