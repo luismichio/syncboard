@@ -175,10 +175,10 @@ async function handler(request: Request) {
     // JSON endpoint, which uses a different schema and does not work for images.
     //
     // preserveSize=true  → restore the pre-upload snapshot width (lock canvas size)
-    // preserveSize=false → apply the client-provided width (natural Figma/Penpot size)
+    // preserveSize=false → leave image at its new natural size (allows scale changes to expand/shrink canvas)
     const targetWidth: number | null = preserveSize
-      ? (snapshotWidth !== null ? Math.round(snapshotWidth) : null)
-      : (width ? Math.round(Number(width)) : null);
+      ? (snapshotWidth !== null ? Math.round(snapshotWidth) : (width ? Math.round(Number(width)) : null))
+      : null;
 
     if (targetWidth) {
       const MAX_ATTEMPTS = 3;

@@ -8,5 +8,15 @@
     "src/app/api/miro/update-image/route.ts": {
       "maxDuration": 60
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/penpot-(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+      ]
+    }
+  ]
 }

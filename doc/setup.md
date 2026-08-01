@@ -94,7 +94,7 @@ To use SyncingBoard with **Penpot**, install the Companion Plugin in your Penpot
 2. In the right-hand panel, click the **Plugins** tab (puzzle icon).
 3. Search for **"SyncingBoard Companion"** inside the Penpot Templates & Libraries, or click the `+` button and paste the official Community manifest URL:
    ```
-   https://syncingboard.com/penpot-manifest.json
+   https://www.syncingboard.com/penpot-manifest.json
    ```
 4. Click **Install**, open the companion sidebar, copy the **Pairing ID** from your Miro sidebar, and click **Connect**.
 
@@ -103,7 +103,7 @@ To use SyncingBoard with **Penpot**, install the Companion Plugin in your Penpot
 2. In the right-hand panel, click the **Plugins** tab (puzzle icon).
 3. Click the `+` button and paste your own custom hosted manifest URL:
    ```
-   https://syncingboard.com/penpot-manifest.json
+   https://www.syncingboard.com/penpot-manifest.json
    ```
 4. Click **Install**, open the companion sidebar, copy the **Pairing ID** from your Miro sidebar, and click **Connect**.
 
