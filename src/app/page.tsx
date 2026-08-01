@@ -38,7 +38,7 @@ export default function Home() {
           <div className="inline-block px-3 py-1 text-[10px] font-mono tracking-widest font-semibold border border-accent/40 text-accent rounded-full bg-accent/5 mb-3 animate-pulse">
             OPEN SOURCE · AGPL 3.0 · v{VERSION}
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-text-page to-text-muted bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-text-page to-text-muted bg-clip-text text-transparent pb-2 pt-1 leading-normal">
             SyncingBoard
           </h1>
           <p className="text-sm font-semibold tracking-wider font-mono uppercase text-accent pt-1">
