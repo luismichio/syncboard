@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SyncedImage } from './useMiroSelection';
 import { callPenpotMcpTool } from './companionRelayClient';
 import { getValidToken } from '@/lib/tokens';
@@ -25,8 +25,51 @@ export function useMiroSync(
   preserveSize: boolean = false
 ) {
   const [syncAllCopies, setSyncAllCopies] = useState<boolean>(false);
+const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+const [currentTime, setCurrentTime] = useState<number>(() => Date.now());
+const cooldownSeconds = cooldownUntil === null
+? 0
+: Math.max(0, Math.ceil((cooldownUntil - currentTime) / 1000));
 
-  const syncSelectedScreens = async () => {
+const setSyncStatusRef = useRef(setSyncStatus);
+useEffect(() => { setSyncStatusRef.current = setSyncStatus; });
+
+useEffect(() => {
+if (cooldownUntil === null) return;
+const interval = setInterval(() => {
+const now = Date.now();
+setCurrentTime(now);
+if (now >= cooldownUntil) {
+setCooldownUntil(null);
+setSyncStatusRef.current('Community cooldown complete. You can sync again.', 'info');
+}
+}, 1000);
+return () => clearInterval(interval);
+}, [cooldownUntil]);
+
+const applyCommunityRateLimit = (
+response: Response,
+data: { error?: string; reset?: number; retryAfter?: number | null }
+): string | null => {
+if (response.status !== 429 || data.error !== 'rate_limit_exceeded') return null;
+const headerRetryAfter = Number(response.headers.get('Retry-After'));
+const retryAfter = Number.isFinite(headerRetryAfter) && headerRetryAfter > 0
+? headerRetryAfter
+: (typeof data.retryAfter === 'number' && data.retryAfter > 0 ? data.retryAfter : null);
+const resetAt = typeof data.reset === 'number' && Number.isFinite(data.reset)
+? data.reset
+: Date.now() + (retryAfter ?? 60) * 1000;
+setCurrentTime(Date.now());
+setCooldownUntil(resetAt);
+const seconds = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
+return `SyncingBoard Community limit reached. Retry in ${seconds}s.`;
+};
+
+const syncSelectedScreens = async () => {
+if (cooldownSeconds > 0) {
+setSyncStatus(`Community cooldown active. Retry in ${cooldownSeconds}s.`, 'info');
+return;
+}
     if (isSyncing) return;
     if (selectedItems.length === 0) return;
     if (typeof window === 'undefined') return;
@@ -70,32 +113,7 @@ export function useMiroSync(
         platform?: 'figma' | 'penpot';
       };
 
-      // ── Node name refresh from Figma API ──
-      // Re-fetch names so stale placeholders (e.g. "Loading Node...") are replaced
-      // with the actual Figma node name on every sync.
-      const nameMap = new Map<string, string>();
-      if (figmaToken) {
-        const seen = new Set<string>();
-        for (const s of selectedItems) {
-          if (s.platform === "penpot") continue;
-          const key = s.fileKey + "|" + s.nodeId;
-          if (!seen.has(key)) {
-            seen.add(key);
-            try {
-              const res = await fetch(
-                `/api/figma/node-info?fileKey=${encodeURIComponent(s.fileKey)}&nodeId=${encodeURIComponent(s.nodeId)}`,
-                { headers: { Authorization: `Bearer ${figmaToken}` } }
-              );
-              if (res.ok) {
-                const data = await res.json();
-                if (data.name) nameMap.set(key, data.name);
-              }
-            } catch (err) {
-              console.warn("Failed to refresh node name for", s.nodeId, err);
-            }
-          }
-        }
-      }
+
 
       let itemsToSync: SyncTarget[] = [];
 
@@ -160,7 +178,7 @@ export function useMiroSync(
               id: match.id,
               fileKey: selected.fileKey,
               nodeId: selected.nodeId,
-              nodeName: nameMap.get(selected.fileKey + '|' + selected.nodeId) || selected.nodeName,
+              nodeName: selected.nodeName,
               width: effectiveWidth,
               format: effectiveFormat,
               scale: effectiveScale,
@@ -173,7 +191,7 @@ export function useMiroSync(
           id: s.id,
           fileKey: s.fileKey,
           nodeId: s.nodeId,
-          nodeName: nameMap.get(s.fileKey + '|' + s.nodeId) || s.nodeName,
+          nodeName: s.nodeName,
           width: s.width,
           format: s.format,
           scale: s.scale,
@@ -249,14 +267,19 @@ export function useMiroSync(
 
           if (!batchRes.ok) {
             const errData = await batchRes.json().catch(() => ({})) as {
-              error?: string;
-              retryAfter?: number | null;
-              planTier?: string | null;
+error?: string;
+reset?: number;
+retryAfter?: number | null;
+planTier?: string | null;
               limitType?: string | null;
             };
 
-            if (batchRes.status === 429) {
-              const parts: string[] = ['Rate limited by Figma.'];
+const communityMessage = applyCommunityRateLimit(batchRes, errData);
+if (communityMessage) {
+throw new Error(communityMessage);
+}
+if (batchRes.status === 429) {
+const parts: string[] = ['Rate limited by Figma.'];
               if (errData.planTier) parts.push(`Plan: ${errData.planTier}.`);
               if (errData.limitType) parts.push(`Seat tier: ${errData.limitType}.`);
               if (errData.retryAfter) parts.push(`Retry in ${errData.retryAfter}s.`);
@@ -366,10 +389,18 @@ export function useMiroSync(
           }),
         });
 
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || 'Failed to update image on Miro board');
-        }
+if (!response.ok) {
+const errData = await response.json().catch(() => ({})) as {
+error?: string;
+reset?: number;
+retryAfter?: number | null;
+};
+const communityMessage = applyCommunityRateLimit(response, errData);
+if (communityMessage) {
+throw new Error(communityMessage);
+}
+throw new Error(errData.error || 'Failed to update image on Miro board');
+}
 
         // Update widget metadata and title via the Miro SDK.
         // Title is updated via the SDK (not the REST API PATCH) to avoid
@@ -426,8 +457,9 @@ export function useMiroSync(
   };
 
   return {
-    syncAllCopies,
-    setSyncAllCopies,
-    syncSelectedScreens,
+syncAllCopies,
+setSyncAllCopies,
+cooldownSeconds,
+syncSelectedScreens,
   };
 }

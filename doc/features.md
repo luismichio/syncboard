@@ -8,6 +8,20 @@ description: Explore SyncingBoard's core capabilities in action with short video
 Explore how SyncingBoard bridges design tools (**Figma** & **Penpot**) with interactive canvas whiteboards (**Miro**) in real time.
 
 ---
+## Getting Started — Figma & Penpot Setup
+Set up **SyncingBoard** by installing the **Miro** app, then setting up **Figma** and **Penpot**.
+
+### Figma Companion Setup Walkthrough
+<div className="my-6 flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
+  <iframe className="h-full w-full" src="https://www.youtube-nocookie.com/embed/pO_-icohQhQ" title="Figma Companion Setup" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen loading="lazy"></iframe>
+</div>
+
+### Penpot Companion Setup Walkthrough
+<div className="my-6 flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
+  <iframe className="h-full w-full" src="https://www.youtube-nocookie.com/embed/qEVvAl1ohoE" title="Penpot Companion Setup" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen loading="lazy"></iframe>
+</div>
+
+---
 
 ## Frame Selection & Detection Relay
 

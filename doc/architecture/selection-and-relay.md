@@ -15,12 +15,12 @@ The term **"Relay"** (and **"Relay-First"**) refers to the cloud-based event tra
 
 The Relay Architecture combines two complementary cloud infrastructure components:
 * **Ably WebSockets (Direct Stream):** Handles real-time selection detection (`select` events), instant command triggers, and light metadata payloads (`{ fileKey, nodeId, name }`). Consumes **0 Upstash Redis commands**.
-* **Upstash Redis (Ephemeral Single-Read Store):** Used exclusively for heavy binary image renders (Penpot base64 exports) that exceed WebSocket payload limits. Renders are stored with a 45-second TTL (`SETEX`) and deleted immediately after a single `GET` fetch (3 Redis commands per export: 1 SET, 1 GET, 1 DEL).
+* **Upstash Redis (Ephemeral Single-Read Store):** Used exclusively for heavy binary image renders (Penpot base64 exports) that exceed WebSocket payload limits. Renders are stored with a 180-second TTL (`SETEX`) and deleted immediately after a single `GET` fetch (3 Redis commands per export: 1 SET, 1 GET, 1 DEL).
 
 | Platform | Selection Transport | Heavy Image Transport | Status |
 | :--- | :--- | :--- | :--- |
 | **Figma** | Ably WebSockets (0 Redis) | Figma REST API v1 (Direct Serverless) | Stable — relay-first |
-| **Penpot** | Ably WebSockets (0 Redis) | Hybrid Relay (Upstash Redis 45s TTL + Ably notification) | Stable — relay-first |
+| **Penpot** | Ably WebSockets (0 Redis) | Hybrid Relay (Upstash Redis 180s TTL + Ably notification) | Stable — relay-first |
 | **Adobe** | (Planned) UXP plugin -> Tauri local socket | Local HTTP / Socket | Tauri capability extender |
 
 ---

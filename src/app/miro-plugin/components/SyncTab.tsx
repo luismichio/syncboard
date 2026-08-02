@@ -11,9 +11,11 @@ interface SyncTabProps {
   propagate: boolean;
   setPropagate: (value: boolean) => void;
   isSyncing: boolean;
+  cooldownSeconds: number;
   hasMiroToken: boolean;
   onSync: () => void;
   onGroupSettingChange: (itemIds: string[], key: 'format' | 'scale', value: unknown) => void;
+  onRefreshNodeName?: (fileKey: string, nodeId: string, platform: 'figma' | 'penpot') => void;
   availableScales: number[];
 }
 
@@ -27,9 +29,11 @@ export function SyncTab({
   propagate,
   setPropagate,
   isSyncing,
+  cooldownSeconds,
   hasMiroToken,
   onSync,
   onGroupSettingChange,
+  onRefreshNodeName,
   availableScales,
 }: SyncTabProps) {
   return (
@@ -60,9 +64,23 @@ export function SyncTab({
                   </div>
 
                   <div className="flex flex-col pr-16">
-                    <span className="text-xs font-semibold text-text-page truncate">
-                      {decodeHtmlEntities(group.nodeName)}
-                    </span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-semibold text-text-page truncate">
+                        {decodeHtmlEntities(group.nodeName)}
+                      </span>
+                      {onRefreshNodeName && (
+                        <button
+                          onClick={() => onRefreshNodeName(group.fileKey, group.nodeId, group.platform)}
+                          disabled={isSyncing}
+                          className="shrink-0 p-0.5 text-text-muted hover:text-accent transition-colors disabled:opacity-40 cursor-pointer"
+                          title="Refresh frame name from source"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                     <span className="text-[9px] font-mono text-text-muted truncate">
                       ID: {group.nodeId}
                     </span>
@@ -159,10 +177,12 @@ export function SyncTab({
 
             <button
               onClick={onSync}
-              disabled={isSyncing || !hasMiroToken || groupedItems.length > 3}
+              disabled={isSyncing || cooldownSeconds > 0 || !hasMiroToken || groupedItems.length > 3}
               className="w-full mt-2 font-mono font-bold text-xs py-2.5 rounded bg-accent text-bg-page hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
-              {syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED'}
+              {cooldownSeconds > 0
+          ? `COMMUNITY COOLDOWN · ${cooldownSeconds}s`
+          : (syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED')}
             </button>
 
             <p className="text-[9px] font-mono text-text-muted/60 text-center mt-1.5">

@@ -189,7 +189,7 @@
     <header>
       <div class="subtitle">SyncingBoard Companion</div>
       <h2>Figma Companion Relay</h2>
-      <div class="version-badge">v0.14.0 Community</div>
+      <div class="version-badge">v0.14.1 Community</div>
     </header>
 
     <div class="card">
@@ -244,8 +244,30 @@
     let ablyChannel = null;
     let reconnectAttempts = 0;
     let reconnectTimeout = null;
+let currentPairingId = '';
 
     const pendingRequests = new Map();
+    const pendingRequestTimers = new Map();
+    const PENDING_SELECTION_TIMEOUT_MS = 15_000;
+
+    function trackPendingRequest(reqId) {
+      const timer = setTimeout(() => {
+        pendingRequests.delete(reqId);
+        pendingRequestTimers.delete(reqId);
+        log(`Selection request ${reqId} expired before the plugin responded.`);
+      }, PENDING_SELECTION_TIMEOUT_MS);
+      pendingRequests.set(reqId, { id: reqId });
+      pendingRequestTimers.set(reqId, timer);
+    }
+
+    function takePendingRequest(reqId) {
+      const request = pendingRequests.get(reqId);
+      const timer = pendingRequestTimers.get(reqId);
+      if (timer) clearTimeout(timer);
+      pendingRequests.delete(reqId);
+      pendingRequestTimers.delete(reqId);
+      return request;
+    }
 
     const pairingInput = document.getElementById('pairing-id');
     const connectBtn = document.getElementById('connect-btn');
@@ -364,42 +386,31 @@
         reconnectAttempts = 0;
       }
 
+      // Prevent a prior client's terminal event from reconnecting over a newly
+      // requested pairing.
+      currentPairingId = '';
       await disconnectAbly('Connecting...');
-      updateStatus('connecting', 'Fetching Token');
-      log(`Connecting to cloud relay channel...`);
+      currentPairingId = pairingId;
+      updateStatus('connecting', 'Connecting WebSocket');
+      log('Connecting to cloud relay channel...');
 
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const secretKey = urlParams.get('key');
-        
-        let tokenUrl = `${RELAY_URL}/api/ably/token?pairingId=${encodeURIComponent(pairingId)}&platform=figma`;
-        if (secretKey) {
-          tokenUrl += `&key=${encodeURIComponent(secretKey)}`;
-        }
-
-        const tokenRes = await fetch(tokenUrl, FETCH_OPTIONS);
-        if (!tokenRes.ok) {
-          throw new Error(`Token fetch failed with HTTP ${tokenRes.status}`);
-        }
-        const tokenData = await tokenRes.json();
-        const ablyToken = tokenData.token;
-
-        updateStatus('connecting', 'Connecting WebSocket');
+        const tokenUrl = `${RELAY_URL}/api/ably/token?pairingId=${encodeURIComponent(pairingId)}&platform=figma`;
         ablyClient = new Ably.Realtime({
-          token: ablyToken,
-          autoConnect: true,
+          authUrl: tokenUrl,
+          authMethod: 'GET',
           recover: false
         });
-
-        ablyChannel = ablyClient.channels.get('figma:' + pairingId);
+        const client = ablyClient;
+        ablyChannel = client.channels.get('figma:' + pairingId);
 
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => reject(new Error('WebSocket connection timed out.')), 10000);
-          ablyClient.connection.once('connected', () => {
+          client.connection.once('connected', () => {
             clearTimeout(timeout);
             resolve();
           });
-          ablyClient.connection.once('failed', (state) => {
+          client.connection.once('failed', (state) => {
             clearTimeout(timeout);
             reject(new Error(state.reason?.message || 'WebSocket connection failed'));
           });
@@ -411,9 +422,11 @@
           // localStorage is blocked in this sandbox
         }
 
-        // Enter presence set so backend can detect companion status
+        // Enter presence set so backend can detect companion status.
+        // The ready flag distinguishes a fully-initialized companion from a
+        // member that only registered presence without completing setup.
         try {
-          await ablyChannel.presence.enter();
+          await ablyChannel.presence.enter({ ready: true });
         } catch (presErr) {
           log(`Warning: Presence registration failed: ${presErr.message}`);
         }
@@ -425,10 +438,27 @@
             const reqId = command.id;
             
             // Request selection from Figma background script
-            pendingRequests.set(reqId, { id: reqId });
+            trackPendingRequest(reqId);
             window.parent.postMessage({ action: 'get-selection', requestId: reqId }, '*');
           }
         });
+
+        client.connection.on('disconnected', () => {
+          if (ablyClient !== client || !currentPairingId) return;
+          updateStatus('connecting', 'Reconnecting');
+        });
+        const recoverConnection = (state) => {
+          if (ablyClient !== client || !currentPairingId) return;
+          try { client.close(); } catch (e) {}
+          ablyChannel = null;
+          ablyClient = null;
+          updateStatus('connecting', 'Reconnecting');
+          log(`Ably connection ${state}; scheduling reconnect.`);
+          scheduleReconnect();
+        };
+        client.connection.on('suspended', () => recoverConnection('suspended'));
+        client.connection.on('failed', () => recoverConnection('failed'));
+        client.connection.on('closed', () => recoverConnection('closed'));
 
         reconnectAttempts = 0;
         updateStatus('connected', 'Connected');
@@ -444,6 +474,7 @@
     }
 
     function scheduleReconnect() {
+      if (!currentPairingId) return;
       if (reconnectAttempts >= 5) {
         log('Max reconnect attempts reached. Please check your credentials/network.');
         return;
@@ -470,6 +501,11 @@
     // Connect trigger
     connectBtn.addEventListener('click', () => {
       connectBridge(false);
+    });
+
+    window.addEventListener('pagehide', () => {
+      currentPairingId = '';
+      void disconnectAbly();
     });
 
     // Toggle pairing ID visibility
@@ -509,10 +545,9 @@
       }
 
       if (response.action === "selection-result") {
-        const request = pendingRequests.get(response.requestId);
+        const request = takePendingRequest(response.requestId);
         if (request) {
           submitResult(request.id, response.data);
-          pendingRequests.delete(response.requestId);
           const count = response.selectionCount || 0;
           log(`Selection returned: ${response.data ? response.data.name : 'None selected'} (Figma saw ${count} selected items)`);
         }

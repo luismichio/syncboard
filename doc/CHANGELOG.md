@@ -9,6 +9,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.1] - 2026-08-02
+### Security
+- **Community Rate-Limit Enforcement:** Restored the documented Community defaults (Figma `5/min`, Miro image updates `10/min`), activated Figma `50/day` and relay `5/min + 30/hour + 100/day` windows, and excluded OAuth polling, Ably token issuance, node-info, and relay bookkeeping from the shared render/update resource budget.
+- **OAuth Refresh Protection:** Added `RATE_LIMIT_COMMUNITY_OAUTH_REFRESH_PER_MIN` (default `3`) to rate-limit `/api/oauth/refresh` by a one-way refresh-token fingerprint without storing raw refresh tokens.
+- **Ably Ghost-Connection Recovery:** Figma Companion now uses Ably `authUrl` token renewal and handles terminal connection states; the Miro relay client now invalidates terminal clients, closes after 60 seconds idle, and releases its socket on `pagehide`. This reduces persistent idle connection pressure on the Community Ably plan.
+- **Relay Integrity & Community Capacity:** Export-result submissions now require a Redis-backed `requestId → pairingId` binding and are rate-keyed by pairing instead of unique request ID. Miro-only Ably tokens now use a Redis sorted-set lease, renewed every 15 minutes and released on idle/page-exit, with a default Community ceiling of 40 concurrent Miro relay sessions.
+- **Community 429 Cooldown UX:** The Sync tab now distinguishes SyncingBoard `rate_limit_exceeded` responses from Figma provider 429s, reads `Retry-After`/reset metadata, disables repeated sync attempts, and displays a live Community cooldown countdown.
+- **Relay Ghost-Path Hygiene:** Both companion UIs now clear their connect timeouts, bound unanswered selection/export requests to per-action timeouts, and leave presence on page exit. Relay result retention increased from 45 to 180 seconds, while the Miro relay client retries transient result 404s before failing.
+- **OAuth Callback Rate Limiting:** `/api/oauth/figma/callback` and `/api/oauth/miro/callback` are now wrapped by the rate limiter (20/min per client IP), closing the last unwrapped token-exchange path. `/api/oauth/refresh` was already limited per refresh-token hash.
+- **Relay Export Sub-Budget:** Heavy Penpot/Figma relay exports now draw from a dedicated per-pairing budget (2/min, 20/day) on top of the general relay limits, separating the costlier Ably + Redis + payload path from lightweight selections.
+- **Figma node-info Error Transparency:** `node-info` now propagates upstream Figma 401/403/429 responses (with `Retry-After`/plan-tier metadata) instead of masking every failure as `{ name: "Pasted Screen" }`; only genuine 404s map to the fallback name. Clients already degrade gracefully on non-OK responses.
+- **Provider Rate-Limit Awareness:** Miro 429 responses in `update-image` now honor `Retry-After` (capped at 10s) during geometry-retry backoff instead of a fixed 800ms delay, and the image upload surfaces `retryAfter` metadata.
+- **Rate-Limit Header Transparency:** Successful responses from limited endpoints now include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset` so clients can throttle proactively instead of discovering limits from a 429.
+- **Identifier Hygiene:** The `figma:render` limiter no longer accepts `?token=` query values as identifiers — tokens are Authorization-header-only, matching the route contract.
+- **Companion Readiness Signal:** Figma/Penpot companions enter Ably presence with a `ready` flag, and the relay server treats only ready members as online — distinguishing "present" from "ready to handle commands". Presence staleness after an abrupt disconnect (~2 min) remains documented as a free-tier residual.
+- **Unenforced Knobs Removed:** `RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY` and `RATE_LIMIT_COMMUNITY_MAX_COMPANION_PAIRS` were advertised but never enforced; both are removed from code configuration, `.env.example`, and documentation. Community capacity control is the 40-session Miro relay lease.
+
+### Changed
+- **OAuth Polling Slowed:** Popup completion polling in `useAuthTokens` dropped from 1.5s to 4s intervals (~75 polls per 5-minute attempt instead of ~200), cutting avoidable edge/Redis traffic.
+- **node-info Quota Protection & Manual Card Refresh:** Removed automatic `node-info` API calls from the sync loop in `useMiroSync` to preserve daily Figma API rate-limit quotas during routine syncs. Added a manual ↻ refresh button to each canvas screen card in the Sync tab so users can refresh frame names on demand when modified in Figma.
+- **Global Backstop Reset Accuracy:** Updated `checkGlobalDailyBackstop` in `rate-limit.ts` to surface the backend Redis window reset timestamp directly, ensuring accurate client-side cooldown countdown timers in `useMiroSync`.
+- **Cooldown Interval Stability:** Wrapped `setSyncStatus` with `useRef` in `useMiroSync` so parent re-renders do not recreate the 1-second cooldown timer interval.
+
+
 ## [0.14.0] - 2026-08-01
 ### Fixed
 - **Keep Canvas Size — Geometry Preservation Rewrite:** Fixed the "Preserve widget size" feature (renamed "Keep canvas size") which was broken since its introduction in `0.10.0`. The root causes were: (1) the geometry PATCH used the wrong endpoint (`/items/{id}` with a JSON body) instead of the image-specific endpoint (`/images/{id}` with multipart form data); (2) the `preserveSize=true` path skipped the geometry write entirely, relying on an undocumented `style.fit: 'contain'` field that the Miro API ignores; (3) both paths were therefore always leaving the widget at Miro's auto-calculated size.
@@ -16,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   New implementation: before the binary upload, the server reads the current canvas `geometry.width` via a snapshot GET. After the upload, it re-applies the target width via the correct image endpoint using a multipart form with up to 3 retry attempts, each followed by a GET verification to confirm the width stuck. Both paths now work correctly: `preserveSize=true` restores the pre-upload snapshot width; `preserveSize=false` applies the client-provided natural Figma/Penpot width.
 
 - **UX Honesty — Crop Platform Limitation:** Renamed "Preserve widget size" to "Keep canvas size" and added a sub-note in all three occurrences (SyncTab, ImportTab Figma, ImportTab Penpot): *"Size locked. Crop resets — Miro API limitation."* Miro does not expose crop state (mask coordinates) in its REST API or Web SDK v2, so crop cannot be preserved programmatically. This is a hard platform ceiling, not a code limitation.
+
 
 ### Added
 - **Undo (Ctrl+Z) Platform Notice & FAQ:** Added inline UI micro-notes (`API syncs cannot be undone with Ctrl+Z`) under primary action buttons in `SyncTab` and `ImportTab`, plus a dedicated entry in `doc/faq.md` under Technical Design & Constraints explaining that Miro API updates bypass client-side undo history.

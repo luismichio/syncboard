@@ -162,8 +162,12 @@ async function handler(request: Request) {
 
     if (!imageRes.ok) {
       const errData = await imageRes.json().catch(() => ({}));
+      const retryAfter = imageRes.headers.get('Retry-After');
       return NextResponse.json(
-        { error: errData.message || 'Miro image upload failed' },
+        {
+          error: errData.message || 'Miro image upload failed',
+          retryAfter: retryAfter ? Number(retryAfter) : null,
+        },
         { status: imageRes.status }
       );
     }
@@ -182,10 +186,29 @@ async function handler(request: Request) {
 
     if (targetWidth) {
       const MAX_ATTEMPTS = 3;
-      const RETRY_DELAY_MS = 800;
+      const BASE_RETRY_DELAY_MS = 800;
+      const MAX_RETRY_WAIT_MS = 10_000; // cap on honoring Retry-After
 
+      // Miro 429s carry Retry-After; honor it (capped) instead of the fixed
+      // delay so backoff tracks the upstream cooldown instead of hammering it.
+      const miroRetryDelay = (res: Response): number => {
+        if (res.status === 429) {
+          const retryAfter = Number(res.headers.get('Retry-After'));
+          if (Number.isFinite(retryAfter) && retryAfter > 0) {
+            return Math.min(retryAfter * 1000, MAX_RETRY_WAIT_MS);
+          }
+        }
+        return BASE_RETRY_DELAY_MS;
+      };
+
+      let lastGeoRes: Response | null = null;
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        if (attempt > 0) await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+        if (attempt > 0) {
+          const prev = lastGeoRes;
+          if (prev) {
+            await new Promise((r) => setTimeout(r, miroRetryDelay(prev)));
+          }
+        }
 
         const geoForm = new FormData();
         geoForm.append('data', JSON.stringify({ geometry: { width: targetWidth } }));
@@ -195,6 +218,7 @@ async function handler(request: Request) {
           headers: authHeaders,
           body: geoForm,
         });
+        lastGeoRes = geoRes;
 
         if (!geoRes.ok) {
           const errData = await geoRes.json().catch(() => ({}));

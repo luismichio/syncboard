@@ -95,6 +95,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
+    cooldownSeconds,
   } = useMiroSync(
     figmaToken,
     miroToken,
@@ -320,6 +321,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
+    cooldownSeconds,
     // Selection state
     isAnyImageSelected,
     // Replace / Adopt

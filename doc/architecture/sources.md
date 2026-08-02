@@ -55,7 +55,7 @@ Unlike Figma, Penpot does **not** provide a public cloud REST API for rendering 
 * **The Cloud Limitation:** Rendering Penpot designs in the cloud would require booting a headless browser instance (Puppeteer/Playwright), loading the heavy WebAssembly editor, and taking screenshots — requiring expensive compute nodes.
 * **The Event-Driven Relay Solution:** SyncingBoard uses the designer's **active Penpot browser tab** as the renderer, coordinated via **Ably WebSockets** for instant real-time delivery and an ephemeral **Upstash Redis** cache for heavy binary result storage.
 * **Direct Selection (0 Redis Commands):** Selection payloads (`id`, `name`, `fileKey`) are published directly over the Ably WebSocket channel back to the Miro plugin sidebar, bypassing Redis entirely.
-* **Hybrid Image Storage (Single-Read Redis):** Heavy PNG/SVG renders are posted to `/api/relay/penpot/result` (stored in Redis with a 45s TTL) and a tiny `'result-ready'` notification event is published over Ably. The Miro plugin receives the WebSocket event and reads/deletes the image with a single `GET /api/relay/response` call (3 Redis commands total per export: 1 SET, 1 GET, 1 DEL).
+* **Hybrid Image Storage (Single-Read Redis):** Heavy PNG/SVG renders are posted to `/api/relay/penpot/result` (stored in Redis with a 180s TTL) and a tiny `'result-ready'` notification event is published over Ably. The Miro plugin receives the WebSocket event and reads/deletes the image with a single `GET /api/relay/response` call (3 Redis commands total per export: 1 SET, 1 GET, 1 DEL).
 
 ### Penpot Export Freeze & `openPage` Navigation Workaround
 

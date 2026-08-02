@@ -11,8 +11,8 @@ We actively monitor and patch security vulnerabilities in SyncingBoard. Security
 
 | Version  | Supported       |
 | -------- | --------------- |
-| < 0.13.x | No              |
-| 0.13.x   | Yes ✅          |
+| < 0.14.x | No              |
+| 0.14.x   | Yes ✅          |
 
 Always ensure you are running the latest release to receive active security updates.
 
@@ -59,8 +59,8 @@ SyncingBoard's architecture is designed for **data minimization by default**, ma
 | Data type | Where it lives | Duration | PII? |
 |---|---|---|---|
 | OAuth tokens (Figma, Miro) | Browser memory (React state) + Upstash Redis (300s TTL) | Session / 5 minutes | Yes (could identify a user) |
-| Penpot pairing IDs | Browser memory + Redis relay result | Session / 45s TTL | Indirect (linkable to a session) |
-| Image content (frame screenshots) | Vercel function memory + Upstash Redis (45s TTL) + Miro API | Ephemeral (< 60s) | No (design frame, not personal) |
+| Penpot pairing IDs | Browser memory + Redis relay result | Session / 180s TTL | Indirect (linkable to a session) |
+| Image content (frame screenshots) | Vercel function memory + Upstash Redis (180s TTL) + Miro API | Ephemeral (< 180s) | No (design frame, not personal) |
 | Client IP addresses | Vercel edge logs (standard HTTP logs) | Retained per Vercel's policy | Yes |
 | User agent, request paths | Vercel function logs | Retained per Vercel's policy | No |
 
@@ -81,7 +81,7 @@ If using the public demo instance, the operator acts as a **data processor**. Th
 |---|---|---|---|
 | **Vercel Inc.** | Serverless hosting | [Vercel DPA](https://vercel.com/legal/dpa) | HTTP requests, IP addresses, function logs |
 | **Ably Inc.** | WebSocket relay | [Ably DPA](https://ably.com/legal/data-processing-agreement) | Penpot command messages (no PII, only pairing IDs) |
-| **Upstash Inc.** | Redis cache | [Upstash DPA](https://upstash.com/gdpr) | OAuth tokens (300s TTL), relay results (45s TTL) |
+| **Upstash Inc.** | Redis cache | [Upstash DPA](https://upstash.com/gdpr) | OAuth tokens (300s TTL), relay results (180s TTL) |
 
 #### Your Rights (Art. 15-22 GDPR)
 

@@ -1,12 +1,12 @@
 ---
 title: SyncingBoard Overview & Features
 description: Stateless, open-source integration tool syncing design screens from Figma and Penpot directly into Miro whiteboards in-place with zero duplicates.
-updated: 2026-07-29
+updated: 2026-08-02
 ---
 
 # SyncingBoard (Figma & Penpot to Miro Sync Engine)
 
-[![Version 0.14.0](https://img.shields.io/badge/version-0.14.0-%23007ACC?style=flat-square)](https://github.com/luismichio/syncingboard/blob/dev/package.json)
+[![Version 0.14.1](https://img.shields.io/badge/version-0.14.1-%23007ACC?style=flat-square)](https://github.com/luismichio/syncingboard/blob/dev/package.json)
 [![OSI Approved License](https://img.shields.io/badge/license-AGPLv3-%23A81C7D?style=flat-square&label=OSI%20Approved)](https://github.com/luismichio/syncingboard/blob/dev/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-%23007ACC.svg?style=flat-square&logo=typescript&logoColor=white)](https://github.com/luismichio/syncingboard/blob/dev/tsconfig.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-%23FF6B6B?style=flat-square)](https://github.com/luismichio/syncingboard/issues/new)
@@ -18,7 +18,6 @@ updated: 2026-07-29
 [![Ably](https://img.shields.io/badge/Ably-Realtime-%23F9A01B?style=flat-square&logo=ably&logoColor=white)](https://ably.com)
 [![Upstash](https://img.shields.io/badge/Upstash-Redis-%230E1112?style=flat-square&logo=upstash&logoColor=white)](https://upstash.com)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncingboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,ABLY_API_KEY,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN&project-name=syncingboard&repository-name=syncingboard)
 
 
 SyncingBoard is a stateless, open-source integration tool that lets product and design teams sync design screens from **Figma** and **Penpot** directly into Miro boards as lightweight, flat images. It prevents canvas clutter by updating images **in-place** (zero duplicates) using metadata tagged inside Miro's native `title` property.
@@ -36,7 +35,6 @@ SyncingBoard is deliberately built as a stateless proxy engine for key technical
 * **Self-Healing Serverless Scale:** Serverless functions scale instantly from 0 to 10,000 requests/minute and back to 0 without database schema migrations, connection pool limits, or cold-start latency.
 * **Seamless Board Collaboration:** Frame pairing metadata is stored directly inside Miro widget properties (`title`). This enables any teammate on the board to sync design updates without requiring complex multi-user database permissions.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncingboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,ABLY_API_KEY)
 
 ---
 
@@ -46,7 +44,7 @@ SyncingBoard is deliberately built as a stateless proxy engine for key technical
 * **Consolidated Selection & Copies Counter:** Groups duplicates of the same frame under a single card with a count badge (e.g. `x3`). Format/scale changes apply to all copies at once.
 * **Replace Selected (Adopt Image):** Replace any image widget — even non-SyncingBoard ones — with a SyncingBoard-managed copy, preserving connectors, comments, and frame membership.
 * **Preserve Widget Size:** Refresh image content without resizing, keeping manual crop/scale/layout adjustments.
-* **Batch Limit of 3:** Sync up to 3 unique frames per operation to stay within API rate limits. Warning banner appears when exceeded.
+* **Batch Limit of 3:** Sync up to 3 unique frames per operation to stay within API rate limits (Community version). Warning banner appears when exceeded.
 * **Dual-Platform Sync:** Supports **Figma** (cloud-native sync) and **Penpot** (relay-first sync) side-by-side.
 * **Figma & Penpot Selection Auto-Detect:** Detects active selections directly from companion plugins via the cloud relay — no desktop apps required.
 * **Cloud Relay Transport:** Public HTTPS relay (Upstash Redis + Vercel) coordinates between companions and the Miro plugin — no localhost calls, no PNA blocks, works in any browser.
@@ -77,12 +75,15 @@ SyncingBoard can be utilized in two different hosting configurations:
 > [!IMPORTANT]
 > **User-Owned OAuth Architecture:** SyncingBoard maintains zero user databases and requires no user registration. Every user authenticates directly with their own personal Figma and Miro accounts via standard OAuth 2.0. Access tokens remain stored client-side inside the user's active Miro board session.
 
-For quick testing and evaluation, you can use the official pre-published plugins running on the public Community infrastructure hosted at **`https://syncingboard.com`**.
+For quick testing and evaluation, you can use the official pre-published plugins running on the public Community infrastructure hosted at **`https://www.syncingboard.com`**.
 * **Zero Configuration:** Simply install the official **[SyncingBoard Miro App](https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fwww.syncingboard.com%2Fapi%2Foauth%2Fmiro%2Fcallback)** to your Miro team.
 * **1-Click OAuth Connect:** Connect your Miro account (and your Figma account if syncing from Figma) via 1-click OAuth buttons inside the Miro sidebar. Penpot doesn't require OAuth, but connects via Pairing ID and cloud relay.
 * **Plug and Play:** To enable selection auto-detection or Penpot sync, load the companion in Figma/Penpot, copy the Pairing ID from the Miro sidebar, and paste it into the companion to connect.
 * **Figma Companion Scope:** The Figma Companion plugin is **only needed for selection detection** (auto-detecting your active selection in Figma). You can import and sync screens directly into Miro using Figma URLs without installing the companion plugin.
 * **Rate Limits:** To keep the maintainer's shared infrastructure responsive for everyone, the Community version enforces daily rate limits on image exports and node queries.
+* **Setup Video Walkthroughs:**
+  * **Figma Companion Setup:** [▶ Watch on YouTube](https://www.youtube.com/watch?v=pO_-icohQhQ)
+  * **Penpot Companion Setup:** [▶ Watch on YouTube](https://www.youtube.com/watch?v=qEVvAl1ohoE)
 
 ### Self-Hosted Version (Private Production)
 For production use inside design teams, you can deploy your own instance of SyncingBoard on Vercel or any Node.js container host.
@@ -96,7 +97,18 @@ For production use inside design teams, you can deploy your own instance of Sync
   * **In Penpot:** Add a custom plugin in your Penpot dashboard pointing to your self-hosted companion URL (e.g., `https://your-domain.com/penpot-companion-ui.html`).
 * **Full Data Ownership:** OAuth credentials, pairing states, and design image buffers are stored securely inside your private cloud infrastructure.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fluismichio%2Fsyncingboard&env=FIGMA_CLIENT_ID,FIGMA_CLIENT_SECRET,MIRO_CLIENT_ID,MIRO_CLIENT_SECRET,NEXT_PUBLIC_APP_URL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,ABLY_API_KEY)
+
+> Deploy your own instance? Follow the [full setup & deployment guide](./doc/setup.md).
+
 ---
+## Technology Stack
+SyncingBoard runs on a deliberately minimal, serverless-friendly stack. Here is roughly what each piece does and why:
+
+* **Vercel — hosting & API gateway.** Next.js serverless functions serve the Miro sidebar app, the REST API (OAuth, the Figma render/rate-limiting proxy), and the Figma/Penpot companion pages. Everything scales to zero when idle; there is no always-on server to maintain. Self-hosters run the same code on any Node.js host.
+* **Upstash — serverless Redis.** The rate-limit counters (token/pairing windows plus the shared daily backstop), the relay `requestId → pairingId` result binding, and the concurrent Miro relay-session lease all live in Redis. Because it is serverless it needs no connection pool and scales to zero between requests.
+* **Ably — real-time messaging.** Ably WebSockets carry the selection relay and Penpot export commands/results between companion plugins and the Miro bridge over channels like `penpot:${pairingId}`, and drive companion presence detection. The server never holds an open socket.
+* **Figma, Miro & Penpot — design-tool APIs.** Your own OAuth credentials drive Figma render/export and Miro image updates; Penpot relays through its companion. SyncingBoard never stores these tokens or your designs.
 
 > **Full setup & deployment guide -> [doc/setup.md](./doc/setup.md)**
 >

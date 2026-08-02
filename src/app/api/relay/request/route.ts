@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { withRateLimit } from '@/lib/rate-limit';
 import {
+  deleteRelayRequestBinding,
   deleteRelayResponse,
   getRelayResponse,
   RelayCommand,
+  storeRelayRequestBinding,
 } from '@/lib/relayRedis';
 import {
   publishPenpotCommand,
@@ -87,9 +89,28 @@ async function handler(request: Request) {
       );
     }
 
+    const hasRedis = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+    if (commandAction === 'export' && !hasRedis) {
+      return NextResponse.json(
+        { error: 'Relay export requires Redis result storage. Configure Upstash Redis or use Figma URL sync.' },
+        { status: 503 }
+      );
+    }
+
     const requestId = `req_${crypto.randomUUID().replace(/-/g, '')}`;
     const command = buildCommand(body, requestId);
-    await publishPenpotCommand(pairingId, command, platform);
+    if (commandAction === 'export') {
+      await storeRelayRequestBinding(requestId, { pairingId, platform });
+    }
+
+    try {
+      await publishPenpotCommand(pairingId, command, platform);
+    } catch (error) {
+      if (commandAction === 'export') {
+        await deleteRelayRequestBinding(requestId).catch(() => undefined);
+      }
+      throw error;
+    }
 
     if (body.async) {
       return NextResponse.json({
@@ -98,7 +119,6 @@ async function handler(request: Request) {
       });
     }
 
-    const hasRedis = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
     if (!hasRedis) {
       return NextResponse.json(
         { error: 'Synchronous relay polling requires Redis. Use async relay mode or configure Upstash Redis.' },
@@ -114,6 +134,7 @@ async function handler(request: Request) {
 
       if (response) {
         await deleteRelayResponse(requestId);
+        await deleteRelayRequestBinding(requestId).catch(() => undefined);
 
         if (response.error) {
           return NextResponse.json({ error: response.error }, { status: 502 });
@@ -135,4 +156,18 @@ async function handler(request: Request) {
   }
 }
 
-export const POST = withRateLimit({ endpoint: "relay:request" })(handler);
+export const POST = withRateLimit({ endpoint: "relay:request" })(
+  withRateLimit({
+    endpoint: "relay:export",
+    // Strict export sub-budget applies only to heavy export commands;
+    // lightweight selections keep the base relay:request budget.
+    skipWhen: async (req) => {
+      try {
+        const body: unknown = await req.clone().json();
+        return (body as Record<string, unknown>)?.action !== "export";
+      } catch {
+        return true;
+      }
+    },
+  })(handler)
+);

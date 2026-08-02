@@ -227,7 +227,7 @@ If you run a public instance, rate limiting protects your infrastructure from ab
 
 Rate limiting tracks **ephemeral IP addresses** at the Edge Middleware level to stop script spam, and uses **SHA-256 OAuth token hashes** on authenticated endpoints so attackers cannot bypass user quotas by cycling VPN IPs. All rate counters expire automatically in Redis or memory after their window TTL.
 
-Rate limiting is enabled by default when `UPSTASH_REDIS_REST_URL` is configured. On persistent infra (Docker/VPS) without Redis, an in-memory fallback is used instead. On Vercel without Redis, rate limiting logs a warning and disables gracefully (your Vercel function limits still apply).
+Rate limiting is enabled by default when both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are configured. On persistent infra (Docker/VPS) without Redis, an in-memory fallback is used instead. On Vercel without both Redis values, rate limiting logs a warning and disables gracefully (your Vercel function limits still apply).
 
 **Configuration via env vars:**
 
@@ -239,11 +239,15 @@ Rate limiting is enabled by default when `UPSTASH_REDIS_REST_URL` is configured.
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_MIN` | `5` | Penpot relay requests per minute per pairing ID |
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR` | `30` | Penpot relay requests per hour per pairing ID |
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_DAY` | `100` | Penpot relay requests per day per pairing ID |
+| `RATE_LIMIT_COMMUNITY_RELAY_SESSION_PER_MIN` | `4` | Miro relay session signals per minute per session ID |
+| `RATE_LIMIT_COMMUNITY_MAX_MIRO_RELAY_SESSIONS` | `40` | Concurrent Miro relay-session lease ceiling across the deployment |
 | `RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN` | `10` | Miro image updates per minute per user token |
 | `RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN` | `5` | Ably token generation per minute per requester |
-| `RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY` | `500` | Total syncs across all users per day (hard ceiling) |
-| `RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY` | `500` | Total bandwidth across all users per day |
-| `RATE_LIMIT_COMMUNITY_MAX_COMPANION_PAIRS` | `1` | Concurrent Penpot companion plugin connections |
+| `RATE_LIMIT_COMMUNITY_OAUTH_REFRESH_PER_MIN` | `3` | OAuth refresh exchanges per minute per refresh-token hash |
+| `RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY` | `500` | Figma render and Miro image-update resource operations across all users per day |
+| `RATE_LIMIT_COMMUNITY_OAUTH_CALLBACK_PER_MIN` | `20` | OAuth provider redirect callbacks per minute per client IP |
+| `RATE_LIMIT_COMMUNITY_RELAY_EXPORT_PER_MIN` | `2` | Penpot/Figma relay exports per minute per pairing ID |
+| `RATE_LIMIT_COMMUNITY_RELAY_EXPORT_PER_DAY` | `20` | Penpot/Figma relay exports per day per pairing ID |
 
 When a limit is hit, the API returns `429` with a `Retry-After` header and JSON body:
 ```json

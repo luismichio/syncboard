@@ -188,7 +188,7 @@
     <header>
       <h2>SyncingBoard Companion</h2>
       <p class="subtitle">Penpot Companion Relay</p>
-      <span class="version-badge">v0.14.0 Community</span>
+      <span class="version-badge">v0.14.1 Community</span>
     </header>
     <div class="card">
       <label for="pairing-id">Pairing ID</label>
@@ -234,6 +234,9 @@
     let currentPairingId = '';
 
     const pendingRequests = new Map();
+    const pendingRequestTimers = new Map();
+    const PENDING_SELECTION_TIMEOUT_MS = 15_000;
+    const PENDING_EXPORT_TIMEOUT_MS = 130_000;
     const pairingInput = document.getElementById('pairing-id');
     const connectBtn = document.getElementById('connect-btn');
     const statusBadge = document.getElementById('status-badge');
@@ -290,11 +293,33 @@
       reconnectTimeout = setTimeout(() => connectBridge(true), RECONNECT_DELAY_MS);
     }
 
+    function trackPendingRequest(request) {
+      const timeoutMs = request.action === 'export'
+        ? PENDING_EXPORT_TIMEOUT_MS
+        : PENDING_SELECTION_TIMEOUT_MS;
+      const timer = setTimeout(() => {
+        pendingRequests.delete(request.id);
+        pendingRequestTimers.delete(request.id);
+        log(`Command ${request.id} expired before the plugin responded.`);
+      }, timeoutMs);
+      pendingRequests.set(request.id, request);
+      pendingRequestTimers.set(request.id, timer);
+    }
+
+    function takePendingRequest(requestId) {
+      const request = pendingRequests.get(requestId);
+      const timer = pendingRequestTimers.get(requestId);
+      if (timer) clearTimeout(timer);
+      pendingRequests.delete(requestId);
+      pendingRequestTimers.delete(requestId);
+      return request;
+    }
+
     function handleCommand(request) {
       log(`Received command: "${request.action}"`);
 
       if (request.action === 'select') {
-        pendingRequests.set(request.id, request);
+        trackPendingRequest(request);
         parent.postMessage({
           action: 'get-selection',
           requestId: request.id
@@ -302,7 +327,7 @@
       }
 
       if (request.action === 'export') {
-        pendingRequests.set(request.id, request);
+        trackPendingRequest(request);
         parent.postMessage({
           action: 'export-shape',
           requestId: request.id,
@@ -367,16 +392,21 @@
 
         // Wait for connection
         await new Promise((resolve, reject) => {
-          ablyClient.connection.once('connected', resolve);
-          ablyClient.connection.once('failed', (err) => reject(new Error(err.message || 'Ably connection failed')));
-          // Timeout after 10s
-          setTimeout(() => reject(new Error('Ably connection timed out')), 10000);
+          const timeout = setTimeout(() => reject(new Error('Ably connection timed out')), 10000);
+          ablyClient.connection.once('connected', () => {
+            clearTimeout(timeout);
+            resolve();
+          });
+          ablyClient.connection.once('failed', (err) => {
+            clearTimeout(timeout);
+            reject(new Error(err.message || 'Ably connection failed'));
+          });
         });
 
         // Subscribe to the pairing channel
         ablyChannel = ablyClient.channels.get(`penpot:${pairingId}`);
 
-        await ablyChannel.presence.enter();
+        await ablyChannel.presence.enter({ ready: true });
 
         ablyChannel.subscribe('command', (message) => {
           handleCommand(message.data);
@@ -431,7 +461,7 @@
           ...FETCH_OPTIONS,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ requestId, data, error })
+          body: JSON.stringify({ requestId, pairingId: currentPairingId, data, error })
         });
         if (!res.ok) {
           throw new Error(`HTTP status ${res.status}`);
@@ -482,16 +512,15 @@
       }
 
       if (response.action === "selection-result") {
-        const request = pendingRequests.get(response.requestId);
+        const request = takePendingRequest(response.requestId);
         if (request) {
           submitResult(request.id, response.data);
-          pendingRequests.delete(response.requestId);
           log(`Selection returned: ${response.data ? response.data.name : 'None selected'}`);
         }
       }
 
       if (response.action === "export-result") {
-        const request = pendingRequests.get(response.requestId);
+        const request = takePendingRequest(response.requestId);
         if (request) {
           if (response.error) {
             submitResult(request.id, null, response.error);
@@ -500,7 +529,6 @@
             submitResult(request.id, response.data);
             log("Export payload transmitted to Miro.");
           }
-          pendingRequests.delete(response.requestId);
         }
       }
     });
@@ -516,6 +544,12 @@
     connectBtn.addEventListener('click', () => {
       clearReconnectTimer();
       connectBridge(false);
+    });
+
+    window.addEventListener('pagehide', () => {
+      currentPairingId = '';
+      clearReconnectTimer();
+      void disconnectAbly();
     });
 
     // Toggle pairing ID visibility

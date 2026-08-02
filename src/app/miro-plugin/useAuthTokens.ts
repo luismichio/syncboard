@@ -307,9 +307,9 @@ export function useAuthTokens(isInitMode: boolean | null) {
       } catch (err) {
         console.error(`Error polling for ${platform} tokens:`, err);
       }
-    }, 1500);
+    }, 4000);
 
-    // Stop polling after 5 minutes to prevent infinite loops
+    // Stop polling after 5 minutes to prevent infinite loops (≈75 polls at 4s)
     setTimeout(() => clearInterval(interval), 5 * 60 * 1000);
   };
 

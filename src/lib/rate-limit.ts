@@ -50,31 +50,37 @@ export interface PlanConfig {
   relayPerHour: number;
   relayPerDay: number;
   relayResponsePerMin: number;
+  relaySessionPerMin: number;
   updateImagePerMin: number;
   ablyTokenPerMin: number;
+  oauthRefreshPerMin: number;
   oauthStoreGetPerMin: number;
   oauthStorePostPerMin: number;
+  oauthCallbackPerMin: number;
+  relayExportPerMin: number;
+  relayExportPerDay: number;
   globalSyncsPerDay: number;
-  globalBandwidthMbPerDay: number;
-  maxCompanionPairs: number;
 }
 
 // ─── Community plan defaults ─────────────────────────────────────────────
 
 const COMMUNITY_PLAN: PlanConfig = {
-  figmaPerMin: envInt("RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN", 12),
+  figmaPerMin: envInt("RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN", 5),
   figmaPerDay: envInt("RATE_LIMIT_COMMUNITY_FIGMA_PER_DAY", 50),
   relayPerMin: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_MIN", 5),
   relayPerHour: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR", 30),
   relayPerDay: envInt("RATE_LIMIT_COMMUNITY_RELAY_PER_DAY", 100),
   relayResponsePerMin: envInt("RATE_LIMIT_COMMUNITY_RELAY_RESPONSE_PER_MIN", 20),
-  updateImagePerMin: envInt("RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN", 30),
+  relaySessionPerMin: envInt("RATE_LIMIT_COMMUNITY_RELAY_SESSION_PER_MIN", 4),
+  updateImagePerMin: envInt("RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN", 10),
   ablyTokenPerMin: envInt("RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN", 5),
+  oauthRefreshPerMin: envInt("RATE_LIMIT_COMMUNITY_OAUTH_REFRESH_PER_MIN", 3),
   oauthStoreGetPerMin: envInt("RATE_LIMIT_COMMUNITY_OAUTH_STORE_GET_PER_MIN", 40),
   oauthStorePostPerMin: envInt("RATE_LIMIT_COMMUNITY_OAUTH_STORE_POST_PER_MIN", 12),
+  oauthCallbackPerMin: envInt("RATE_LIMIT_COMMUNITY_OAUTH_CALLBACK_PER_MIN", 20),
+  relayExportPerMin: envInt("RATE_LIMIT_COMMUNITY_RELAY_EXPORT_PER_MIN", 2),
+  relayExportPerDay: envInt("RATE_LIMIT_COMMUNITY_RELAY_EXPORT_PER_DAY", 20),
   globalSyncsPerDay: envInt("RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY", 500),
-  globalBandwidthMbPerDay: envInt("RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY", 500),
-  maxCompanionPairs: envInt("RATE_LIMIT_COMMUNITY_MAX_COMPANION_PAIRS", 1),
 };
 
 function getPlan(): Plan {
@@ -121,7 +127,9 @@ type IdentifierExtractor = (request: Request) => Promise<string | null> | string
 const IDENTIFIER_EXTRACTORS: Record<string, IdentifierExtractor> = {
   // Figma endpoints: use the Bearer token from Authorization header
   "figma:render": (req) => {
-    const token = extractBearerToken(req) || new URL(req.url).searchParams.get("token");
+    // Token is header-only; the route handler rejects query-string tokens and
+    // warns against them, so the limiter must not accept them as identifiers.
+    const token = extractBearerToken(req);
     return token ? `tok:${hashId(token)}` : null;
   },
   "figma:render-batch": (req) => {
@@ -147,12 +155,31 @@ const IDENTIFIER_EXTRACTORS: Record<string, IdentifierExtractor> = {
       return null;
     }
   },
-  // Relay result: requestId in the JSON body (called by companion plugin, already paired)
+  // Relay result: pairingId is validated against the server-side request binding.
   "relay:result": async (req) => {
     const cloned = req.clone();
     try {
-      const body = await cloned.json();
-      return body.requestId ? `relay:${hashId(body.requestId)}` : null;
+      const body: unknown = await cloned.json();
+      if (!body || typeof body !== 'object') return null;
+      const pairingId = (body as Record<string, unknown>).pairingId;
+      return typeof pairingId === 'string' && pairingId
+        ? `relay:${hashId(pairingId)}`
+        : null;
+    } catch {
+      return null;
+    }
+  },
+  // Relay export: same pairing key as relay:request, but a separate counter so
+  // the stricter export budget is enforced independently of selections.
+  "relay:export": async (req) => {
+    const cloned = req.clone();
+    try {
+      const body: unknown = await cloned.json();
+      if (!body || typeof body !== 'object') return null;
+      const pairingId = (body as Record<string, unknown>).pairingId;
+      return typeof pairingId === 'string' && pairingId
+        ? `relay:${hashId(pairingId)}`
+        : null;
     } catch {
       return null;
     }
@@ -166,6 +193,25 @@ const IDENTIFIER_EXTRACTORS: Record<string, IdentifierExtractor> = {
     } catch {
       return null;
     }
+  },
+  // Relay session: unique Miro relay-session ID in the JSON body.
+  "relay:session": async (req) => {
+    const cloned = req.clone();
+    try {
+      const body: unknown = await cloned.json();
+      if (!body || typeof body !== 'object') return null;
+      const sessionId = (body as Record<string, unknown>).sessionId;
+      return typeof sessionId === 'string' && sessionId
+        ? `session:${hashId(sessionId)}`
+        : null;
+    } catch {
+      return null;
+    }
+  },
+  // OAuth refresh: refresh token is intentionally header-only.
+  "oauth:refresh": (req) => {
+    const refreshToken = req.headers.get("X-Refresh-Token")?.trim();
+    return refreshToken ? `refresh:${hashId(refreshToken)}` : null;
   },
   // OAuth store polling: state in query string
   "oauth:store:get": (req) => {
@@ -205,12 +251,47 @@ const IDENTIFIER_EXTRACTORS: Record<string, IdentifierExtractor> = {
 // ─── Rate limit configs per endpoint ────────────────────────────────────────
 
 const ENDPOINT_LIMITS: Record<string, RateLimitConfig | MultiWindowConfig> = {
-  "figma:render": { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
-  "figma:render-batch": { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
-  "figma:node-info": { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
-  "relay:request": { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
+  "figma:render": {
+    windows: [
+      { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
+      { limit: COMMUNITY_PLAN.figmaPerDay, window: 86_400 },
+    ],
+  },
+  "figma:render-batch": {
+    windows: [
+      { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
+      { limit: COMMUNITY_PLAN.figmaPerDay, window: 86_400 },
+    ],
+  },
+  "figma:node-info": {
+    windows: [
+      { limit: COMMUNITY_PLAN.figmaPerMin, window: 60 },
+      { limit: COMMUNITY_PLAN.figmaPerDay, window: 86_400 },
+    ],
+  },
+  // Penpot/Figma relay exports are the costlier Ably + Redis + payload path;
+  // keep them on a stricter budget than lightweight selections.
+  "relay:export": {
+    windows: [
+      { limit: COMMUNITY_PLAN.relayExportPerMin, window: 60 },
+      { limit: COMMUNITY_PLAN.relayExportPerDay, window: 86_400 },
+    ],
+  },
+  // OAuth provider redirect callbacks: conservative IP-keyed window.
+  // The provider redirect carries no Authorization header, and the state
+  // cookie is single-use, so an IP window is the practical abuse bound.
+  "oauth:callback": { limit: COMMUNITY_PLAN.oauthCallbackPerMin, window: 60 },
+  "relay:request": {
+    windows: [
+      { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
+      { limit: COMMUNITY_PLAN.relayPerHour, window: 3_600 },
+      { limit: COMMUNITY_PLAN.relayPerDay, window: 86_400 },
+    ],
+  },
   "relay:result": { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
   "relay:response": { limit: COMMUNITY_PLAN.relayResponsePerMin, window: 60 },
+  "relay:session": { limit: COMMUNITY_PLAN.relaySessionPerMin, window: 60 },
+  "oauth:refresh": { limit: COMMUNITY_PLAN.oauthRefreshPerMin, window: 60 },
   "oauth:store:get": { limit: COMMUNITY_PLAN.oauthStoreGetPerMin, window: 60 },
   "oauth:store:post": { limit: COMMUNITY_PLAN.oauthStorePostPerMin, window: 60 },
   "miro:update-image": { limit: COMMUNITY_PLAN.updateImagePerMin, window: 60 },
@@ -371,9 +452,21 @@ async function getBackend(): Promise<RateLimiterBackend | null> {
 
 type RouteHandler = (request: Request, ...args: unknown[]) => Promise<NextResponse>;
 
+const GLOBAL_SYNC_ENDPOINTS = new Set<string>([
+  "figma:render",
+  "figma:render-batch",
+  "miro:update-image",
+]);
+
 export interface WithRateLimitOptions {
   /** Endpoint group identifier, e.g. "figma:render" */
   endpoint: string;
+  /**
+   * Skip rate limiting entirely for requests matching this predicate.
+   * Used to scope a stricter sub-budget to a subset of traffic (e.g. relay
+   * exports only) while the base endpoint budget still covers everything.
+   */
+  skipWhen?: (request: Request) => boolean | Promise<boolean>;
 }
 
 /**
@@ -391,6 +484,13 @@ export interface WithRateLimitOptions {
 export function withRateLimit(opts: WithRateLimitOptions) {
   return function wrap(handler: RouteHandler): RouteHandler {
     return async function rateLimitedHandler(request: Request, ...args: unknown[]): Promise<NextResponse> {
+      if (opts.skipWhen) {
+        const skip = await opts.skipWhen(request);
+        if (skip) {
+          return handler(request, ...args);
+        }
+      }
+
       const backend = await getBackend();
       if (!backend) {
         return handler(request, ...args);
@@ -416,12 +516,18 @@ export function withRateLimit(opts: WithRateLimitOptions) {
         return handler(request, ...args);
       }
 
+      // Track the tightest window for success-path X-RateLimit-* headers so
+      // clients can throttle proactively instead of only learning about limits
+      // from a 429.
+      let successResult: RateLimitResult | null = null;
+
       // Single window
       if ("limit" in configs && "window" in configs && typeof configs.window === "number") {
         const result = await backend.check(`${opts.endpoint}:${identifier}`, configs);
         if (!result.success) {
           return rateLimitResponse(result);
         }
+        successResult = result;
       }
 
       // Multi-window (relay: 5/min + 30/hour + 100/day)
@@ -433,26 +539,43 @@ export function withRateLimit(opts: WithRateLimitOptions) {
         if (failed) {
           return rateLimitResponse(failed);
         }
+        successResult = results.reduce((a, b) =>
+          a.remaining < b.remaining ? a : b
+        );
       }
 
-      // ── Global daily backstop ──────────────────────────────────────
-      // Hard ceiling across all users and all tokens. Prevents token cycling
-      // attacks where an attacker collects many OAuth tokens and rotates
-      // through them to bypass per-token limits.
-      const globalResult = await checkGlobalDailyBackstop(
-        "syncs",
-        COMMUNITY_PLAN.globalSyncsPerDay
-      );
-      if (!globalResult.allowed) {
-        return rateLimitResponse({
-          success: false,
+      // ── Global daily resource backstop ─────────────────────────────
+      // Count only render/update work. OAuth polling, token issuance, node
+      // lookups, and relay response bookkeeping remain endpoint-limited but do
+      // not consume the shared sync-resource budget.
+      if (GLOBAL_SYNC_ENDPOINTS.has(opts.endpoint)) {
+        const globalResult = await checkGlobalDailyBackstop(
+          "syncs",
+          COMMUNITY_PLAN.globalSyncsPerDay
+        );
+        if (!globalResult.allowed) {
+          return rateLimitResponse({
+            success: false,
+            limit: COMMUNITY_PLAN.globalSyncsPerDay,
+            remaining: 0,
+            reset: globalResult.reset,
+          });
+        }
+        successResult = successResult ?? {
+          success: true,
           limit: COMMUNITY_PLAN.globalSyncsPerDay,
-          remaining: 0,
-          reset: Date.now() + 86_400_000,
-        });
+          remaining: globalResult.remaining,
+          reset: globalResult.reset,
+        };
       }
 
-      return handler(request, ...args);
+      const response = await handler(request, ...args);
+      if (response && successResult) {
+        response.headers.set("X-RateLimit-Limit", String(successResult.limit));
+        response.headers.set("X-RateLimit-Remaining", String(Math.max(0, successResult.remaining)));
+        response.headers.set("X-RateLimit-Reset", String(successResult.reset));
+      }
+      return response;
     };
   };
 }
@@ -489,16 +612,17 @@ function rateLimitResponse(result: RateLimitResult): NextResponse {
 export async function checkGlobalDailyBackstop(
   counterKey: string,
   maxPerDay: number
-): Promise<{ allowed: boolean; remaining: number }> {
+): Promise<{ allowed: boolean; remaining: number; reset: number }> {
   const backend = await getBackend();
   if (!backend) {
-    return { allowed: true, remaining: Infinity };
+    return { allowed: true, remaining: Infinity, reset: Date.now() + 86_400_000 };
   }
   const config: RateLimitConfig = { limit: maxPerDay, window: 86400 };
   const result = await backend.check(`global:${counterKey}`, config);
   return {
     allowed: result.success,
     remaining: result.remaining,
+    reset: result.reset,
   };
 }
 

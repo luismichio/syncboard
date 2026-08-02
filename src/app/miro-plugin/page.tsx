@@ -71,9 +71,10 @@ export default function MiroPluginPage() {
     detectLocalPenpotSelection,
     importPenpotScreen,
     syncSelectedScreens,
-    syncAllCopies,
-    setSyncAllCopies,
-    isAnyImageSelected,
+  syncAllCopies,
+  setSyncAllCopies,
+  cooldownSeconds,
+  isAnyImageSelected,
     replaceSelectedWidget,
   } = useMiroPlugin(propagate, preserveSize);
 
@@ -218,6 +219,53 @@ export default function MiroPluginPage() {
     }
   };
 
+  const handleRefreshNodeName = async (
+    fileKey: string,
+    nodeId: string,
+    platform: 'figma' | 'penpot'
+  ): Promise<void> => {
+    if (platform !== 'figma' || !figmaToken) return;
+    try {
+      const res = await fetch(
+        `/api/figma/node-info?fileKey=${encodeURIComponent(fileKey)}&nodeId=${encodeURIComponent(nodeId)}`,
+        { headers: { Authorization: `Bearer ${figmaToken}` } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.name) return;
+
+      const newName: string = data.name;
+
+      if (typeof window !== 'undefined' && window.miro) {
+        const miro = window.miro;
+        const selection = await miro.board.getSelection();
+        for (const item of selection) {
+          if (item.type === 'image' && item.title) {
+            const tag = 'FigmaSync';
+            if (item.title.includes(`[${tag}|${fileKey}|${nodeId}]`)) {
+              item.title = `${newName} [${tag}|${fileKey}|${nodeId}]`;
+              await item.sync();
+            }
+          }
+        }
+      }
+
+      setSelectedItems((prev) =>
+        prev.map((item) =>
+          item.fileKey === fileKey && item.nodeId === nodeId
+            ? {
+                ...item,
+                nodeName: newName,
+                title: `${newName} [FigmaSync|${fileKey}|${nodeId}]`,
+              }
+            : item
+        )
+      );
+    } catch (err) {
+      console.error('Failed to refresh node name:', err);
+    }
+  };
+
   if (isInitMode === null) {
     return null;
   }
@@ -251,10 +299,12 @@ export default function MiroPluginPage() {
             setPreserveSize={setPreserveSize}
             propagate={propagate}
             setPropagate={setPropagate}
-            isSyncing={isSyncing}
-            hasMiroToken={!!miroToken}
+          isSyncing={isSyncing}
+          cooldownSeconds={cooldownSeconds}
+          hasMiroToken={!!miroToken}
             onSync={syncSelectedScreens}
             onGroupSettingChange={handleGroupSettingChange}
+            onRefreshNodeName={handleRefreshNodeName}
             availableScales={AVAILABLE_SCALES}
           />
         )}

@@ -1,5 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withRateLimit } from '@/lib/rate-limit';
 
+/**
+ * Read a cookie by name from the raw Cookie header. The provider redirect
+ * handler receives a plain Request (NextRequest adds no functionality the
+ * route needs beyond this), so we parse the header directly instead of
+ * depending on NextRequest's cookies API.
+ */
+function getCookieValue(request: Request, name: string): string | undefined {
+  const header = request.headers.get('cookie') ?? '';
+  for (const part of header.split(';')) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(`${name}=`)) {
+      const raw = trimmed.slice(name.length + 1);
+      try {
+        return decodeURIComponent(raw);
+      } catch {
+        return raw;
+      }
+    }
+  }
+  return undefined;
+}
 const HTML_HEAD = `
 <head>
   <title>Miro Connection</title>
@@ -72,12 +94,12 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-export async function GET(request: NextRequest) {
+async function handler(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const stateParam = searchParams.get('state');
-  const stateCookie = request.cookies.get('miro_oauth_state')?.value;
+  const stateCookie = getCookieValue(request, 'miro_oauth_state');
 
   const miroClientId = process.env.MIRO_CLIENT_ID;
   const miroClientSecret = process.env.MIRO_CLIENT_SECRET;
@@ -282,3 +304,5 @@ ${HTML_HEAD}
     return errResponse;
   }
 }
+
+export const GET = withRateLimit({ endpoint: "oauth:callback" })(handler);

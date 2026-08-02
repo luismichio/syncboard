@@ -19,7 +19,7 @@ We process minimal operational data to keep the service running, secure, and fun
 |------|---------|---------|----------|-------------|
 | **IP address** | Rate limiting & abuse prevention | Redis or in-memory counter | Minutes to hours (window TTL) | Legitimate interest (Art. 6(1)(f) GDPR) |
 | **OAuth state parameter** | CSRF protection during OAuth handshake | Redis `SET NX EX 300` | 5 minutes | Legitimate interest (security) |
-| **Relay response payload** | Transport buffer for Penpot companion plugin relay | Redis `SETEX` | 45 seconds | Contractual necessity (providing the relay feature) |
+| **Relay response payload** | Transport buffer for Penpot companion plugin relay | Redis `SETEX` | 180 seconds | Contractual necessity (providing the relay feature) |
 | **Ably connection metadata** | WebSocket channel routing | Transient, not logged | Connection lifetime | Contractual necessity |
 | **Google Analytics** | Anonymous usage metrics (page views, feature interactions) | Google's servers | Per Google's policy | Consent (opt-in via cookie banner) |
 

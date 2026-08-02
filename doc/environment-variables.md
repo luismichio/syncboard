@@ -47,7 +47,7 @@ This document provides a comprehensive reference of all environment variables su
 
 ## Rate Limiting & Protection Controls
 
-SyncingBoard includes an optional 3-layer protection engine. All rate limits are active when `UPSTASH_REDIS_REST_URL` is configured.
+SyncingBoard includes an optional 3-layer protection engine. Redis-backed rate limits are active when both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are configured; persistent Node hosts fall back to in-memory limits when Redis is absent.
 
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
@@ -57,11 +57,15 @@ SyncingBoard includes an optional 3-layer protection engine. All rate limits are
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_MIN` | Number | `5` | Penpot relay render requests allowed per minute per pairing ID. |
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR` | Number | `30` | Penpot relay render requests allowed per hour per pairing ID. |
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_DAY` | Number | `100` | Penpot relay render requests allowed per day per pairing ID. |
+| `RATE_LIMIT_COMMUNITY_RELAY_SESSION_PER_MIN` | Number | `4` | Miro relay-session heartbeat/release requests allowed per minute per session ID. |
+| `RATE_LIMIT_COMMUNITY_MAX_MIRO_RELAY_SESSIONS` | Number | `40` | Maximum concurrent Miro relay sessions across the Community deployment. |
 | `RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN` | Number | `10` | Miro image updates allowed per minute per user token. |
 | `RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN` | Number | `5` | Ably token authentication requests allowed per minute per client IP. |
-| `RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY` | Number | `500` | Global daily hard cap on total sync requests across all users combined. |
-| `RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY` | Number | `500` | Global daily hard cap on total image bandwidth transfer in Megabytes. |
-| `RATE_LIMIT_COMMUNITY_MAX_COMPANION_PAIRS` | Number | `1` | Maximum concurrent active Penpot companion plugin connections per pairing ID. |
+| `RATE_LIMIT_COMMUNITY_OAUTH_REFRESH_PER_MIN` | Number | `3` | OAuth refresh exchanges allowed per minute per refresh-token hash. |
+| `RATE_LIMIT_COMMUNITY_GLOBAL_SYNCS_PER_DAY` | Number | `500` | Global daily cap on Figma render and Miro image-update resource operations across all users. |
+| `RATE_LIMIT_COMMUNITY_OAUTH_CALLBACK_PER_MIN` | Number | `20` | OAuth provider redirect callbacks allowed per minute per client IP. |
+| `RATE_LIMIT_COMMUNITY_RELAY_EXPORT_PER_MIN` | Number | `2` | Relay export commands allowed per minute per pairing ID. |
+| `RATE_LIMIT_COMMUNITY_RELAY_EXPORT_PER_DAY` | Number | `20` | Relay export commands allowed per day per pairing ID. |
 
 ---
 

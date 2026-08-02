@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 
 // ─── Environment helpers ────────────────────────────────────────────────────
 
@@ -9,6 +9,22 @@ function setEnv(key: string, value: string | undefined) {
     process.env[key] = value;
   }
 }
+
+afterEach(() => {
+  for (const key of [
+    "RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN",
+    "RATE_LIMIT_COMMUNITY_FIGMA_PER_DAY",
+    "RATE_LIMIT_COMMUNITY_RELAY_PER_MIN",
+    "RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR",
+    "RATE_LIMIT_COMMUNITY_RELAY_PER_DAY",
+    "RATE_LIMIT_COMMUNITY_OAUTH_REFRESH_PER_MIN",
+    "RATE_LIMIT_COMMUNITY_OAUTH_CALLBACK_PER_MIN",
+    "RATE_LIMIT_COMMUNITY_RELAY_EXPORT_PER_MIN",
+    "RATE_LIMIT_COMMUNITY_RELAY_EXPORT_PER_DAY",
+  ]) {
+    delete process.env[key];
+  }
+});
 
 // ─── extractBearerToken ─────────────────────────────────────────────────────
 
@@ -269,6 +285,88 @@ describe("relay:request multi-window", () => {
     const res = await wrapped(req);
     expect(res.status).toBe(429);
   });
+
+  it("enforces the relay hourly window independently of its minute window", async () => {
+    setEnv("RATE_LIMIT_COMMUNITY_RELAY_PER_MIN", "10");
+    setEnv("RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR", "2");
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "relay:request" })(handler);
+
+    for (let i = 0; i < 2; i++) {
+      const res = await wrapped(new Request("http://localhost/api/relay/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pairingId: "relay-hour-window", action: "select" }),
+      }));
+      expect(res.status).toBe(200);
+    }
+
+    const blocked = await wrapped(new Request("http://localhost/api/relay/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pairingId: "relay-hour-window", action: "select" }),
+    }));
+    expect(blocked.status).toBe(429);
+  });
+
+  it("enforces the Figma daily window independently of its minute window", async () => {
+    setEnv("RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN", "10");
+    setEnv("RATE_LIMIT_COMMUNITY_FIGMA_PER_DAY", "2");
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "figma:render" })(handler);
+
+    for (let i = 0; i < 2; i++) {
+      const res = await wrapped(new Request("http://localhost/api/figma/render", {
+        headers: { Authorization: "Bearer figma-daily-window" },
+      }));
+      expect(res.status).toBe(200);
+    }
+
+    const blocked = await wrapped(new Request("http://localhost/api/figma/render", {
+      headers: { Authorization: "Bearer figma-daily-window" },
+    }));
+    expect(blocked.status).toBe(429);
+  });
+});
+
+// ─── OAuth refresh ─────────────────────────────────────────────────────────
+describe("oauth:refresh", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("RATE_LIMIT_COMMUNITY_OAUTH_REFRESH_PER_MIN", "3");
+    setEnv("UPSTASH_REDIS_REST_URL", undefined);
+    setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    setEnv("VERCEL", undefined);
+  });
+
+  it("limits repeated refreshes by refresh-token hash", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "oauth:refresh" })(handler);
+
+    for (let i = 0; i < 3; i++) {
+      const res = await wrapped(new Request("http://localhost/api/oauth/refresh", {
+        method: "POST",
+        headers: { "X-Refresh-Token": "stable-refresh-token" },
+      }));
+      expect(res.status).toBe(200);
+    }
+
+    const blocked = await wrapped(new Request("http://localhost/api/oauth/refresh", {
+      method: "POST",
+      headers: { "X-Refresh-Token": "stable-refresh-token" },
+    }));
+    expect(blocked.status).toBe(429);
+
+    const distinctToken = await wrapped(new Request("http://localhost/api/oauth/refresh", {
+      method: "POST",
+      headers: { "X-Refresh-Token": "different-refresh-token" },
+    }));
+    expect(distinctToken.status).toBe(200);
+  });
 });
 
 // ─── IP fallback ────────────────────────────────────────────────────────────
@@ -450,7 +548,7 @@ describe("attack: pairingId cycling via relay", () => {
     setEnv("VERCEL", undefined);
   });
 
-  it("multi-window + global backstop catches 501 pairing IDs", async () => {
+  it("does not spend the global sync budget for pairing-ID cycling", async () => {
     const { withRateLimit } = await import("./rate-limit");
     const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
     const wrapped = withRateLimit({ endpoint: "relay:request" })(handler);
@@ -475,11 +573,8 @@ describe("attack: pairingId cycling via relay", () => {
       body: JSON.stringify({ pairingId: "pairing-cycle-final", action: "select" }),
     });
     const lastRes = await wrapped(lastReq);
-    expect(lastRes.status).toBe(429);
-    const body = await lastRes.json();
-    expect(body.error).toBe("rate_limit_exceeded");
-    expect(body.plan).toBe("community");
-    expect(handler).toHaveBeenCalledTimes(500);
+    expect(lastRes.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(501);
   });
 });
 
@@ -604,5 +699,159 @@ describe("attack: global backstop starvation", () => {
       }
     ));
     expect(batchRes.status).toBe(429);
+  });
+});
+
+// ─── figma:render identifier hygiene ─────────────────────────────────────────
+describe("figma:render identifier hygiene", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN", "5");
+    setEnv("UPSTASH_REDIS_REST_URL", undefined);
+    setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    setEnv("VERCEL", undefined);
+  });
+
+  it("ignores ?token= query values as identifiers (header-only auth)", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "figma:render" })(handler);
+
+    // Six requests, each with a DIFFERENT ?token= query value and no
+    // Authorization header. If the limiter keyed on the query token they
+    // would each get an independent bucket and all pass. They must instead
+    // share the IP bucket, so the 6th is blocked at the 5/min limit.
+    for (let i = 0; i < 5; i++) {
+      const res = await wrapped(new Request(
+        `http://localhost/api/figma/render?token=query-token-${i}`
+      ));
+      expect(res.status).toBe(200);
+    }
+
+    const blocked = await wrapped(new Request(
+      "http://localhost/api/figma/render?token=query-token-99"
+    ));
+    expect(blocked.status).toBe(429);
+  });
+});
+
+// ─── Success-path X-RateLimit-* headers ─────────────────────────────────────
+describe("success X-RateLimit-* headers", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("RATE_LIMIT_COMMUNITY_FIGMA_PER_MIN", "5");
+    setEnv("UPSTASH_REDIS_REST_URL", undefined);
+    setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    setEnv("VERCEL", undefined);
+  });
+
+  it("adds X-RateLimit-* headers to successful responses", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "figma:render" })(handler);
+
+    const res = await wrapped(new Request(
+      "http://localhost/api/figma/render",
+      { headers: { Authorization: "Bearer header-test-token" } }
+    ));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("X-RateLimit-Limit")).toBe("5");
+    expect(res.headers.get("X-RateLimit-Remaining")).toBe("4");
+    expect(Number(res.headers.get("X-RateLimit-Reset"))).toBeGreaterThan(0);
+  });
+});
+
+// ─── OAuth callback routes ──────────────────────────────────────────────────
+describe("oauth:callback", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("RATE_LIMIT_COMMUNITY_OAUTH_CALLBACK_PER_MIN", "3");
+    setEnv("UPSTASH_REDIS_REST_URL", undefined);
+    setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    setEnv("VERCEL", undefined);
+  });
+
+  it("limits provider redirect callbacks per client IP", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({ endpoint: "oauth:callback" })(handler);
+
+    for (let i = 0; i < 3; i++) {
+      const res = await wrapped(new Request(
+        "http://localhost/api/oauth/figma/callback?code=c&state=s"
+      ));
+      expect(res.status).toBe(200);
+    }
+
+    const blocked = await wrapped(new Request(
+      "http://localhost/api/oauth/figma/callback?code=c&state=s"
+    ));
+    expect(blocked.status).toBe(429);
+  });
+});
+
+// ─── Relay export sub-budget ────────────────────────────────────────────────
+describe("relay:export sub-budget", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setEnv("RATE_LIMIT_ENABLED", "true");
+    setEnv("RATE_LIMIT_COMMUNITY_RELAY_EXPORT_PER_MIN", "2");
+    setEnv("UPSTASH_REDIS_REST_URL", undefined);
+    setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    setEnv("VERCEL", undefined);
+  });
+
+  const exportReq = (pairing: string) =>
+    new Request("http://localhost/api/relay/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pairingId: pairing, action: "export", shapeId: "s1" }),
+    });
+
+  const selectReq = (pairing: string) =>
+    new Request("http://localhost/api/relay/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pairingId: pairing, action: "select" }),
+    });
+
+  it("applies the stricter export budget to export commands", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({
+      endpoint: "relay:export",
+      skipWhen: async (req) => {
+        const body: unknown = await req.clone().json();
+        return (body as Record<string, unknown>)?.action !== "export";
+      },
+    })(handler);
+
+    for (let i = 0; i < 2; i++) {
+      const res = await wrapped(exportReq("export-pairing"));
+      expect(res.status).toBe(200);
+    }
+
+    const blocked = await wrapped(exportReq("export-pairing"));
+    expect(blocked.status).toBe(429);
+  });
+
+  it("bypasses the export limiter for selection commands", async () => {
+    const { withRateLimit } = await import("./rate-limit");
+    const handler = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+    const wrapped = withRateLimit({
+      endpoint: "relay:export",
+      skipWhen: async (req) => {
+        const body: unknown = await req.clone().json();
+        return (body as Record<string, unknown>)?.action !== "export";
+      },
+    })(handler);
+
+    for (let i = 0; i < 5; i++) {
+      const res = await wrapped(selectReq("select-pairing"));
+      expect(res.status).toBe(200);
+    }
   });
 });

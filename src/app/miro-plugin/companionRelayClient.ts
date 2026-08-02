@@ -25,11 +25,100 @@ let globalAblyClient: Ably.Realtime | null = null;
 let globalAblyChannel: Ably.RealtimeChannel | null = null;
 let currentConnectedPairingId: string | null = null;
 let currentConnectedPlatform: 'figma' | 'penpot' | null = null;
+let activeRelayCalls = 0;
+let idleCloseTimer: ReturnType<typeof setTimeout> | null = null;
+let sessionHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let relaySessionId: string | null = null;
+
+const RELAY_IDLE_CLOSE_MS = 60_000;
+const RELAY_SESSION_HEARTBEAT_MS = 15 * 60_000;
+
+function clearIdleCloseTimer(): void {
+  if (idleCloseTimer) {
+    clearTimeout(idleCloseTimer);
+    idleCloseTimer = null;
+  }
+}
+
+function getRelaySessionId(): string {
+  if (!relaySessionId) {
+    relaySessionId = globalThis.crypto.randomUUID();
+  }
+  return relaySessionId;
+}
+
+function stopSessionHeartbeat(): void {
+  if (sessionHeartbeatTimer) {
+    clearInterval(sessionHeartbeatTimer);
+    sessionHeartbeatTimer = null;
+  }
+}
+
+function sendRelaySessionSignal(action: 'heartbeat' | 'release'): void {
+  if (!relaySessionId || typeof window === 'undefined') return;
+  void fetch('/api/relay/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId: relaySessionId, action }),
+    keepalive: action === 'release',
+  }).then((response) => {
+    if (action === 'heartbeat' && response.status === 429) {
+      closeGlobalAblyConnection();
+    }
+  }).catch(() => {
+    // A transient heartbeat failure is retried on the next interval.
+  });
+}
+
+function startSessionHeartbeat(): void {
+  stopSessionHeartbeat();
+  sessionHeartbeatTimer = setInterval(() => {
+    sendRelaySessionSignal('heartbeat');
+  }, RELAY_SESSION_HEARTBEAT_MS);
+}
+
+function closeGlobalAblyConnection(): void {
+  clearIdleCloseTimer();
+  stopSessionHeartbeat();
+  const client = globalAblyClient;
+  // Clear the singleton first so a synchronous Ably `closed` callback cannot
+  // recursively attempt to close the same client.
+  globalAblyClient = null;
+  globalAblyChannel = null;
+  currentConnectedPairingId = null;
+  currentConnectedPlatform = null;
+  if (client) {
+    sendRelaySessionSignal('release');
+    try {
+      client.close();
+    } catch {
+      // Ignore stale close errors.
+    }
+  }
+}
+
+function scheduleIdleClose(): void {
+  clearIdleCloseTimer();
+  if (activeRelayCalls > 0 || !globalAblyClient) return;
+  idleCloseTimer = setTimeout(() => {
+    if (activeRelayCalls === 0) closeGlobalAblyConnection();
+  }, RELAY_IDLE_CLOSE_MS);
+}
+
+function invalidateConnection(client: Ably.Realtime): void {
+  if (globalAblyClient !== client) return;
+  closeGlobalAblyConnection();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', closeGlobalAblyConnection, { once: true });
+}
 
 async function getAblyConnection(
   pairingId: string,
   platform: 'figma' | 'penpot' = 'penpot'
 ): Promise<Ably.RealtimeChannel> {
+  clearIdleCloseTimer();
   const prefix = platform === 'figma' ? 'figma' : 'penpot';
 
   if (
@@ -41,48 +130,47 @@ async function getAblyConnection(
     return globalAblyChannel;
   }
 
-  if (globalAblyClient) {
-    try {
-      globalAblyClient.close();
-    } catch {
-      // ignore stale close errors
-    }
-    globalAblyClient = null;
-    globalAblyChannel = null;
-  }
+  closeGlobalAblyConnection();
 
   globalAblyClient = new Ably.Realtime({
-    authUrl: `/api/ably/token?pairingId=${encodeURIComponent(pairingId)}&platform=${platform}`,
+    authUrl: `/api/ably/token?pairingId=${encodeURIComponent(pairingId)}&platform=${platform}&client=miro&sessionId=${encodeURIComponent(getRelaySessionId())}`,
     authMethod: 'GET',
   });
 
   globalAblyChannel = globalAblyClient.channels.get(`${prefix}:${pairingId}`);
   currentConnectedPairingId = pairingId;
   currentConnectedPlatform = platform;
+  const client = globalAblyClient;
+  client.connection.on('failed', () => invalidateConnection(client));
+  client.connection.on('suspended', () => invalidateConnection(client));
+  client.connection.on('closed', () => invalidateConnection(client));
 
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Ably connection timed out.')), 10000);
 
-    globalAblyClient!.connection.once('connected', () => {
+    client.connection.once('connected', () => {
       clearTimeout(timeout);
       resolve();
     });
 
-    globalAblyClient!.connection.once('failed', (state) => {
+    client.connection.once('failed', (state) => {
       clearTimeout(timeout);
       reject(new Error(state.reason?.message || 'Ably connection failed'));
     });
   });
 
+  startSessionHeartbeat();
   return globalAblyChannel;
 }
 
 export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
-  const pairingId = body.pairingId;
-  const platform = body.platform || 'penpot';
-  const channel = await getAblyConnection(pairingId, platform);
-
-  return new Promise<RelayJson>((resolve, reject) => {
+  activeRelayCalls += 1;
+  clearIdleCloseTimer();
+  try {
+    const pairingId = body.pairingId;
+    const platform = body.platform || 'penpot';
+    const channel = await getAblyConnection(pairingId, platform);
+    return await new Promise<RelayJson>((resolve, reject) => {
     let resolved = false;
     let targetRequestId: string | null = null;
     const earlyResults = new Map<string, Record<string, unknown>>();
@@ -126,10 +214,15 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
 
       cleanup();
       try {
-        const fetchRes = await fetch(`/api/relay/response?requestId=${targetRequestId}`);
-        if (!fetchRes.ok) {
-          const errData = await fetchRes.json().catch(() => ({})) as { error?: string };
-          throw new Error(errData.error || `HTTP ${fetchRes.status}`);
+        let fetchRes: Response | null = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          fetchRes = await fetch(`/api/relay/response?requestId=${targetRequestId}`);
+          if (fetchRes.ok || fetchRes.status !== 404 || attempt === 2) break;
+          await new Promise((resolve) => setTimeout(resolve, 1_000));
+        }
+        if (!fetchRes || !fetchRes.ok) {
+          const errData = await fetchRes?.json().catch(() => ({})) as { error?: string };
+          throw new Error(errData.error || `HTTP ${fetchRes?.status ?? 0}`);
         }
         const fetchPayload = await fetchRes.json() as { data?: RelayJson };
         resolve(fetchPayload.data ?? null);
@@ -175,7 +268,11 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
         cleanup();
         reject(err instanceof Error ? err : new Error(String(err)));
       });
-  });
+    });
+  } finally {
+    activeRelayCalls = Math.max(0, activeRelayCalls - 1);
+    scheduleIdleClose();
+  }
 }
 
 /**

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withRateLimit } from '@/lib/rate-limit';
 
 const PROVIDER_TIMEOUT_MS = 15000;
 
@@ -23,7 +24,7 @@ function parsePlatform(raw: unknown): Platform | null {
   return null;
 }
 
-export async function POST(request: Request) {
+async function handler(request: Request) {
   try {
     // Read refreshToken from header (backlog #6: header-based token transmission)
     const refreshToken = request.headers.get('X-Refresh-Token') || '';
@@ -140,7 +141,6 @@ export async function POST(request: Request) {
       expiresAt,
     });
   } catch (err) {
-    console.error('Error during token refresh:', err);
     if (err instanceof Error && err.name === 'AbortError') {
       return NextResponse.json(
         { error: 'OAuth provider refresh timed out' },
@@ -154,3 +154,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withRateLimit({ endpoint: 'oauth:refresh' })(handler);

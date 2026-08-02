@@ -8,6 +8,7 @@ const CHANNEL_PREFIXES = {
 } as const;
 
 type Platform = keyof typeof CHANNEL_PREFIXES;
+export type RelayTokenRole = 'companion' | 'miro';
 
 function getAblyRest(): Rest {
   const apiKey = process.env.ABLY_API_KEY;
@@ -39,8 +40,14 @@ export async function publishPenpotCommand(
 }
 
 /**
- * Check if a companion is currently connected (present) on the Ably channel.
+ * Check if a companion is currently connected (present) on the Ably channel
+ * AND has signaled readiness (fully initialized, actively handling commands).
  * Uses Ably's presence REST API instead of a Redis heartbeat.
+ *
+ * Readiness is a presence data flag set at connect time; it costs no extra
+ * messages. Ably's own presence expiry still bounds stale entries after an
+ * abrupt disconnect (~2 min window) — a documented residual of the free-tier
+ * design, since a steady heartbeat would add 20-30 presence messages/hour.
  */
 export async function isPenpotOnlineAbly(
   pairingId: string,
@@ -55,7 +62,12 @@ export async function isPenpotOnlineAbly(
     return (
       result &&
       Array.isArray(result.items) &&
-      result.items.length > 0
+      result.items.some(
+        (member) =>
+          member.data &&
+          typeof member.data === 'object' &&
+          (member.data as { ready?: unknown }).ready === true
+      )
     );
   } catch {
     return false;
@@ -63,23 +75,29 @@ export async function isPenpotOnlineAbly(
 }
 
 /**
- * Generate an Ably token for the companion to authenticate via WebSocket.
- * The token is restricted to subscribe+presence on the specific pairing channel.
+ * Generate an Ably token scoped to one pairing channel. Companion tokens can
+ * publish/subscribe/enter presence; Miro relay tokens can only subscribe.
  * Returns an actual TokenDetails object (not a TokenRequest) for compatibility
  * with the Ably browser SDK loaded from CDN.
  */
 export async function generateAblyToken(
   pairingId: string,
-  platform: Platform = 'penpot'
+  platform: Platform = 'penpot',
+  role: RelayTokenRole = 'companion',
+  sessionId?: string
 ): Promise<Record<string, unknown>> {
   const ably = getAblyRest();
   const prefix = CHANNEL_PREFIXES[platform] || 'penpot';
+  const isMiro = role === 'miro';
+  if (isMiro && !sessionId) {
+    throw new Error('Miro relay token requires a session ID.');
+  }
   const tokenParams: TokenParams = {
     capability: JSON.stringify({
-      [`${prefix}:${pairingId}`]: ['publish', 'subscribe', 'presence'],
+      [`${prefix}:${pairingId}`]: isMiro ? ['subscribe'] : ['publish', 'subscribe', 'presence'],
     }),
     ttl: 2 * 60 * 60 * 1000, // 2 hours
-    clientId: `companion:${pairingId}`,
+    clientId: isMiro ? `miro:${sessionId}` : `companion:${pairingId}`,
   };
   const tokenDetails = await ably.auth.requestToken(tokenParams, undefined);
   return tokenDetails as unknown as Record<string, unknown>;

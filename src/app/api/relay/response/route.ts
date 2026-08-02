@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { withRateLimit } from '@/lib/rate-limit';
-import { getRelayResponse, deleteRelayResponse } from '@/lib/relayRedis';
+import {
+  deleteRelayRequestBinding,
+  deleteRelayResponse,
+  getRelayResponse,
+} from '@/lib/relayRedis';
 
 const REQUEST_ID_RE = /^req_[a-f0-9]{32}$/;
 
@@ -41,6 +45,7 @@ async function handler(request: Request) {
     }
 
     await deleteRelayResponse(requestId);
+    await deleteRelayRequestBinding(requestId).catch(() => undefined);
 
     if (response.error) {
       return NextResponse.json(

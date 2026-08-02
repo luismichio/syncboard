@@ -59,6 +59,12 @@ export default function Home() {
           >
             DOCUMENTATION
           </Link>
+          <Link
+            href="/docs/features"
+            className="px-6 py-3 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200"
+          >
+            FEATURES
+          </Link>
           <a
             href="https://github.com/luismichio/syncingboard"
             target="_blank"
