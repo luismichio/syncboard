@@ -1,6 +1,5 @@
 import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 import { GroupedSyncedImage } from '../types';
-import { RelayStatusBanner } from './RelayStatusBanner';
 
 interface SyncTabProps {
   selectedItemsCount: number;
@@ -14,10 +13,6 @@ interface SyncTabProps {
   isSyncing: boolean;
   cooldownSeconds: number;
   hasMiroToken: boolean;
-  relayUserIdHash?: string | null;
-  relayBoardId?: string | null;
-  useTauri?: boolean;
-  figmaConnected?: boolean;
   onSync: () => void;
   onGroupSettingChange: (itemIds: string[], key: 'format' | 'scale', value: unknown) => void;
   onRefreshNodeName?: (fileKey: string, nodeId: string, platform: 'figma' | 'penpot') => void;
@@ -36,10 +31,6 @@ export function SyncTab({
   isSyncing,
   cooldownSeconds,
   hasMiroToken,
-  relayUserIdHash,
-  relayBoardId,
-  useTauri,
-  figmaConnected,
   onSync,
   onGroupSettingChange,
   onRefreshNodeName,
@@ -48,9 +39,15 @@ export function SyncTab({
   return (
     <div className="flex-grow flex flex-col justify-between">
       <div className="space-y-3">
-        <RelayStatusBanner userIdHash={relayUserIdHash} boardId={relayBoardId} useTauri={useTauri} figmaConnected={figmaConnected} />
         <h4 className="text-[10px] uppercase font-mono tracking-widest text-text-muted">
           Selected Canvas Screens
+{!hasMiroToken && (
+  <div className="p-3 rounded-md border border-amber-500/40 flex flex-col gap-1">
+    <span className="text-[9px] font-mono text-text-muted leading-tight">
+      Connect your Miro account in Settings to sync screens.
+    </span>
+  </div>
+)}
         </h4>
 
         {selectedItemsCount > 0 ? (

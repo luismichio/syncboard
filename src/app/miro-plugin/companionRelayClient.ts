@@ -45,7 +45,7 @@ export async function sha256Hex(input: string): Promise<string> {
     .join('');
 }
 
-const RELAY_IDLE_CLOSE_MS = 60_000;
+const RELAY_IDLE_CLOSE_MS = 30_000;
 const RELAY_SESSION_HEARTBEAT_MS = 15 * 60_000;
 
 function clearIdleCloseTimer(): void {
@@ -71,6 +71,29 @@ function stopSessionHeartbeat(): void {
 
 type RelayConflictHandler = (conflict: { activeBoardId: string }) => void;
 let relayConflictHandler: RelayConflictHandler | null = null;
+
+export type RelayConnectionState = 'idle' | 'connecting' | 'connected';
+type RelayConnectionStateHandler = (state: RelayConnectionState) => void;
+let relayConnectionState: RelayConnectionState = 'idle';
+const relayConnectionStateHandlers = new Set<RelayConnectionStateHandler>();
+
+function setRelayConnectionState(state: RelayConnectionState): void {
+  if (relayConnectionState === state) return;
+  relayConnectionState = state;
+  for (const handler of relayConnectionStateHandlers) handler(state);
+}
+
+/**
+ * Subscribe to the Miro relay client's connection state so the Import tab can
+ * surface "not connected" vs "connected" honestly — a slot is only held while
+ * the Ably websocket is live.
+ */
+export function onRelayConnectionState(handler: RelayConnectionStateHandler): () => void {
+  relayConnectionStateHandlers.add(handler);
+  return () => {
+    relayConnectionStateHandlers.delete(handler);
+  };
+}
 
 export function onRelayConflict(handler: RelayConflictHandler | null): void {
   relayConflictHandler = handler;
@@ -123,6 +146,7 @@ function startSessionHeartbeat(): void {
 }
 
 function closeGlobalAblyConnection(): void {
+  setRelayConnectionState('idle');
   clearIdleCloseTimer();
   stopSessionHeartbeat();
   const client = globalAblyClient;
@@ -143,6 +167,7 @@ function closeGlobalAblyConnection(): void {
 }
 
 export function refreshRelayConnection(): void {
+  setRelayConnectionState('idle');
   clearIdleCloseTimer();
   stopSessionHeartbeat();
   const client = globalAblyClient;
@@ -200,6 +225,7 @@ async function getAblyConnection(
       relayUserIdHash && relayBoardId
         ? '&userIdHash=' + encodeURIComponent(relayUserIdHash) + '&boardId=' + encodeURIComponent(relayBoardId)
         : '';
+  setRelayConnectionState('connecting');
   globalAblyClient = new Ably.Realtime({
       authUrl: '/api/ably/token?pairingId=' + encodeURIComponent(pairingId) + '&platform=' + platform + '&client=miro&sessionId=' + encodeURIComponent(getRelaySessionId()) + identityQuery,
     authMethod: 'GET',
@@ -209,6 +235,8 @@ async function getAblyConnection(
   currentConnectedPairingId = pairingId;
   currentConnectedPlatform = platform;
   const client = globalAblyClient;
+  client.connection.on('connected', () => setRelayConnectionState('connected'));
+  client.connection.on('disconnected', () => setRelayConnectionState('connecting'));
   client.connection.on('failed', () => invalidateConnection(client));
   client.connection.on('suspended', () => invalidateConnection(client));
   client.connection.on('closed', () => invalidateConnection(client));

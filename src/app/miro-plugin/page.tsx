@@ -350,10 +350,6 @@ export default function MiroPluginPage() {
           isSyncing={isSyncing}
           cooldownSeconds={cooldownSeconds}
           hasMiroToken={!!miroToken}
-            relayUserIdHash={relayUserIdHash}
-            relayBoardId={relayBoardId}
-            useTauri={useTauri}
-            figmaConnected={figmaConnected}
             onSync={syncSelectedScreens}
             onGroupSettingChange={handleGroupSettingChange}
             onRefreshNodeName={handleRefreshNodeName}
@@ -363,6 +359,11 @@ export default function MiroPluginPage() {
 
         {activeTab === 'import' && (
           <ImportTab
+          hasMiroToken={!!miroToken}
+          relayUserIdHash={relayUserIdHash}
+          relayBoardId={relayBoardId}
+          useTauri={useTauri}
+          figmaConnected={figmaConnected}
             importPlatform={importPlatform}
             setImportPlatform={setImportPlatform}
             importFormat={importFormat}

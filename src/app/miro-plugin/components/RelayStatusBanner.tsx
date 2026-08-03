@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { onRelayConflict, transferRelaySession } from '../companionRelayClient';
+import { onRelayConflict, onRelayConnectionState, transferRelaySession } from '../companionRelayClient';
+import type { RelayConnectionState } from '../companionRelayClient';
 import { useRelayStatus } from '../useRelayStatus';
 
 // Manual retry cooldown: prevents hammering /api/relay/status when full
@@ -18,7 +19,9 @@ interface RelayStatusBannerProps {
  *  - Local transport (Tauri, both connections live): cyan — 0 cloud slots.
  *  - userConflict: amber transfer card — 1 active board per Miro user,
  *    move the session to this board with one click (7s cooldown).
- *  - available: green dot, slot count · high_load: amber · full: red,
+ *  - not connected (idle/connecting): neutral gray card — the pool is
+ *    reachable but this tab holds no session (connections are lazy).
+ *  - connected: green dot, slot count · high_load: amber · full: red,
  *    manual "Check again" retry + queue hint.
  * No paid upsell — the desktop (Tauri) tier is the queue-escape hatch,
  * hinted at, unpaid.
@@ -30,6 +33,7 @@ export function RelayStatusBanner({
   figmaConnected = false,
 }: RelayStatusBannerProps) {
   const { status, refetch } = useRelayStatus(userIdHash, boardId);
+  const [connectionState, setConnectionState] = useState<RelayConnectionState>('idle');
   const [retryReadyAt, setRetryReadyAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [transferring, setTransferring] = useState<boolean>(false);
@@ -53,6 +57,11 @@ export function RelayStatusBanner({
     });
     return () => onRelayConflict(null);
   }, [refetch]);
+
+  // Relay connection state (idle | connecting | connected) so the banner can
+  // distinguish "pool is available but this tab holds no session" from a live
+  // connection (v0.15.1: connections are lazy — opening the plugin takes no slot).
+  useEffect(() => onRelayConnectionState(setConnectionState), []);
 
   const remainingSeconds =
     retryReadyAt === null ? 0 : Math.max(0, Math.ceil((retryReadyAt - now) / 1000));
@@ -124,6 +133,31 @@ export function RelayStatusBanner({
     );
   }
 
+  // No live relay connection: the pool is reachable but this tab holds no
+  // session. "Not connected" is a first-class state, not a 0/40 slot count.
+  if (connectionState !== 'connected') {
+    const connecting = connectionState === 'connecting';
+    return (
+      <div className="rounded-md border border-border-card px-2.5 py-2 flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${connecting ? 'bg-amber-400 animate-pulse' : 'bg-text-muted/40'}`}
+          />
+          <span className="text-[9px] font-mono text-text-muted flex-1 leading-tight">
+            {connecting
+              ? 'Connecting to Community relay…'
+              : `Community relay available — 0/${status?.maxSessions ?? 40} in use · Not connected`}
+          </span>
+        </div>
+        <p className="text-[8px] font-mono text-text-muted/60 leading-tight">
+          {connecting
+            ? 'A slot is taken only while a selection request is in flight.'
+            : 'Connect by detecting a selection in Figma or Penpot — a slot is held only while the connection is live.'}
+        </p>
+      </div>
+    );
+  }
+
   if (!status) return null;
 
   const { activeSessions, maxSessions, status: level } = status;
@@ -137,10 +171,10 @@ export function RelayStatusBanner({
         : 'border-border-card';
   const label =
     level === 'full'
-      ? `Capacity Full — ${activeSessions}/${maxSessions}`
+      ? `Connected — Capacity Full (${activeSessions}/${maxSessions})`
       : level === 'high_load'
-        ? `High Demand: ${activeSessions}/${maxSessions} slots`
-        : `Community Relay: ${activeSessions}/${maxSessions} slots`;
+        ? `Connected — High Demand: ${activeSessions}/${maxSessions} slots`
+        : `Connected — ${activeSessions}/${maxSessions} slots`;
 
   const handleRetry = () => {
     if (isCoolingDown) return;

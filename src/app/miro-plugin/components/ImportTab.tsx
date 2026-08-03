@@ -3,6 +3,7 @@ import { FigmaNodeInfo } from '../useFigmaImporter';
 import { PenpotNodeInfo } from '../usePenpotImporter';
 import { ImportPlatform } from '../types';
 import { FormatScaleSelector } from './FormatScaleSelector';
+import { RelayStatusBanner } from './RelayStatusBanner';
 
 interface ImportTabProps {
   importPlatform: ImportPlatform;
@@ -14,6 +15,11 @@ interface ImportTabProps {
   availableScales: number[];
   isSyncing: boolean;
   isAnyImageSelected: boolean;
+hasMiroToken: boolean;
+relayUserIdHash?: string | null;
+relayBoardId?: string | null;
+useTauri?: boolean;
+figmaConnected?: boolean;
   preserveSize: boolean;
   setPreserveSize: (value: boolean) => void;
 
@@ -55,6 +61,11 @@ export function ImportTab({
   availableScales,
   isSyncing,
   isAnyImageSelected,
+hasMiroToken,
+relayUserIdHash,
+relayBoardId,
+useTauri,
+figmaConnected,
   preserveSize,
   setPreserveSize,
   figmaToken,
@@ -74,6 +85,14 @@ export function ImportTab({
 }: ImportTabProps) {
   return (
     <div className="flex-grow flex flex-col gap-4">
+      <RelayStatusBanner
+        userIdHash={relayUserIdHash}
+        boardId={relayBoardId}
+        useTauri={useTauri}
+        figmaConnected={figmaConnected}
+      />
+      {hasMiroToken ? (
+        <>
       <div className="flex rounded bg-bg-card p-0.5 border border-border-card">
         <button
           onClick={() => setImportPlatform('figma')}
@@ -336,6 +355,12 @@ export function ImportTab({
               </p>
             </div>
           )}
+        </div>
+      )}
+        </>
+      ) : (
+        <div className="p-8 rounded-md border border-dashed border-border-card text-center text-xs text-text-muted py-12 my-auto">
+          Connect your Miro account in Settings to import, detect, or replace frames.
         </div>
       )}
     </div>
