@@ -61,7 +61,17 @@ export function RelayStatusBanner({
   // Relay connection state (idle | connecting | connected) so the banner can
   // distinguish "pool is available but this tab holds no session" from a live
   // connection (v0.15.1: connections are lazy — opening the plugin takes no slot).
-  useEffect(() => onRelayConnectionState(setConnectionState), []);
+  // Refetch on every transition: the lease is acquired/released exactly at these
+  // edges, so the slot count converges immediately instead of waiting for the
+  // 30s poll (otherwise the card reads "Connected — 0/40" right after detecting).
+  useEffect(
+    () =>
+      onRelayConnectionState((state) => {
+        setConnectionState(state);
+        void refetch();
+      }),
+    [refetch]
+  );
 
   const remainingSeconds =
     retryReadyAt === null ? 0 : Math.max(0, Math.ceil((retryReadyAt - now) / 1000));
