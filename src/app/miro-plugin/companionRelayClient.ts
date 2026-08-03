@@ -29,6 +29,21 @@ let activeRelayCalls = 0;
 let idleCloseTimer: ReturnType<typeof setTimeout> | null = null;
 let sessionHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let relaySessionId: string | null = null;
+let relayUserIdHash: string | null = null;
+let relayBoardId: string | null = null;
+
+export function setRelayIdentity(userIdHash: string | null, boardId: string | null): void {
+  relayUserIdHash = userIdHash;
+  relayBoardId = boardId;
+}
+
+export async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 const RELAY_IDLE_CLOSE_MS = 60_000;
 const RELAY_SESSION_HEARTBEAT_MS = 15 * 60_000;
@@ -54,20 +69,50 @@ function stopSessionHeartbeat(): void {
   }
 }
 
-function sendRelaySessionSignal(action: 'heartbeat' | 'release'): void {
+type RelayConflictHandler = (conflict: { activeBoardId: string }) => void;
+let relayConflictHandler: RelayConflictHandler | null = null;
+
+export function onRelayConflict(handler: RelayConflictHandler | null): void {
+  relayConflictHandler = handler;
+}
+
+function sendRelaySessionSignal(action: 'heartbeat' | 'release' | 'transfer'): void {
   if (!relaySessionId || typeof window === 'undefined') return;
+  const body: Record<string, string> = { sessionId: relaySessionId, action };
+  if (relayUserIdHash) body.userIdHash = relayUserIdHash;
+  if (relayBoardId) body.boardId = relayBoardId;
   void fetch('/api/relay/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId: relaySessionId, action }),
+    body: JSON.stringify(body),
     keepalive: action === 'release',
-  }).then((response) => {
-    if (action === 'heartbeat' && response.status === 429) {
-      closeGlobalAblyConnection();
-    }
-  }).catch(() => {
-    // A transient heartbeat failure is retried on the next interval.
-  });
+  })
+    .then(async (response) => {
+      if (action !== 'heartbeat') return;
+      if (response.status === 429) {
+        closeGlobalAblyConnection();
+        return;
+      }
+      if (response.status === 200) {
+        const data = (await response.json().catch(() => null)) as
+          | { conflict?: boolean; activeBoardId?: string }
+          | null;
+        if (data?.conflict) {
+          relayConflictHandler?.({ activeBoardId: data.activeBoardId ?? '' });
+        }
+      }
+    })
+    .catch(() => {
+      // A transient heartbeat failure is retried on the next interval.
+    });
+}
+
+export function releaseLocalRelaySession(): void {
+  void sendRelaySessionSignal('release');
+}
+
+export function heartbeatRelaySession(): void {
+  void sendRelaySessionSignal('heartbeat');
 }
 
 function startSessionHeartbeat(): void {
@@ -89,6 +134,25 @@ function closeGlobalAblyConnection(): void {
   currentConnectedPlatform = null;
   if (client) {
     sendRelaySessionSignal('release');
+    try {
+      client.close();
+    } catch {
+      // Ignore stale close errors.
+    }
+  }
+}
+
+export function refreshRelayConnection(): void {
+  clearIdleCloseTimer();
+  stopSessionHeartbeat();
+  const client = globalAblyClient;
+  // Clear the singleton first so a synchronous Ably `closed` callback cannot
+  // recursively attempt to close the same client.
+  globalAblyClient = null;
+  globalAblyChannel = null;
+  currentConnectedPairingId = null;
+  currentConnectedPlatform = null;
+  if (client) {
     try {
       client.close();
     } catch {
@@ -132,8 +196,12 @@ async function getAblyConnection(
 
   closeGlobalAblyConnection();
 
+    const identityQuery =
+      relayUserIdHash && relayBoardId
+        ? '&userIdHash=' + encodeURIComponent(relayUserIdHash) + '&boardId=' + encodeURIComponent(relayBoardId)
+        : '';
   globalAblyClient = new Ably.Realtime({
-    authUrl: `/api/ably/token?pairingId=${encodeURIComponent(pairingId)}&platform=${platform}&client=miro&sessionId=${encodeURIComponent(getRelaySessionId())}`,
+      authUrl: '/api/ably/token?pairingId=' + encodeURIComponent(pairingId) + '&platform=' + platform + '&client=miro&sessionId=' + encodeURIComponent(getRelaySessionId()) + identityQuery,
     authMethod: 'GET',
   });
 
@@ -155,7 +223,14 @@ async function getAblyConnection(
 
     client.connection.once('failed', (state) => {
       clearTimeout(timeout);
-      reject(new Error(state.reason?.message || 'Ably connection failed'));
+      const reason = state.reason?.message || '';
+      reject(
+        new Error(
+          reason.includes('relay_capacity_reached')
+            ? 'Community relay is at full capacity. Wait, then use the status banner to check again.'
+            : reason || 'Ably connection failed'
+        )
+      );
     });
   });
 
@@ -370,4 +445,43 @@ export async function callFigmaSelectionTauri(): Promise<{ id: string; name: str
   } catch {
     return null;
   }
+}
+
+
+/**
+ * Moves the per-user session binding to THIS board (1 active board per Miro
+ * user). On success the Ably client is re-established under the same tab
+ * sessionId — now a valid lease — WITHOUT sending a release signal (a plain
+ * close would delete the lease we just granted).
+ */
+export async function transferRelaySession(): Promise<{ granted: boolean; activeSessions: number }> {
+  const sessionId = getRelaySessionId();
+  if (!relayUserIdHash || !relayBoardId) {
+    throw new Error('Relay identity is not ready yet. Try again in a moment.');
+  }
+  const response = await fetch('/api/relay/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId,
+      action: 'transfer',
+      userIdHash: relayUserIdHash,
+      boardId: relayBoardId,
+    }),
+  });
+  const payload = (await response.json().catch(() => ({}))) as {
+    granted?: boolean;
+    activeSessions?: number;
+    error?: string;
+    conflict?: boolean;
+    activeBoardId?: string;
+  };
+  if (!response.ok || !payload.granted) {
+    if (payload.conflict) {
+      throw new Error('Session is still active on the other board.');
+    }
+    throw new Error(payload.error || 'Transfer failed with HTTP ' + response.status);
+  }
+  refreshRelayConnection();
+  return { granted: true, activeSessions: payload.activeSessions ?? 0 };
 }

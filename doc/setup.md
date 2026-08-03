@@ -185,6 +185,8 @@ Vercel is the simplest deployment path --- one-click deploy with zero server man
    | `UPSTASH_REDIS_REST_TOKEN` | **Penpot only** | From Upstash Console (used for Penpot image relay) |
    | `ABLY_API_KEY` | **Figma (selection relay) & Penpot** | From Ably Console (WebSocket broker) |
 
+> **Session fairness (v0.15.1):** the relay enforces **1 active board per Miro user** — binding key `relay:user_board:{sha256(miro.currentUser.id)}` with a **30-minute TTL refreshed on every heartbeat**. Opening a second board shows a one-click **Transfer Session to This Board** banner. Guests with OAuth are first-class users; users without OAuth cannot sync and never hold a session.
+>
    > Do NOT add a trailing slash to `NEXT_PUBLIC_APP_URL`. Example: `https://syncingboard.com` (no `/` at the end).
    >
    > For a complete reference of all environment variables, rate-limiting overrides, and `.env.example` templates, see [Environment Variables Reference](environment-variables.md).
@@ -240,7 +242,7 @@ Rate limiting is enabled by default when both `UPSTASH_REDIS_REST_URL` and `UPST
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR` | `30` | Penpot relay requests per hour per pairing ID |
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_DAY` | `100` | Penpot relay requests per day per pairing ID |
 | `RATE_LIMIT_COMMUNITY_RELAY_SESSION_PER_MIN` | `4` | Miro relay session signals per minute per session ID |
-| `RATE_LIMIT_COMMUNITY_MAX_MIRO_RELAY_SESSIONS` | `40` | Concurrent Miro relay-session lease ceiling across the deployment |
+| `RATE_LIMIT_COMMUNITY_MAX_RELAY_SESSIONS` | `40` | Concurrent relay-session lease ceiling across the deployment (target/source agnostic; legacy alias `RATE_LIMIT_COMMUNITY_MAX_MIRO_RELAY_SESSIONS`) |
 | `RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN` | `10` | Miro image updates per minute per user token |
 | `RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN` | `5` | Ably token generation per minute per requester |
 | `RATE_LIMIT_COMMUNITY_OAUTH_REFRESH_PER_MIN` | `3` | OAuth refresh exchanges per minute per refresh-token hash |

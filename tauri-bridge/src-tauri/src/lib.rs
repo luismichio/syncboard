@@ -19,6 +19,9 @@ use tauri::Emitter;
 struct AppState {
     // WebSocket connections (legacy)
     connections: Arc<Mutex<HashMap<String, ()>>>,
+    // Live service connections (figma = local Figma MCP reachable; miro = linked)
+    service_connections: Arc<Mutex<HashMap<String, bool>>>,
+
     app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
 }
 
@@ -36,6 +39,14 @@ impl AppState {
     async fn log(&self, service: &str, message: impl Into<String>) {
         let msg: String = message.into();
         self.emit_status("active", self.connections.lock().await.len(), Some(format!("[{}] {}", service, msg))).await;
+    }
+
+    async fn set_service_connection(&self, service: &str, connected: bool) {
+        self.service_connections.lock().await.insert(service.to_string(), connected);
+    }
+
+    async fn is_service_connected(&self, service: &str) -> bool {
+        *self.service_connections.lock().await.get(service).unwrap_or(&false)
     }
 }
 
@@ -59,6 +70,7 @@ struct ApiResponse<T> {
 pub fn run() {
     let state = AppState {
         connections: Arc::new(Mutex::new(HashMap::new())),
+        service_connections: Arc::new(Mutex::new(HashMap::new())),
         app_handle: Arc::new(Mutex::new(None)),
     };
 
@@ -250,6 +262,7 @@ async fn start_https_server(state: AppState) {
 
 // \u{2500}\u{2500} Figma detection \u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}
 async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse {
+    state.set_service_connection("figma", false).await;
     state.log("Miro", format!("\u{2192} Requested Figma selection detection")).await;
     state.log("Figma", "Detecting local selection\u{2026}").await;
 
@@ -314,6 +327,7 @@ async fn handle_detect_figma(State(state): State<AppState>) -> impl IntoResponse
 
         if let (Some(fk), Some(nd)) = (file_key, node_id) {
             state.log("Figma", format!("Detected: {} (file: {}, node: {})", name, fk, nd)).await;
+            state.set_service_connection("figma", true).await;
             return (
                 StatusCode::OK,
                 Json(ApiResponse {
@@ -352,12 +366,18 @@ fn regex_capture(text: &str, pattern: &str) -> Option<String> {
 
 
 // Silent health check \u{2014} called by Miro plugin every 30s. No logging to avoid flooding.
-async fn handle_health() -> impl IntoResponse {
-    (StatusCode::OK, Json(serde_json::json!({ "status": "ok" })))
+async fn handle_health(State(state): State<AppState>) -> impl IntoResponse {
+    let figma_connected = state.is_service_connected("figma").await;
+    let miro_connected = state.is_service_connected("miro").await;
+    (StatusCode::OK, Json(serde_json::json!({
+        "status": "ok",
+        "figmaConnected": figma_connected,
+        "miroConnected": miro_connected,
+    })))
 }
-
 /// Called once by the Miro plugin when the user first connects to the bridge.
 async fn handle_miro_connect(State(state): State<AppState>) -> impl IntoResponse {
+    state.set_service_connection("miro", true).await;
     state.log("Miro", "Connected \u{2014} SyncingBoard plugin is now linked to SyncBridge").await;
     (StatusCode::OK, Json(serde_json::json!({ "status": "connected" })))
 }

@@ -9,6 +9,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1] - 2026-08-03
+### Added
+- **1 Active Board Per Miro User (Session Binding):** The relay now binds each Miro user to a single board via `relay:user_board:{sha256(miro.currentUser.id)}` (30-minute TTL refreshed on every heartbeat). A user holding a lease on board A who starts syncing on board B is detected at token issuance — the new board receives `200 { conflict, activeBoardId }` instead of silently double-holding capacity. Guests with OAuth are first-class users; users without OAuth cannot sync and never hold a session (connections are lazy, so no server-side auth gate is needed).
+- **One-Click Session Transfer UX:** Both boards (the current holder and the new board) show an amber **"Transfer Session"** card. One click repoints the binding via the Lua `transfer` action, frees the previous holder, then re-establishes the Ably client under the same session — no token re-issuance round-trip. The old board's next heartbeat reports the conflict and both sides converge on the same binding. The transfer button is gated by a 7-second cooldown.
+- **Tauri Local Transport Indicator (C2):** The Rust bridge `/health` endpoint now returns `{ status, figmaConnected, miroConnected }` with real per-service connection tracking (`service_connections`). When the desktop bridge is active and Figma is connected, the sidebar shows a cyan **"Local Transport (0/40 slots used)"** card — the desktop relay bypasses the cloud pool, so the UI reflects actual slot usage.
+- **Pure Decision Tables (M5):** `planAcquire` / `planTransfer` extract the binding rules (renew / grant / conflict / full) into exported pure functions mirrored by the Redis Lua script — 7 new unit tests cover renew, conflict, grant, full, and transfer paths without a Redis instance.
+### Changed
+- **Conflict at issuance, not after connect:** `/api/ably/token` detects the cross-board conflict before issuing a token (`200 { error: "relay_conflict" }`), distinct from capacity-full `429` + `Retry-After`; `/api/relay/status?userIdHash=&boardId=` returns `userConflict` + `activeBoardId` so the banner refetch converges instantly.
+- **Legacy clients unchanged:** sessions without a user identity keep the previous pool-only semantics (heartbeat / acquire / release work exactly as before) — 0.14.1 compatibility preserved.
+
+## [0.15.0] - 2026-08-03
+
+### Added
+
+- **Community Active Slot Counter (`/api/relay/status`):** New public endpoint reports live relay capacity — `{ activeSessions, maxSessions, globalSyncsToday, maxGlobalSyncs, status }` — with status levels `available` / `high_load` (≥75% of ceiling) / `full` (at ceiling). Polled by the Miro sidebar every 30 seconds.
+- **Graceful Queue UX (Sync tab banner):** Live capacity banner with green (`Community Relay: n/40 slots`), amber (`High Demand`), and red (`Capacity Full`) states. When full, a manual **"Check again"** button replaces auto-retry, gated by a 7-second cooldown with a quiet countdown, so users cannot hammer retry.
+- **Target/Source-Agnostic Relay Sessions:** Session leases renamed from Miro-specific (`relay:miro:sessions`, `acquireMiroRelaySession`) to generic relay naming (`relay:sessions`, `acquireRelaySession`) so one capacity pool covers Figma/Penpot → Miro today and FigJam/Mural later. New env `RATE_LIMIT_COMMUNITY_MAX_RELAY_SESSIONS` (default `40`); legacy alias `RATE_LIMIT_COMMUNITY_MAX_MIRO_RELAY_SESSIONS` still honored.
+- **Global Daily Syncs Display Counter:** Best-effort `global_syncs_today` counter (24h TTL) incremented alongside the daily global backstop, so the status endpoint can surface community-wide usage.
+- **Capacity Failure Messaging:** Ably auth failures caused by `relay_capacity_reached` now surface a clear "Community relay is at full capacity" message instead of a raw connection error.
+- **Unit Tests:** `deriveRelayStatusLevel` boundary coverage (available/high_load/full at 40- and 60-slot ceilings).
+
+### Changed
+
+- **No paid upsell in queue UX:** The full-capacity hint points to the upcoming free desktop (Tauri) tier instead of a paid plan.
+
 ## [0.14.1] - 2026-08-02
 ### Security
 - **Community Rate-Limit Enforcement:** Restored the documented Community defaults (Figma `5/min`, Miro image updates `10/min`), activated Figma `50/day` and relay `5/min + 30/hour + 100/day` windows, and excluded OAuth polling, Ably token issuance, node-info, and relay bookkeeping from the shared render/update resource budget.

@@ -19,6 +19,12 @@ interface MiroBoardInfo {
   id: string;
 }
 
+interface MiroUser {
+  id: string;
+  name?: string;
+  picture?: string;
+}
+
 interface MiroBoard {
   get(): Promise<MiroItem[]>;
   getById(id: string): Promise<MiroItem>;
@@ -48,6 +54,7 @@ interface MiroBoard {
 interface Window {
   miro?: {
     board: MiroBoard;
+    currentUser: Promise<MiroUser>;
   };
   gtag?: (
     command: 'event' | 'config' | 'js' | 'consent' | 'set',

@@ -22,6 +22,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import type { Ratelimit } from "@upstash/ratelimit";
+import { incrementGlobalSyncCount } from "@/lib/relayRedis";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -291,6 +292,7 @@ const ENDPOINT_LIMITS: Record<string, RateLimitConfig | MultiWindowConfig> = {
   "relay:result": { limit: COMMUNITY_PLAN.relayPerMin, window: 60 },
   "relay:response": { limit: COMMUNITY_PLAN.relayResponsePerMin, window: 60 },
   "relay:session": { limit: COMMUNITY_PLAN.relaySessionPerMin, window: 60 },
+"relay:status": { limit: 60, window: 60 },
   "oauth:refresh": { limit: COMMUNITY_PLAN.oauthRefreshPerMin, window: 60 },
   "oauth:store:get": { limit: COMMUNITY_PLAN.oauthStoreGetPerMin, window: 60 },
   "oauth:store:post": { limit: COMMUNITY_PLAN.oauthStorePostPerMin, window: 60 },
@@ -561,6 +563,8 @@ export function withRateLimit(opts: WithRateLimitOptions) {
             reset: globalResult.reset,
           });
         }
+        // Best-effort display counter for /api/relay/status (mirrors the backstop).
+        await incrementGlobalSyncCount().catch(() => undefined);
         successResult = successResult ?? {
           success: true,
           limit: COMMUNITY_PLAN.globalSyncsPerDay,

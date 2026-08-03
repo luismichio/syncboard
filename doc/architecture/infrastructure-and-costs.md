@@ -54,7 +54,7 @@ graph LR
 | **Vercel Execution Timeout (10s Hobby / 60s Pro)** | Large batch renders | Batch limit of 3 unique images; 500ms Miro update throttle; Retry-After backoff (capped at 10s). |
 | **Upstash Redis Value Limit (256MB Data Size)** | Penpot base64 exports | Ephemeral 180s TTL auto-deletion (`SETEX 180`); max payload capped by Vercel 4.5MB response limit. |
 | **Upstash Redis Monthly Command Pool (500,000 Cmds)** | Rate-limiting & Penpot relay | Slowed OAuth polling (4s interval); scoped backstops (auxiliary endpoints excluded from global counter). |
-| **Ably Realtime Connection Limit (200 WebSockets)** | Selection relay & Penpot status | Redis Lua `ZSET` session lease (`acquireMiroRelaySession`) capping active Miro relay clients at **40 concurrent leases** (consuming 80 WebSockets, leaving 120 slots open for reconnects). |
+| **Ably Realtime Connection Limit (200 WebSockets)** | Selection relay & Penpot status | Redis Lua `ZSET` session lease (`acquireRelaySession`) capping active Miro relay clients at **40 concurrent leases** (consuming 80 WebSockets, leaving 120 slots open for reconnects), with a **1-board-per-user binding** (`relay:user_board:{userIdHash}`, 30-min TTL refreshed per heartbeat) + one-click session transfer (v0.15.1). |
 | **Vercel Outbound Bandwidth (100GB Hobby / 1TB Pro)** | Image downloads & uploads | SVG vector preference (~10x smaller than PNG). |
 
 ---
@@ -80,7 +80,7 @@ Under a **500 global daily sync cap** (500 syncs/day = 15,000 syncs/month), **mo
 
 | Hosting Tier | Vercel Plan | Upstash Plan | Ably Plan | Monthly Cost | Capacity |
 |---|---|---|---|---|---|
-| **Community Free** | Hobby (Free) | Free (500k cmd/mo) | Free (200 conns/200k msgs) | **$0 / mo** | 40 active sessions; 500 syncs/day; under 4.5MB per image. |
+| **Community Free** | Hobby (Free) | Free (500k cmd/mo) | Free (200 conns/200k msgs) | **$0 / mo** | 40 active sessions (1 board per user); 500 syncs/day; under 4.5MB per image. |
 | **Team Figma Sync** | Pro ($20/mo) | Free (500k cmd/mo) | Free (200 conns/200k msgs) | **~$20 / mo** | 1TB bandwidth, 60s execution timeout, 1M invocations. |
 | **Heavy Penpot Sync** | Pro ($20/mo) | Pay-as-you-go ($0.20/100k cmds) | Standard ($29/mo) | **~$50–$55 / mo** | High-concurrency relay messages & Redis single-read buffers. |
 | **Enterprise / Private** | Corporate AWS/GCP Docker | Managed Redis | Optional | **$0 extra** | Runs on existing corporate container infra; zero per-request limits. |

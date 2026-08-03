@@ -1,17 +1,21 @@
 import { NextResponse } from 'next/server';
 import { withRateLimit } from '@/lib/rate-limit';
 import {
-  acquireMiroRelaySession,
-  releaseMiroRelaySession,
+  acquireRelaySession,
+  releaseRelaySession,
+  transferRelaySession,
 } from '@/lib/relayRedis';
 
 const SESSION_ID_RE = /^[a-f0-9-]{36}$/i;
+const USER_ID_HASH_RE = /^[a-f0-9]{64}$/i;
 
-type SessionAction = 'heartbeat' | 'release';
+type SessionAction = 'heartbeat' | 'release' | 'transfer';
 
 interface SessionBody {
   sessionId: string;
   action: SessionAction;
+  userIdHash?: string;
+  boardId?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -21,8 +25,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function parseBody(value: unknown): SessionBody | null {
   if (!isRecord(value)) return null;
   const sessionId = typeof value.sessionId === 'string' ? value.sessionId.trim() : '';
-  const action = value.action === 'heartbeat' || value.action === 'release' ? value.action : null;
-  return SESSION_ID_RE.test(sessionId) && action ? { sessionId, action } : null;
+  const action =
+    value.action === 'heartbeat' || value.action === 'release' || value.action === 'transfer'
+      ? value.action
+      : null;
+  if (!SESSION_ID_RE.test(sessionId) || !action) return null;
+  const userIdHashRaw = typeof value.userIdHash === 'string' ? value.userIdHash.trim() : '';
+  const boardIdRaw = typeof value.boardId === 'string' ? value.boardId.trim() : '';
+  if (userIdHashRaw && !USER_ID_HASH_RE.test(userIdHashRaw)) return null;
+  const userIdHash = userIdHashRaw || undefined;
+  const boardId = boardIdRaw || undefined;
+  // Transfer needs identity + board to repoint the per-user binding.
+  if (action === 'transfer' && (!userIdHash || !boardId)) return null;
+  return { sessionId, action, userIdHash, boardId };
 }
 
 async function handler(request: Request) {
@@ -33,11 +48,31 @@ async function handler(request: Request) {
 
   try {
     if (body.action === 'release') {
-      await releaseMiroRelaySession(body.sessionId);
+      await releaseRelaySession(body.sessionId, body.userIdHash);
       return NextResponse.json({ released: true });
     }
 
-    const lease = await acquireMiroRelaySession(body.sessionId);
+    const options = {
+      sessionId: body.sessionId,
+      userIdHash: body.userIdHash,
+      boardId: body.boardId,
+    };
+    const lease =
+      body.action === 'transfer'
+        ? await transferRelaySession(options)
+        : await acquireRelaySession(options);
+
+    if (lease.conflict) {
+      // Same user, different board: the slot is held by the user's other board.
+      // Not a capacity error, so return 200 (no Retry-After).
+      return NextResponse.json({
+        granted: false,
+        conflict: true,
+        activeBoardId: lease.activeBoardId,
+        activeSessions: lease.activeSessions,
+      });
+    }
+
     if (!lease.granted) {
       return NextResponse.json(
         {

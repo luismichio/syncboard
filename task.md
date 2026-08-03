@@ -83,3 +83,87 @@
 - [x] Remove unenforced RATE_LIMIT_COMMUNITY_GLOBAL_BANDWIDTH_MB_PER_DAY and RATE_LIMIT_COMMUNITY_MAX_COMPANION_PAIRS from code, .env.example, and docs.
 - [x] Extend rate-limit.test.ts (5 new tests) and update doc/CHANGELOG.md under 0.14.1.
 - [x] Verification: yarn test 85/85, yarn build clean, companion inline JS node --check clean.
+
+---
+
+# Task: 0.15.0 — Community Active Slot Counter & Graceful Queue UX (backlog §8)
+
+## Scope
+- Implement §8 under 0.15.0; NO paid upsell yet (desktop/Tauri hinted as the future queue-escape hatch)
+- Target/source AGNOSTIC: Figma + Penpot → Miro today; FigJam + Mural must reuse the same pool
+
+## Phase 1: Backend
+- [x] relayRedis: generic renames (RelaySessionLease, relay:sessions key, acquireRelaySession/releaseRelaySession, RATE_LIMIT_COMMUNITY_MAX_RELAY_SESSIONS + legacy alias)
+- [x] relayRedis: getRelaySessionStatus (ZCOUNT > now-TTL), deriveRelayStatusLevel (75% → high_load, ceiling → full), incrementGlobalSyncCount/getGlobalSyncCount (Lua INCR + 24h TTL)
+- [x] relay/session + ably/token routes: renamed lease fns
+- [x] NEW /api/relay/status GET route (withRateLimit relay:status 60/min per IP)
+- [x] rate-limit.ts: relay:status endpoint limit + display-counter INCR alongside global backstop
+
+## Phase 2: Frontend (Miro sidebar)
+- [x] useRelayStatus hook (30s poll + manual refetch, in-flight guard)
+- [x] RelayStatusBanner: green/amber/red states; manual "Check again" with 7s cooldown countdown; desktop hint (no paid plans)
+- [x] SyncTab mounts banner
+- [x] companionRelayClient: friendly relay_capacity_reached message
+
+## Phase 3: Release
+- [x] Tests: relayRedis.test.ts (deriveRelayStatusLevel boundaries) → 89/89
+- [x] .env.example + environment-variables.md + setup.md: env rename w/ alias note
+- [x] CHANGELOG 0.15.0 + bump-version 0.15.0 (pkg, tauri, cargo) + HTML badges
+- [x] backlog §8 status marker
+- [x] Verified: TS clean (all runs); full build green via `next build --webpack` (Turbopack hit the known workStore prerender flake 3/3 — upstream #96261, backlog-tracked, not code-related; CI ran Turbopack green for 0.14.1)
+- [ ] git commit + push (pending user validation)
+
+---
+
+# Task: 0.15.1 — 1-Board-Per-User & Session Transfer UX
+
+## Scope
+- Implement 1-board-per-user binding in Redis (`relay:user_board:{sha256_userId}`, 30-min TTL)
+- Implement conflict detection & bidirectional `[ 🔄 Transfer Session to This Board ]` UX
+- Fix Rust `/health` payload (C2) to report `figmaConnected` / `miroConnected`
+- NO paid upsell — 100% Community capacity transparency
+
+## Phase 1: Redis & Pure Logic (`src/lib/relayRedis.ts`)
+- [x] Write detailed implementation plan to `doc/dev/plan/plan_2026_08_03_user_session_transfer.md` (rev. 2)
+- [x] Implement `planAcquire` pure decision function (unit-testable outside Redis)
+- [x] Implement thin Lua script for `heartbeat`, `release`, and `transfer` actions with 30-min TTL refresh
+- [x] Add unit tests in `relayRedis.test.ts` for renew, conflict, full, and transfer logic
+
+## Phase 2: API Routes
+- [x] Update `/api/relay/session` route handler for `heartbeat`, `release`, and `transfer`
+- [x] Update `/api/ably/token` to detect conflict at token issuance (`200 OK { conflict: true }`)
+- [x] Update `/api/relay/status` to accept `?userIdHash=` and return user conflict state
+
+## Phase 3: Frontend & Tauri Health (Miro Sidebar)
+- [x] Update `companionRelayClient.ts` with `refreshRelayConnection()` (re-auth without calling `release`)
+- [x] Update `useRelayStatus` to consume `userConflict` state
+- [x] Update `RelayStatusBanner.tsx` to render `[ 🔄 Transfer Session to This Board ]` card on conflict
+- [x] Add `⚡ Local Transport (0/40 slots used)` cyan badge when Tauri is active
+- [x] Extend Rust `handle_health` in `tauri-bridge/src-tauri/src/lib.rs` (C2) to return `{ status, figmaConnected, miroConnected }`
+- [x] Hook Tauri activation (`useTauri === true` AND `figmaConnected === true`) in `page.tsx` to release cloud Redis lease
+
+## Phase 4: Documentation, Verification & Build
+- [x] Update `README.md` Community Demo section with 40-slot ceiling and 1-click transfer callouts
+- [x] Update `doc/architecture/infrastructure-and-costs.md` with 1-board-per-user rule
+- [x] Update `doc/setup.md` with session transfer behavior and 30-min binding TTL
+- [x] Run `yarn test` + `yarn build` (using `next build --webpack` for Turbopack prerender bypass)
+- [x] Document release notes in `doc/CHANGELOG.md`
+
+---
+
+# Task: 0.15.2 — Companion Session Fairness (v0.15.2 Planned)
+
+## Scope
+- Implement 120 companion token ceiling in `/api/ably/token` (80-WebSocket reserve for Miro)
+- Implement orphan standby companion eviction logic + `{ event: 'companion_evicted' }` Ably broadcast
+- Implement 1-tab-per-pairing companion binding (`relay:companion_session:{pairingId}`) & transfer UX
+- Add `[ 🔄 Transfer Connection to This Tab ]` button to Figma & Penpot companion headers
+
+---
+
+# Task: 0.16.x — Tauri SyncBridge Hardening (v0.16.x Planned)
+
+## Scope
+- Implement CORS & PNA Origin Whitelisting on bridge endpoints (`local-*.luiskobayashi.com:4401`)
+- Implement Header-based Token Transmission (remove tokens from query params)
+- Enable FigJam desktop path over bridge (`figma-plugin/manifest.json` domain check)

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { withRateLimit } from '@/lib/rate-limit';
 import {
-  acquireMiroRelaySession,
-  releaseMiroRelaySession,
+  acquireRelaySession,
+  releaseRelaySession,
 } from '@/lib/relayRedis';
 import { generateAblyToken, RelayTokenRole } from '@/lib/relayAbly';
 
 const PAIRING_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 const SESSION_ID_RE = /^[a-f0-9-]{36}$/i;
+const USER_ID_HASH_RE = /^[a-f0-9]{64}$/i;
 
 type Platform = 'figma' | 'penpot';
 
@@ -16,6 +17,8 @@ interface TokenRequestInput {
   platform: Platform;
   role: RelayTokenRole;
   sessionId?: string;
+  userIdHash?: string;
+  boardId?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -27,17 +30,41 @@ function parseInput(raw: Record<string, unknown>): TokenRequestInput | null {
   const platform: Platform = raw.platform === 'figma' ? 'figma' : 'penpot';
   const role: RelayTokenRole = raw.client === 'miro' ? 'miro' : 'companion';
   const sessionId = typeof raw.sessionId === 'string' ? raw.sessionId.trim() : undefined;
+  const userIdHashRaw = typeof raw.userIdHash === 'string' ? raw.userIdHash.trim() : '';
+  const boardIdRaw = typeof raw.boardId === 'string' ? raw.boardId.trim() : '';
 
   if (!PAIRING_ID_RE.test(pairingId)) return null;
   if (role === 'miro' && (!sessionId || !SESSION_ID_RE.test(sessionId))) return null;
-  return { pairingId, platform, role, sessionId };
+  if (userIdHashRaw && !USER_ID_HASH_RE.test(userIdHashRaw)) return null;
+  return {
+    pairingId,
+    platform,
+    role,
+    sessionId,
+    userIdHash: userIdHashRaw || undefined,
+    boardId: boardIdRaw || undefined,
+  };
 }
 
 async function issueToken(input: TokenRequestInput): Promise<NextResponse> {
   const hasRedis = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
   let acquiredMiroLease = false;
   if (input.role === 'miro' && hasRedis) {
-    const lease = await acquireMiroRelaySession(input.sessionId!);
+    const lease = await acquireRelaySession({
+      sessionId: input.sessionId!,
+      userIdHash: input.userIdHash,
+      boardId: input.boardId,
+    });
+    if (lease.conflict) {
+      // Same user's other board holds the binding: surface the transfer
+      // banner instead of a failed connection (distinct from capacity 429).
+      return NextResponse.json({
+        error: 'relay_conflict',
+        conflict: true,
+        activeBoardId: lease.activeBoardId,
+        activeSessions: lease.activeSessions,
+      });
+    }
     if (!lease.granted) {
       return NextResponse.json(
         {
@@ -64,7 +91,7 @@ async function issueToken(input: TokenRequestInput): Promise<NextResponse> {
     return NextResponse.json(tokenDetails);
   } catch (error) {
     if (acquiredMiroLease) {
-      await releaseMiroRelaySession(input.sessionId!).catch(() => undefined);
+      await releaseRelaySession(input.sessionId!, input.userIdHash).catch(() => undefined);
     }
     throw error;
   }
@@ -92,6 +119,8 @@ async function getHandler(request: Request) {
       platform: searchParams.get('platform'),
       client: searchParams.get('client'),
       sessionId: searchParams.get('sessionId'),
+      userIdHash: searchParams.get('userIdHash'),
+      boardId: searchParams.get('boardId'),
     });
     if (!input) {
       return NextResponse.json({ error: 'Invalid pairingId or Miro session ID.' }, { status: 400 });

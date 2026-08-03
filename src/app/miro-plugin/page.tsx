@@ -5,6 +5,7 @@ import { useMiroPlugin } from './useMiroPlugin';
 import { SyncedImage } from './useMiroSelection';
 import { DISPLAY, PLAN } from '@/lib/version';
 import { getOrCreatePairingId, rotatePairingId } from '@/lib/pairingId';
+import { heartbeatRelaySession, releaseLocalRelaySession, setRelayIdentity, sha256Hex } from './companionRelayClient';
 import { AppHeader } from './components/AppHeader';
 import { TabNav } from './components/TabNav';
 import { BoardStatusFooter } from './components/BoardStatusFooter';
@@ -86,6 +87,9 @@ export default function MiroPluginPage() {
   const [useTauri, setUseTauri] = useState<boolean>(false);
   const [pairingId, setPairingId] = useState<string>('');
   const [copiedPairing, setCopiedPairing] = useState<boolean>(false);
+  const [relayUserIdHash, setRelayUserIdHash] = useState<string | null>(null);
+  const [relayBoardId, setRelayBoardId] = useState<string | null>(null);
+  const [figmaConnected, setFigmaConnected] = useState<boolean>(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -117,8 +121,11 @@ export default function MiroPluginPage() {
           targetAddressSpace: 'loopback',
         } as unknown as RequestInit);
         if (res.status !== 200) throw new Error('unreachable');
+        const payload = (await res.json()) as { figmaConnected?: boolean } | null;
+        setFigmaConnected(payload?.figmaConnected === true);
       } catch {
         setUseTauri(false);
+        setFigmaConnected(false);
         localStorage.setItem('syncingboard_use_tauri', 'false');
       }
     };
@@ -127,6 +134,47 @@ export default function MiroPluginPage() {
     const interval = setInterval(check, 30_000);
     return () => clearInterval(interval);
   }, [useTauri]);
+
+  // Relay identity (1 board per Miro user, v0.15.1): SHA-256 of
+  // miro.currentUser.id — guests with OAuth are first-class users.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+    const resolve = async () => {
+      try {
+        const miro = window.miro;
+        if (!miro?.currentUser || !miro?.board) return;
+        const [user, boardInfo] = await Promise.all([
+          miro.currentUser,
+          miro.board.getInfo(),
+        ]);
+        if (cancelled || !user?.id || !boardInfo?.id) return;
+        const hash = await sha256Hex(user.id);
+        if (cancelled) return;
+        setRelayUserIdHash(hash);
+        setRelayBoardId(boardInfo.id);
+        setRelayIdentity(hash, boardInfo.id);
+      } catch {
+        // Identity unavailable → relay falls back to legacy pool-only mode.
+      }
+    };
+    void resolve();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Desktop (Tauri) local transport: while both connections are live the
+  // cloud lease is released back to the 40-slot pool; on local disconnect
+  // it is re-acquired so syncs keep working over the cloud.
+  useEffect(() => {
+    if (!useTauri || typeof window === 'undefined') return;
+    if (figmaConnected) {
+      releaseLocalRelaySession();
+    } else {
+      heartbeatRelaySession();
+    }
+  }, [useTauri, figmaConnected]);
 
   const fallbackCopyText = (text: string): void => {
     try {
@@ -302,6 +350,10 @@ export default function MiroPluginPage() {
           isSyncing={isSyncing}
           cooldownSeconds={cooldownSeconds}
           hasMiroToken={!!miroToken}
+            relayUserIdHash={relayUserIdHash}
+            relayBoardId={relayBoardId}
+            useTauri={useTauri}
+            figmaConnected={figmaConnected}
             onSync={syncSelectedScreens}
             onGroupSettingChange={handleGroupSettingChange}
             onRefreshNodeName={handleRefreshNodeName}

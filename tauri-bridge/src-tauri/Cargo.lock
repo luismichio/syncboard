@@ -3861,7 +3861,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bridge"
-version = "0.3.0"
+version = "0.15.1"
 dependencies = [
  "axum",
  "axum-server",

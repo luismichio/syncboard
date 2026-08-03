@@ -1,12 +1,12 @@
 ---
 title: SyncingBoard Overview & Features
 description: Stateless, open-source integration tool syncing design screens from Figma and Penpot directly into Miro whiteboards in-place with zero duplicates.
-updated: 2026-08-02
+updated: 2026-08-03
 ---
 
 # SyncingBoard (Figma & Penpot to Miro Sync Engine)
 
-[![Version 0.14.1](https://img.shields.io/badge/version-0.14.1-%23007ACC?style=flat-square)](https://github.com/luismichio/syncingboard/blob/dev/package.json)
+[![Version 0.15.1](https://img.shields.io/badge/version-0.15.1-%23007ACC?style=flat-square)](https://github.com/luismichio/syncingboard/blob/dev/package.json)
 [![OSI Approved License](https://img.shields.io/badge/license-AGPLv3-%23A81C7D?style=flat-square&label=OSI%20Approved)](https://github.com/luismichio/syncingboard/blob/dev/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-%23007ACC.svg?style=flat-square&logo=typescript&logoColor=white)](https://github.com/luismichio/syncingboard/blob/dev/tsconfig.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-%23FF6B6B?style=flat-square)](https://github.com/luismichio/syncingboard/issues/new)
@@ -81,6 +81,7 @@ For quick testing and evaluation, you can use the official pre-published plugins
 * **Plug and Play:** To enable selection auto-detection or Penpot sync, load the companion in Figma/Penpot, copy the Pairing ID from the Miro sidebar, and paste it into the companion to connect.
 * **Figma Companion Scope:** The Figma Companion plugin is **only needed for selection detection** (auto-detecting your active selection in Figma). You can import and sync screens directly into Miro using Figma URLs without installing the companion plugin.
 * **Rate Limits:** To keep the maintainer's shared infrastructure responsive for everyone, the Community version enforces daily rate limits on image exports and node queries.
+* **Fair Relay Pool:** The Community relay holds **40 concurrent sessions** with **1 active board per Miro user**. Opening a second board shows a **one-click "Transfer Session to This Board"** banner that moves your active session — transparent capacity, no hidden queues.
 * **Setup Video Walkthroughs:**
   * **Figma Companion Setup:** [▶ Watch on YouTube](https://www.youtube.com/watch?v=pO_-icohQhQ)
   * **Penpot Companion Setup:** [▶ Watch on YouTube](https://www.youtube.com/watch?v=qEVvAl1ohoE)
