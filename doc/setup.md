@@ -157,7 +157,7 @@ These cloud accounts are required to run the real-time relays and enforce persis
    {"penpot:*": ["publish", "presence", "subscribe"]}
    ```
 4. Copy the key --- you'll use it as `ABLY_API_KEY` in the deploy step.
-   > The free tier includes **200,000 messages/month** --- more than enough for personal use. Companion subscriptions do not count toward the message limit.
+   > The free tier includes **6 million messages/month and 200 concurrent connections** --- more than enough for personal use. Companion subscriptions do not count toward the message limit.
 
 ---
 

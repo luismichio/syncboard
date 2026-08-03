@@ -54,7 +54,7 @@ SyncingBoard implements a sliding-window rate limiter (`@upstash/ratelimit` via 
   * See official [Upstash Redis Limits Documentation](https://upstash.com/docs/redis/features/limits).
 
 * **Ably Realtime Limits:**
-  * **Free Tier Ceiling:** 200,000 messages/month and 100 concurrent WebSocket connections.
+  * **Free Tier Ceiling:** 6,000,000 messages/month and 200 concurrent WebSocket connections.
   * **Message Rate:** Max 150 messages/second. Signal payloads are minimized to light JSON commands (`render-frame`).
   * See official [Ably Limits & Quotas Reference](https://ably.com/docs/pricing/limits).
 
