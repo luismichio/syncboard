@@ -87,17 +87,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const REDIS_TIMEOUT_MS = 10_000;
 const RELAY_SESSION_TTL_MS = 30 * 60 * 1000;
-export const RELAY_SESSION_LIMIT = parsePositiveInt(
+// Arbitrarily large enforcement ceiling for a 0 (= unlimited) pool. Real
+// consumer ceilings (free Ably = 200 connections) are far lower, so this is
+// never reached in practice; it just keeps the Lua `count >= limit` guard
+// from tripping.
+const POOL_UNLIMITED = 1_000_000_000;
+export const RELAY_SESSION_LIMIT = parsePoolLimit(
   process.env.RATE_LIMIT_COMMUNITY_MAX_RELAY_SESSIONS ??
     process.env.RATE_LIMIT_COMMUNITY_MAX_MIRO_RELAY_SESSIONS,
   40
 );
+export const RELAY_SESSION_EFFECTIVE_LIMIT =
+  RELAY_SESSION_LIMIT === 0 ? POOL_UNLIMITED : RELAY_SESSION_LIMIT;
 const RELAY_SESSIONS_KEY = 'relay:sessions';
 
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
+// Shared pool-limit parser (Miro session pool + companion token pool):
+// a value of 0 means UNLIMITED (no cap); invalid/empty falls back.
+export function parsePoolLimit(raw: string | undefined, fallback: number): number {
   if (!raw) return fallback;
   const value = Number.parseInt(raw, 10);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
 }
 
 async function runRedisCommand<T>(parts: string[]): Promise<T> {
@@ -287,7 +296,7 @@ export async function acquireRelaySession(options: AcquireSessionOptions): Promi
     userBoardBindingKey(options.userIdHash ?? ''),
     String(Date.now()),
     String(RELAY_SESSION_TTL_MS),
-    String(RELAY_SESSION_LIMIT),
+    String(RELAY_SESSION_EFFECTIVE_LIMIT),
     options.sessionId,
     options.boardId ?? '',
     options.userIdHash ?? '',
@@ -326,7 +335,7 @@ export async function transferRelaySession(options: AcquireSessionOptions): Prom
     userBoardBindingKey(options.userIdHash ?? ''),
     String(Date.now()),
     String(RELAY_SESSION_TTL_MS),
-    String(RELAY_SESSION_LIMIT),
+    String(RELAY_SESSION_EFFECTIVE_LIMIT),
     options.sessionId,
     options.boardId ?? '',
     options.userIdHash ?? '',
@@ -356,7 +365,7 @@ export async function releaseRelaySession(sessionId: string, userIdHash?: string
     userBoardBindingKey(userIdHash ?? ''),
     String(Date.now()),
     String(RELAY_SESSION_TTL_MS),
-    String(RELAY_SESSION_LIMIT),
+    String(RELAY_SESSION_EFFECTIVE_LIMIT),
     sessionId,
     '',
     userIdHash ?? '',
@@ -393,6 +402,7 @@ export function deriveRelayStatusLevel(
   activeSessions: number,
   maxSessions: number
 ): RelayStatusLevel {
+  if (maxSessions <= 0) return 'available'; // 0 = unlimited pool
   if (activeSessions >= maxSessions) return 'full';
   const highLoadFrom = Math.ceil(maxSessions * 0.75);
   return activeSessions >= highLoadFrom ? 'high_load' : 'available';
@@ -407,7 +417,7 @@ export async function getRelaySessionStatus(): Promise<RelaySessionStatus> {
     `(${Date.now() - RELAY_SESSION_TTL_MS}`,
     '+inf',
   ]);
-  return { activeSessions, maxSessions: RELAY_SESSION_LIMIT };
+  return { activeSessions, maxSessions: RELAY_SESSION_EFFECTIVE_LIMIT };
 }
 
 const GLOBAL_SYNC_COUNTER_KEY = 'relay:counters:global_syncs_today';
@@ -502,10 +512,12 @@ export async function getOauthToken(state: string): Promise<unknown | null> {
 // leaving 20 Ably connections of the free 200 for concurrent Miro detectors.
 const COMPANION_TOKEN_TTL_MS = 2 * 60 * 60 * 1000; // 2h — matches the Ably token TTL
 const COMPANION_SESSION_TTL_MS = 2 * 60 * 60 * 1000; // refreshed at every token issuance
-const COMPANION_TOKEN_LIMIT = parsePositiveInt(
+const COMPANION_TOKEN_LIMIT = parsePoolLimit(
   process.env.RATE_LIMIT_COMMUNITY_MAX_COMPANION_TOKENS,
   180
 );
+const COMPANION_TOKEN_EFFECTIVE_LIMIT =
+  COMPANION_TOKEN_LIMIT === 0 ? POOL_UNLIMITED : COMPANION_TOKEN_LIMIT;
 const ACTIVE_COMPANION_TOKENS_KEY = 'relay:active_companion_tokens';
 const MIRO_PAIRING_TTL_MS = RELAY_SESSION_TTL_MS; // mirrors the lease TTL
 function companionSessionKey(pairingId: string): string {
@@ -609,7 +621,7 @@ export async function acquireCompanionToken(
     ACTIVE_COMPANION_TOKENS_KEY,
     String(Date.now()),
     String(COMPANION_TOKEN_TTL_MS),
-    String(COMPANION_TOKEN_LIMIT),
+    String(COMPANION_TOKEN_EFFECTIVE_LIMIT),
     pairingId,
   ]);
   if (!Array.isArray(result) || result.length < 2) {

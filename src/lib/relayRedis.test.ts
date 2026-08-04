@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   deriveRelayStatusLevel,
+  parsePoolLimit,
   planAcquire,
   planTransfer,
   selectEvictionCandidate,
@@ -29,6 +30,29 @@ describe('deriveRelayStatusLevel', () => {
     expect(deriveRelayStatusLevel(44, 60)).toBe('available');
     expect(deriveRelayStatusLevel(45, 60)).toBe('high_load');
     expect(deriveRelayStatusLevel(60, 60)).toBe('full');
+  });
+
+  it('treats a 0 ceiling as unlimited (never full)', () => {
+    expect(deriveRelayStatusLevel(5, 0)).toBe('available');
+    expect(deriveRelayStatusLevel(1_000_000_000, 0)).toBe('available');
+  });
+});
+
+
+describe('parsePoolLimit', () => {
+  it('treats 0 as unlimited', () => {
+    expect(parsePoolLimit('0', 40)).toBe(0);
+  });
+
+  it('uses positive integers as the cap', () => {
+    expect(parsePoolLimit('50', 40)).toBe(50);
+  });
+
+  it('falls back for empty, invalid, or negative input', () => {
+    expect(parsePoolLimit('', 40)).toBe(40);
+    expect(parsePoolLimit(undefined, 40)).toBe(40);
+    expect(parsePoolLimit('abc', 40)).toBe(40);
+    expect(parsePoolLimit('-1', 40)).toBe(40);
   });
 });
 

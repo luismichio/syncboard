@@ -5,7 +5,7 @@ import {
   getRelayStatusCountsCached,
   getUserBoardBinding,
 } from '@/lib/relayRedis';
-import { RELAY_SESSION_LIMIT } from '@/lib/relayRedis';
+import { RELAY_SESSION_EFFECTIVE_LIMIT } from '@/lib/relayRedis';
 
 const USER_ID_HASH_RE = /^[a-f0-9]{64}$/i;
 
@@ -36,7 +36,7 @@ async function getHandler(request: Request) {
     const counts = await getRelayStatusCountsCached();
     const activeSessions = counts.activeSessions;
     const globalSyncsToday = counts.globalSyncsToday;
-    const maxSessions = RELAY_SESSION_LIMIT;
+    const maxSessions = RELAY_SESSION_EFFECTIVE_LIMIT;
 
     let userConflict: boolean | undefined;
     let activeBoardId: string | undefined;

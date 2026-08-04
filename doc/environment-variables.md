@@ -58,8 +58,8 @@ SyncingBoard includes an optional 3-layer protection engine. Redis-backed rate l
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_HOUR` | Number | `30` | Penpot relay render requests allowed per hour per pairing ID. |
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_DAY` | Number | `100` | Penpot relay render requests allowed per day per pairing ID. |
 | `RATE_LIMIT_COMMUNITY_RELAY_SESSION_PER_MIN` | Number | `4` | Miro relay-session heartbeat/release requests allowed per minute per session ID. |
-| `RATE_LIMIT_COMMUNITY_MAX_RELAY_SESSIONS` | Number | `40` | Maximum concurrent relay sessions across the Community deployment (target/source agnostic: Figma/Penpot → Miro today, FigJam/Mural later). Legacy alias: `RATE_LIMIT_COMMUNITY_MAX_MIRO_RELAY_SESSIONS`. |
-| `RATE_LIMIT_COMMUNITY_MAX_COMPANION_TOKENS` | Number | `180` | Maximum concurrent companion Ably tokens across the Community deployment (Figma/Penpot companions). Miro detectors keep a permanent 20-socket floor on top of this. |
+| `RATE_LIMIT_COMMUNITY_MAX_RELAY_SESSIONS` | Number | `40` | Maximum concurrent relay sessions across the Community deployment (target/source agnostic: Figma/Penpot → Miro today, FigJam/Mural later). **`0` = unlimited** (no cap; bounded only by your Ably connection limit). Legacy alias: `RATE_LIMIT_COMMUNITY_MAX_MIRO_RELAY_SESSIONS`. |
+| `RATE_LIMIT_COMMUNITY_MAX_COMPANION_TOKENS` | Number | `180` | Maximum concurrent companion Ably tokens across the Community deployment (Figma/Penpot companions). Miro detectors keep a permanent 20-socket floor on top of this. **`0` = unlimited** (no cap; bounded only by your Ably connection limit). |
 | `RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN` | Number | `10` | Miro image updates allowed per minute per user token. |
 | `RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN` | Number | `5` | Ably token authentication requests allowed per minute per client IP. |
 | `RATE_LIMIT_COMMUNITY_OAUTH_REFRESH_PER_MIN` | Number | `3` | OAuth refresh exchanges allowed per minute per refresh-token hash. |
