@@ -76,7 +76,7 @@ To enable automatic canvas selection detection in the Miro sidebar without insta
 2. Open the **Figma Desktop Application** and open any design file.
 3. Click the Figma logo (menu button) in the top-left, then select **Plugins > Development > Import plugin from manifest...**.
 4. Choose the `manifest.json` file inside the local `figma-plugin/` folder you copied.
-5. Once imported, run the plugin: **Plugins > Development > SyncingBoard Figma Companion**.
+5. Once imported, run the plugin: **Plugins > Development > SyncingBoard Companion**.
 6. **Set the Host Domain (Self-Hosters):** The plugin loads the companion from the fixed production host (`https://www.syncingboard.com`) with no configuration required. If you self-host SyncingBoard, open `figma-plugin/ui.html` and change the `DEFAULT_HOST` constant to your deployed domain, then make sure that domain is also listed in `figma-plugin/manifest.json` under `networkAccess.allowedDomains` before importing the plugin.
 7. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion, and click **Connect**.
 8. **File Pairing (First Time Only):** If prompted with *"Pair Figma Design File — This Figma file is not linked to Miro yet"*, paste the URL of your current Figma design file into the input and click **Link**. This permanently links the document metadata (`figma.root`) so you will never be asked again for that file.
@@ -369,7 +369,7 @@ For testing and coding on your local machine (commands work on Windows, macOS, a
      1. Open the **Figma Desktop Application** (local manifest import requires the desktop app).
      2. Open any design file ➔ Click Figma menu ➔ **Plugins > Development > Import plugin from manifest...**
      3. Select `figma-plugin/manifest.json` from your local workspace folder.
-     4. Run the plugin (**Plugins > Development > SyncingBoard Figma Companion**), click **Configure** in the top settings bar, and enter your HTTPS tunnel domain (`https://YOUR_TUNNEL_URL`).
+     4. Run the plugin (**Plugins > Development > SyncingBoard Companion**). Point it at your local tunnel by editing the `DEFAULT_HOST` constant in `figma-plugin/ui.html` (e.g. `https://YOUR_TUNNEL_URL`) and adding that origin to `devAllowedDomains` in `figma-plugin/manifest.json` before importing.
      5. Copy the **Pairing ID** from your local Miro sidebar, paste it into the companion, and click **Connect**.
 
    * **Penpot Companion (Local Manifest Import):**

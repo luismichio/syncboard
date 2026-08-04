@@ -1,5 +1,5 @@
 {
-  "name": "SyncingBoard Figma Companion",
+  "name": "SyncingBoard Companion",
   "id": "1660413000378332441",
   "api": "1.0.0",
   "main": "code.js",
@@ -18,8 +18,7 @@
     "devAllowedDomains": [
       "http://localhost:3000",
       "http://localhost:3001",
-      "http://localhost:1420",
-      "https://local-syncingboard.luiskobayashi.com"
+      "http://localhost:1420"
     ],
     "reasoning": "The plugin embeds the SyncingBoard companion UI (https://www.syncingboard.com/figma-companion-ui.html) in an iframe and connects to the Ably WebSocket network to receive real-time sync signals from Miro. API endpoints on syncingboard.com are used to fetch pairing tokens. The embedded page's origin must be frameable, so the production host (including the apex domain) is listed in allowedDomains."
   }
