@@ -11,8 +11,8 @@ We actively monitor and patch security vulnerabilities in SyncingBoard. Security
 
 | Version  | Supported       |
 | -------- | --------------- |
-| < 0.14.x | No              |
-| 0.14.x   | Yes ✅          |
+| < 0.15.x | No              |
+| 0.15.x   | Yes ✅          |
 
 Always ensure you are running the latest release to receive active security updates.
 
@@ -27,7 +27,7 @@ SyncingBoard is designed with a **zero-persistent-storage, cloud-relay-first** a
 - **OAuth tokens are stored in Miro board storage** (via `board.storage.set`), with a **localStorage fallback** for same-origin contexts. Tokens are never persisted server-side beyond an ephemeral Upstash Redis cache (300s TTL) used only during OAuth popup handoff.
 - Token refresh uses an ephemeral Upstash Redis cache (300s TTL) with automatic deletion on consumption — no long-lived token storage on the server.
 - **OAuth CSRF protection** via cryptographically secure `state` parameters generated with `window.crypto.getRandomValues()`. State values are validated server-side before accepting the callback.
-- **Pairing IDs** (Penpot ↔ Miro link) are read-only fields in the UI and generated via `crypto.getRandomValues()` — users cannot inject custom values.
+- **Pairing IDs** (Penpot ↔ Miro link) are read-only fields in the UI, generated via crypto-secure randomness (`crypto.randomUUID`), so users cannot inject custom values. **They are bearer access keys:** anyone who holds an ID can read from an open, connected Figma/Penpot companion. For **Penpot** the pairing ID is the *only* credential (no OAuth); for **Figma**, imports and syncs additionally require the user's own Figma OAuth. Treat IDs like secrets, use one per board/companion pair, and disconnect companions when done — see `doc/setup.md` "Security & Pairing Best Practices". An optional per-pairing passphrase (PIN) to protect sensitive pairings is **planned** for a future release.
 
 ### API Protection
 

@@ -1,7 +1,7 @@
 ---
 title: SyncingBoard Overview & Features
 description: Stateless, open-source integration tool syncing design screens from Figma and Penpot directly into Miro whiteboards in-place with zero duplicates.
-updated: 2026-08-03
+updated: 2026-08-04
 ---
 
 # SyncingBoard (Figma & Penpot to Miro Sync Engine)
@@ -29,6 +29,7 @@ Unlike official live embeds which require browser logins and degrade board perfo
 SyncingBoard is deliberately built as a stateless proxy engine for key technical, security, and operational reasons:
 
 * **Privacy-First Security Model:** We never store raw Figma or Miro access tokens, credentials, or design screens on our servers. Rate limiting identifies callers using anonymous, one-way SHA-256 token fingerprints (`tok:sha256(token)`) from which original access tokens can never be recovered. Your intellectual property remains strictly within your design tools.
+* **Pairing IDs Are Bearer Access Keys:** A pairing ID lets anyone holding it read from an open, connected Figma/Penpot companion. For Penpot the pairing ID is the only credential (no OAuth); for Figma, imports/syncs additionally require your own Figma OAuth. Treat pairing IDs like passwords, use one per board/companion pair, and disconnect companions when done — see [Security & Pairing Best Practices](./doc/setup.md#security--pairing-best-practices). An optional per-pairing passphrase (PIN) is planned for a future release.
 * **Third-Party Cookie Resilience:** Miro plugins operate inside sandboxed browser iframes where modern browsers block third-party cookies. Storing tokens client-side within the active Miro session avoids iframe cookie restrictions entirely.
 * **Enterprise Compliance Exemption:** Storing zero personal data or design files bypasses GDPR Data Subject Access Requests (DSARs), right-to-be-forgotten pipelines, and complex Data Processing Agreements (DPAs) for enterprise security reviews.
 * **Zero Infrastructure Overhead:** Operating database-free allows self-hosters and design teams to deploy SyncingBoard in minutes on serverless hosts (like Vercel) with zero database management or storage costs.
@@ -48,7 +49,7 @@ SyncingBoard is deliberately built as a stateless proxy engine for key technical
 * **Dual-Platform Sync:** Supports **Figma** (cloud-native sync) and **Penpot** (relay-first sync) side-by-side.
 * **Figma & Penpot Selection Auto-Detect:** Detects active selections directly from companion plugins via the cloud relay — no desktop apps required.
 * **Cloud Relay Transport:** Public HTTPS relay (Upstash Redis + Vercel) coordinates between companions and the Miro plugin — no localhost calls, no PNA blocks, works in any browser.
-* **Automated Test Coverage:** 76+ Vitest unit and integration tests validating token security, rate-limiting logic, URL parsers, and API route handlers (`yarn test`).
+* **Automated Test Coverage:** 112 Vitest unit and integration tests validating token security, rate-limiting logic, URL parsers, and API route handlers (`yarn test`).
 * **SyncBridge Companion (Planned Desktop Extender):** Tauri-powered desktop app for future advanced capabilities — large images (>4.5MB), Adobe UXP bridge, local LLMs, two-way sync. Not required for day-to-day sync.
 
 ### Integration & Compatibility Matrix
@@ -88,7 +89,7 @@ For quick testing and evaluation, you can use the official pre-published plugins
 
 ### Self-Hosted Version (Private Production)
 For production use inside design teams, you can deploy your own instance of SyncingBoard on Vercel or any Node.js container host.
-* **Customizable Sync Quotas:** Since you connect your own accounts, you can bypass the shared Community rates and configure custom daily limits (or disable the rate limiter entirely by setting `RATE_LIMIT_ENABLED=false`) to fit your team's needs (bounded only by your own Upstash and Ably plan quotas).
+* **Customizable Sync Quotas:** Since you connect your own accounts, you can bypass the shared Community rates and configure custom daily limits (or disable the rate limiter entirely by setting `RATE_LIMIT_ENABLED=false`) to fit your team's needs (bounded only by your own Upstash and Ably plan quotas). The relay-session and companion pools are also configurable: set `RATE_LIMIT_COMMUNITY_MAX_RELAY_SESSIONS=0` and/or `RATE_LIMIT_COMMUNITY_MAX_COMPANION_TOKENS=0` for unlimited pools (still bounded by your Ably connection limit).
 * **Custom Developer Apps:** Since you run on your own domain, you will need to register your own custom developer apps:
   * **Miro:** Set the App URL to `https://YOUR_DOMAIN.com/miro-plugin?init=true` and redirect URI to `https://YOUR_DOMAIN.com/api/oauth/miro/callback`.
   * **Figma:** Register a developer app in the Figma Dev Portal to obtain a Client ID and Redirect URI pointing to your domain callback endpoint.
