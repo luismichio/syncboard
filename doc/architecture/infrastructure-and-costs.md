@@ -44,6 +44,22 @@ graph LR
 
 ---
 
+### Cross-Machine & Multi-Consumer Relay (Design Property)
+
+The relay is **machine-agnostic by design** — the pairing ID (`sb_xxxx`) is the cross-machine session key, and nothing in the protocol is bound to a machine or origin.
+
+- **Cross-machine import/sync works today:** companion open on machine A (Figma/Penpot, pairing `sb_abc`) ⇄ any Miro board on any other machine (same pairing). The companion relays to the server channel; the destination pulls (push/pull model).
+  - Figma: the companion only returns selection *metadata* inline; the actual render is server-side via the Figma REST API (`/api/figma/render-batch`) — zero image bytes cross the relay.
+  - Penpot: the companion renders in-browser; the payload transits Upstash Redis (`/api/relay/penpot/result` SETEX 180s) — the Redis buffer is exactly what makes cross-machine Penpot work.
+- **Penpot = "pseudo cloud API":** with one open Penpot project (companion connected), any number of Miro boards sharing the pairing can detect/import/sync against it, from any machine. Each request carries a unique `requestId`; the companion replies with the matching one and each board filters by its own — concurrent multi-consumer operation works today.
+- **Caveats (shape future "teams" plans):**
+  - The companion is a single-threaded renderer — concurrent exports queue behind it.
+  - Rate budgets are **per-pairing, not per-consumer** (`relay:request` 5/min, `relay:export` 2/min & 20/day) — N designers on one pairing share one budget; teams plans would need per-consumer budgets.
+  - The pairing ID is the shared secret — anyone holding it can trigger read-only select/export against the open project (broadcast trust).
+  - Tauri is the only same-machine-scoped piece (desktop byte transport); the default cloud path is cross-machine by nature.
+
+---
+
 ## Size Constraints & Serverless Ceilings
 
 ## Size Constraints & Serverless Ceilings

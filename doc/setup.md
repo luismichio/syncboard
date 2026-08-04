@@ -296,6 +296,26 @@ If your company runs on AWS, here is the typical deployment pattern:
 
 ---
 
+## Security & Pairing Best Practices
+
+**Your pairing ID (`sb_xxxx`) is a live access key.** Anyone who has it can detect, import, and sync from an open, connected Figma/Penpot companion — even from a different machine or Miro board. It is **read-only** (nobody can edit your design file through it), but it *is* a read window into whatever project is open in your companion.
+
+### How access works
+- **Figma:** imports and syncs always require your own Figma OAuth account, and Figma itself enforces per-file permissions server-side. The pairing ID is used only for live selection detection. If you cannot view a file in Figma, you cannot import it here.
+- **Penpot:** the pairing ID is the only credential. Anyone holding it can export frames from whatever is currently open and connected in the Penpot companion.
+
+### Best practices
+- Treat the pairing ID like a password: never paste it into public chats, issues, screenshots, or repositories.
+- The pairing key is displayed masked in the UI (copy-only, not editable) — copy it directly from the plugin.
+- **Do not leave the companion connected on sensitive projects.** While the companion tab is open and connected, that pairing grants live read access to the open project.
+- **Rotate on suspicion:** if a pairing ID may have leaked, re-pair with a fresh ID (generate a new one in the Miro plugin and re-enter it in the companion) and close the old companion connection. The old ID only works while a companion remains connected with it.
+- Use a dedicated pairing ID per board/companion pair; do not reuse one pairing across untrusted parties.
+- Disconnect the companion plugin when you are done (closing it releases the live connection).
+
+**Planned:** an optional passphrase (PIN) to protect sensitive pairings is planned for a future release.
+
+---
+
 ## Local Development
 
 For testing and coding on your local machine (commands work on Windows, macOS, and Linux):

@@ -24,6 +24,7 @@ This roadmap outlines planned features, architecture expansions, and research ta
 * **Tauri SyncBridge Desktop Extender:** Native desktop extender for streaming large image payloads (>4.5MB), local LLM canvas assistants, and two-way sync.
 * **Additional Source Adapters:** Research adapters for UXPin, Framer, Lovable, and Stitch.
 * **Canva Source Adapter:** Research Canva for importing Canva design assets (posters, social cards, docs) into a whiteboard, as an extension of the Figma/Penpot source adapters.
+* **Optional Pairing Passphrase (PIN):** Protect sensitive projects with an opt-in passphrase that must be entered before detection, import, or sync can run against a protected pairing — planned for a future release.
 
 * **SSO (Enterprise Single Sign-On):** Centralize sign-in with Google Workspace / Microsoft Entra ID so internal teams authenticate to the self-hosted app and its OAuth flows with their existing corporate identities.
 * **SAML (Enterprise SSO):** Provide SAML 2.0 SSO for self-hosted / SyncBridge Enterprise onboarding. Note a platform constraint: Miro plugin tabs cannot render third-party IdP login screens directly (`X-Frame-Options: DENY` + third-party cookie blocking), so SAML onboarding routes through the SyncBridge desktop app or a dedicated portal instead of the sidebar iframe.
