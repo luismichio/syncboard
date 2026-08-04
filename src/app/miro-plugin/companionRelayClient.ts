@@ -1,6 +1,13 @@
 import Ably from 'ably';
 import { getOrCreatePairingId } from '@/lib/pairingId';
 import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
+import {
+  ablyTokenCacheKey,
+  getCachedAblyToken,
+  invalidateAblyToken,
+  invalidateAllAblyTokens,
+  setCachedAblyToken,
+} from '@/lib/ablyTokenCache';
 
 export interface PenpotMcpResponse {
   content: { type: string; text?: string; data?: string; mimeType?: string; name?: string; width?: number; height?: number }[];
@@ -98,6 +105,21 @@ export function onRelayConnectionState(handler: RelayConnectionStateHandler): ()
 export function onRelayConflict(handler: RelayConflictHandler | null): void {
   relayConflictHandler = handler;
 }
+type RelayActivityHandler = () => void;
+const relayActivityHandlers = new Set<RelayActivityHandler>();
+/**
+ * R1: notify subscribers (the status banner) after each relay op so the
+ * capacity readout refreshes on demand instead of on a blind interval.
+ */
+export function onRelayActivity(handler: RelayActivityHandler): () => void {
+  relayActivityHandlers.add(handler);
+  return () => {
+    relayActivityHandlers.delete(handler);
+  };
+}
+function notifyRelayActivity(): void {
+  for (const handler of relayActivityHandlers) handler();
+}
 
 function sendRelaySessionSignal(action: 'heartbeat' | 'release' | 'transfer'): void {
   if (!relaySessionId || typeof window === 'undefined') return;
@@ -177,6 +199,7 @@ export function refreshRelayConnection(): void {
   globalAblyChannel = null;
   currentConnectedPairingId = null;
   currentConnectedPlatform = null;
+  invalidateAllAblyTokens();
   if (client) {
     try {
       client.close();
@@ -226,9 +249,40 @@ async function getAblyConnection(
         ? '&userIdHash=' + encodeURIComponent(relayUserIdHash) + '&boardId=' + encodeURIComponent(relayBoardId)
         : '';
   setRelayConnectionState('connecting');
+  const sessionId = getRelaySessionId();
+  const cacheKey = ablyTokenCacheKey(pairingId, platform, sessionId);
+  let tokenDetails = getCachedAblyToken(cacheKey);
+  if (!tokenDetails) {
+    // R5: fetch once per 2h token per session; conflicts/capacity invalidate.
+    const tokenUrl =
+      '/api/ably/token?pairingId=' + encodeURIComponent(pairingId) +
+      '&platform=' + platform + '&client=miro&sessionId=' + encodeURIComponent(sessionId) +
+      identityQuery;
+    const tokenResponse = await fetch(tokenUrl, { cache: 'no-store' });
+    if (tokenResponse.status === 409) {
+      invalidateAblyToken(cacheKey);
+      const conflictPayload = (await tokenResponse.json().catch(() => ({}))) as {
+        activeBoardId?: string;
+      };
+      relayConflictHandler?.({ activeBoardId: conflictPayload.activeBoardId ?? '' });
+      throw new Error('relay_conflict');
+    }
+    if (!tokenResponse.ok) {
+      invalidateAblyToken(cacheKey);
+      const errorPayload = (await tokenResponse.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      const message =
+        errorPayload.error === 'relay_capacity_reached'
+          ? 'Community relay is at full capacity. Wait, then use the status banner to check again.'
+          : errorPayload.error || `Ably token request failed with HTTP ${tokenResponse.status}`;
+      throw new Error(message);
+    }
+    tokenDetails = (await tokenResponse.json()) as Record<string, unknown>;
+    setCachedAblyToken(cacheKey, tokenDetails);
+  }
   globalAblyClient = new Ably.Realtime({
-      authUrl: '/api/ably/token?pairingId=' + encodeURIComponent(pairingId) + '&platform=' + platform + '&client=miro&sessionId=' + encodeURIComponent(getRelaySessionId()) + identityQuery,
-    authMethod: 'GET',
+    token: tokenDetails as unknown as Ably.TokenDetails,
   });
 
   globalAblyChannel = globalAblyClient.channels.get(`${prefix}:${pairingId}`);
@@ -251,14 +305,7 @@ async function getAblyConnection(
 
     client.connection.once('failed', (state) => {
       clearTimeout(timeout);
-      const reason = state.reason?.message || '';
-      reject(
-        new Error(
-          reason.includes('relay_capacity_reached')
-            ? 'Community relay is at full capacity. Wait, then use the status banner to check again.'
-            : reason || 'Ably connection failed'
-        )
-      );
+      reject(new Error(state.reason?.message || 'Ably connection failed'));
     });
   });
 
@@ -375,6 +422,7 @@ export async function callRelay(body: RelayRequestBody): Promise<RelayJson> {
   } finally {
     activeRelayCalls = Math.max(0, activeRelayCalls - 1);
     scheduleIdleClose();
+    notifyRelayActivity();
   }
 }
 

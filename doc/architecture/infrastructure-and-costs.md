@@ -70,7 +70,7 @@ The relay is **machine-agnostic by design** — the pairing ID (`sb_xxxx`) is th
 | **Vercel Execution Timeout (10s Hobby / 60s Pro)** | Large batch renders | Batch limit of 3 unique images; 500ms Miro update throttle; Retry-After backoff (capped at 10s). |
 | **Upstash Redis Value Limit (256MB Data Size)** | Penpot base64 exports | Ephemeral 180s TTL auto-deletion (`SETEX 180`); max payload capped by Vercel 4.5MB response limit. |
 | **Upstash Redis Monthly Command Pool (500,000 Cmds)** | Rate-limiting & Penpot relay | Slowed OAuth polling (4s interval); scoped backstops (auxiliary endpoints excluded from global counter). |
-| **Ably Realtime Connection Limit (200 WebSockets)** | Selection relay & Penpot status | Redis Lua `ZSET` session lease (`acquireRelaySession`) capping active Miro relay clients at **40 concurrent leases** (one WebSocket per relay client (channels multiplex), so 40 leases ≈ 40 WebSockets, leaving ~160 for reconnects and open companions), with a **1-board-per-user binding** (`relay:user_board:{userIdHash}`, 30-min TTL refreshed per heartbeat) + one-click session transfer (v0.15.1). |
+| **Ably Realtime Connection Limit (200 WebSockets)** | Selection relay & Penpot status | Redis Lua `ZSET` session lease (`acquireRelaySession`) capping active Miro relay clients at **40 concurrent leases** (one WebSocket per relay client (channels multiplex)) with a **1-board-per-user binding** (`relay:user_board:{userIdHash}`, 30-min TTL) + one-click session transfer (v0.15.1). v0.15.2 adds a **companion cap 180 / Miro 20-socket floor** (`RATE_LIMIT_COMMUNITY_MAX_COMPANION_TOKENS`, default 180): companion tokens are TTL-tracked in `relay:active_companion_tokens`, orphans (no live Miro lease — `relay:miro_pairing` mirror) are evicted oldest-first so active pairs always win, and **1 tab per pairing** (`relay:companion_session:{pairingId}`) with a transfer UX stops duplicate companion tabs from squatting sockets. |
 | **Vercel Outbound Bandwidth (100GB Hobby / 1TB Pro)** | Image downloads & uploads | SVG vector preference (~10x smaller than PNG). |
 
 ---
@@ -89,6 +89,18 @@ Under a **500 global daily sync cap** (500 syncs/day = 15,000 syncs/month), **mo
 3. **Vercel Serverless (100,000 Invocations & 100 GB Bandwidth / Month):**
    - Max invocations: 500 * 3 execs * 30 = **45,000 invocations/month** (**45% of Vercel limit**).
    - Max bandwidth: 500 * 0.5 MB * 30 = **7.5 GB/month** (**7.5% of Vercel limit**).
+
+---
+
+## v0.15.2 Infra Rebalancing (R1–R5)
+
+The 0.15.2 release rebalances the *actual* consumers (companions are the persistent Ably consumers; Miro sidebars are transient + 30s idle close):
+
+- **R1 — status polling:** the blind 30s `/api/relay/status` poll (the #1 Redis + Vercel consumer: ~4-6 Redis cmds + 1 invocation per poll, ~120 polls/hour per idle Import tab) is gone. Polling now happens on connection-state transitions, after relay ops, and on demand; a 10-min drift guard remains. The status route dedupes concurrent recomputes under a 10s `SET NX EX` cache key.
+- **R2 — Penpot SVG inline:** SVG exports with compact JSON (< 12KB) stream inline over Ably (`result` message) instead of the HTTP + Redis path (~10 Redis cmds + 4 invocations → ~2 Ably messages + 0 Redis + 0 extra invocations). PNG/base64 and large payloads keep the Redis path.
+- **R3 — Lua-batched rate limits:** multi-window endpoints batch all windows in a single Redis EVAL (`checkMany`, 1 command instead of N) with a per-window fallback.
+- **R4 — async-only relay:** the dead 350ms sync-poll loop (23-46 Redis GETs per op) was removed from `/api/relay/request`; non-async callers get a 400.
+- **R5 — client token cache:** the Miro plugin caches the 2h Ably token per session (invalidated on conflict/eviction), so token traffic mostly disappears during active sessions.
 
 ---
 

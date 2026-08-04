@@ -12,7 +12,11 @@ export interface RelayStatus {
   activeBoardId?: string;
 }
 
-const RELAY_STATUS_POLL_MS = 30_000;
+// R1: the blind 30s poll was the #1 Redis + Vercel consumer (an idle Import
+// tab did ~120 polls/hour). Polling now happens on connection-state
+// transitions, after relay ops, and on-demand (banner tap); this long
+// interval is only a drift guard for long-lived tabs.
+const RELAY_STATUS_DRIFT_GUARD_MS = 10 * 60_000;
 
 /**
  * Polls /api/relay/status so the Miro sidebar can surface live community
@@ -58,10 +62,10 @@ export function useRelayStatus(
     // Defer the first poll by one tick so the fetch + setState run in an async
     // callback context (react-hooks/set-state-in-effect).
     const initial = setTimeout(() => void refetch(), 0);
-    const interval = setInterval(() => void refetch(), RELAY_STATUS_POLL_MS);
+    const driftGuard = setInterval(() => void refetch(), RELAY_STATUS_DRIFT_GUARD_MS);
     return () => {
       clearTimeout(initial);
-      clearInterval(interval);
+      clearInterval(driftGuard);
     };
   }, [refetch]);
 

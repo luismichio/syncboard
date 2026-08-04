@@ -87,7 +87,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const REDIS_TIMEOUT_MS = 10_000;
 const RELAY_SESSION_TTL_MS = 30 * 60 * 1000;
-const RELAY_SESSION_LIMIT = parsePositiveInt(
+export const RELAY_SESSION_LIMIT = parsePositiveInt(
   process.env.RATE_LIMIT_COMMUNITY_MAX_RELAY_SESSIONS ??
     process.env.RATE_LIMIT_COMMUNITY_MAX_MIRO_RELAY_SESSIONS,
   40
@@ -493,4 +493,279 @@ export async function getOauthToken(state: string): Promise<unknown | null> {
   } catch {
     return null;
   }
+}
+
+// ─── Companion token cap (A1/A2) & 1-tab-per-pairing (Design B) ────────────
+// Companions are the *persistent* Ably consumers (one socket each); Miro
+// sidebars are transient (30s idle close). The cap therefore bounds
+// companions at RATE_LIMIT_COMMUNITY_MAX_COMPANION_TOKENS (default 180),
+// leaving 20 Ably connections of the free 200 for concurrent Miro detectors.
+const COMPANION_TOKEN_TTL_MS = 2 * 60 * 60 * 1000; // 2h — matches the Ably token TTL
+const COMPANION_SESSION_TTL_MS = 2 * 60 * 60 * 1000; // refreshed at every token issuance
+const COMPANION_TOKEN_LIMIT = parsePositiveInt(
+  process.env.RATE_LIMIT_COMMUNITY_MAX_COMPANION_TOKENS,
+  180
+);
+const ACTIVE_COMPANION_TOKENS_KEY = 'relay:active_companion_tokens';
+const MIRO_PAIRING_TTL_MS = RELAY_SESSION_TTL_MS; // mirrors the lease TTL
+function companionSessionKey(pairingId: string): string {
+  return `relay:companion_session:${pairingId}`;
+}
+function miroPairingKey(pairingId: string): string {
+  return `relay:miro_pairing:${pairingId}`;
+}
+export interface CompanionSessionBinding {
+  tabId: string;
+  platform: 'figma' | 'penpot';
+  connectedAt: number;
+}
+export interface CompanionTokenCandidate {
+  pairingId: string;
+  connectedAt: number;
+  hasActiveMiroPairing: boolean;
+}
+export interface CompanionTokenAcquisition {
+  granted: boolean;
+  count: number;
+  evictedPairingId: string | null;
+  retryAfterSeconds: number;
+}
+/**
+ * A2: eviction selection (pure). Never evict a companion whose pairing has a
+ * live Miro lease (active pair); among orphans pick the OLDEST. Returns null
+ * when nothing can be evicted — the requester must wait (Retry-After), never
+ * a forced eviction of an active pair.
+ */
+export function selectEvictionCandidate(
+  companions: CompanionTokenCandidate[]
+): string | null {
+  const orphans = companions
+    .filter((c) => !c.hasActiveMiroPairing)
+    .sort((a, b) => a.connectedAt - b.connectedAt);
+  return orphans.length > 0 ? orphans[0].pairingId : null;
+}
+/**
+ * A1 + A2 decision mirror of ACQUIRE_COMPANION_TOKEN_SCRIPT. Pure JS so the
+ * Lua semantics are unit-testable without a Redis instance.
+ */
+export function planCompanionTokenAcquisition(
+  now: number,
+  members: CompanionTokenCandidate[],
+  cap: number,
+  requestingPairingId: string
+): { decision: 'grant' | 'full'; evictedPairingId: string | null } {
+  const alreadyPresent = members.some((m) => m.pairingId === requestingPairingId);
+  if (!alreadyPresent && members.length >= cap) {
+    const evicted = selectEvictionCandidate(members);
+    if (!evicted) return { decision: 'full', evictedPairingId: null };
+    return { decision: 'grant', evictedPairingId: evicted };
+  }
+  return { decision: 'grant', evictedPairingId: null };
+}
+/**
+ * Design B: 1 tab per pairing. A second tab with the same pairingId conflicts
+ * unless the binding already belongs to this tabId (refresh path).
+ */
+export function planCompanionBinding(
+  binding: CompanionSessionBinding | null,
+  tabId: string
+): 'grant' | 'conflict' {
+  if (binding && binding.tabId !== tabId) return 'conflict';
+  return 'grant';
+}
+// KEYS[1] = relay:active_companion_tokens (ZSET, score = connectedAt ms)
+// ARGV[1] = now ms, ARGV[2] = token TTL ms, ARGV[3] = cap, ARGV[4] = pairingId
+// Result: {1, count, evicted} granted · {0, count, ''} full (nothing evictable)
+const ACQUIRE_COMPANION_TOKEN_SCRIPT = [
+  "redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', tonumber(ARGV[1]) - tonumber(ARGV[2]))",
+  "local cap = tonumber(ARGV[3])",
+  "local pairingId = ARGV[4]",
+  "local count = redis.call('ZCARD', KEYS[1])",
+  "local evicted = ''",
+  "if redis.call('ZSCORE', KEYS[1], pairingId) == false and count >= cap then",
+  "  local members = redis.call('ZRANGE', KEYS[1], 0, -1)",
+  "  for _, pid in ipairs(members) do",
+  "    if redis.call('EXISTS', 'relay:miro_pairing:' .. pid) == 0 then",
+  "      redis.call('ZREM', KEYS[1], pid)",
+  "      evicted = pid",
+  "      break",
+  "    end",
+  "  end",
+  "  if evicted == '' then",
+  "    return {0, count, ''}",
+  "  end",
+  "end",
+  "redis.call('ZADD', KEYS[1], tonumber(ARGV[1]), pairingId)",
+  "redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[2]) * 2)",
+  "return {1, redis.call('ZCARD', KEYS[1]), evicted}",
+].join('\n');
+export async function acquireCompanionToken(
+  pairingId: string
+): Promise<CompanionTokenAcquisition> {
+  const result = await runRedisCommand<unknown>([
+    'EVAL',
+    ACQUIRE_COMPANION_TOKEN_SCRIPT,
+    '1',
+    ACTIVE_COMPANION_TOKENS_KEY,
+    String(Date.now()),
+    String(COMPANION_TOKEN_TTL_MS),
+    String(COMPANION_TOKEN_LIMIT),
+    pairingId,
+  ]);
+  if (!Array.isArray(result) || result.length < 2) {
+    throw new Error('Invalid companion token acquisition response.');
+  }
+  const granted = Number(result[0]) === 1;
+  const count = Number(result[1]);
+  const evictedPairingId =
+    typeof result[2] === 'string' && result[2] !== '' ? result[2] : null;
+  return {
+    granted,
+    count: Number.isFinite(count) && count >= 0 ? count : 0,
+    evictedPairingId,
+    retryAfterSeconds: granted
+      ? 0
+      : Math.ceil(COMPANION_TOKEN_TTL_MS / 1000),
+  };
+}
+export async function releaseCompanionToken(pairingId: string): Promise<void> {
+  await runRedisCommand<number>(['ZREM', ACTIVE_COMPANION_TOKENS_KEY, pairingId]).catch(() => 0);
+}
+export async function setCompanionSession(
+  pairingId: string,
+  binding: CompanionSessionBinding
+): Promise<void> {
+  await runRedisCommand<string>([
+    'SETEX',
+    companionSessionKey(pairingId),
+    String(Math.ceil(COMPANION_SESSION_TTL_MS / 1000)),
+    JSON.stringify(binding),
+  ]);
+}
+export async function getCompanionSession(
+  pairingId: string
+): Promise<CompanionSessionBinding | null> {
+  const raw = await runRedisCommand<string | null>(['GET', companionSessionKey(pairingId)]);
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) return null;
+    const tabId = typeof parsed.tabId === 'string' ? parsed.tabId : '';
+    const platform =
+      parsed.platform === 'figma' ? 'figma' : parsed.platform === 'penpot' ? 'penpot' : null;
+    const connectedAt = typeof parsed.connectedAt === 'number' ? parsed.connectedAt : Date.now();
+    return tabId && platform ? { tabId, platform, connectedAt } : null;
+  } catch {
+    return null;
+  }
+}
+/**
+ * Release the companion binding + token slot. Only the holder tab can release
+ * (a stale tab cannot free another tab's live session).
+ */
+export async function releaseCompanionSession(
+  pairingId: string,
+  tabId: string
+): Promise<boolean> {
+  const binding = await getCompanionSession(pairingId);
+  if (binding && binding.tabId !== tabId) return false;
+  await runRedisCommand<number>(['DEL', companionSessionKey(pairingId)]).catch(() => 0);
+  await releaseCompanionToken(pairingId).catch(() => undefined);
+  return true;
+}
+/**
+ * Transfer the binding to a new tab. Returns the previous holder (for the
+ * retire broadcast) or null when this tab already holds it / no prior holder.
+ */
+export async function transferCompanionSession(
+  pairingId: string,
+  newTabId: string,
+  platform: 'figma' | 'penpot'
+): Promise<CompanionSessionBinding | null> {
+  const previous = await getCompanionSession(pairingId);
+  await setCompanionSession(pairingId, {
+    tabId: newTabId,
+    platform,
+    connectedAt: Date.now(),
+  });
+  return previous && previous.tabId !== newTabId ? previous : null;
+}
+// A2 orphan mirror: a live Miro lease for the pairing keeps the companion
+// 'active' so orphan eviction never starves a pairing someone is listening to.
+export async function markMiroPairingActive(pairingId: string): Promise<void> {
+  await runRedisCommand<string>([
+    'SET',
+    miroPairingKey(pairingId),
+    String(Date.now()),
+    'PX',
+    String(MIRO_PAIRING_TTL_MS),
+  ]).catch(() => undefined);
+}
+export async function clearMiroPairing(pairingId: string): Promise<void> {
+  await runRedisCommand<number>(['DEL', miroPairingKey(pairingId)]).catch(() => 0);
+}
+
+// ─── R1: status-count dedupe (SET NX EX 10s recompute gate) ───────────────
+const RELAY_STATUS_CACHE_KEY = 'relay:status_cache';
+const RELAY_STATUS_CACHE_TTL_SECONDS = 10;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+export interface RelayStatusCounts {
+  activeSessions: number;
+  globalSyncsToday: number | null;
+}
+function parseStatusCounts(raw: string | null): RelayStatusCounts | null {
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) return null;
+    const activeSessions = typeof parsed.activeSessions === 'number' ? parsed.activeSessions : null;
+    const globalSyncsToday =
+      typeof parsed.globalSyncsToday === 'number' ? parsed.globalSyncsToday : null;
+    return typeof activeSessions === 'number' ? { activeSessions, globalSyncsToday } : null;
+  } catch {
+    return null;
+  }
+}
+async function recomputeRelayStatusCounts(): Promise<RelayStatusCounts> {
+  const [activeSessions, globalSyncsToday] = await Promise.all([
+    getRelaySessionStatus().then((s) => s.activeSessions).catch(() => 0),
+    getGlobalSyncCount().catch(() => null),
+  ]);
+  return { activeSessions, globalSyncsToday };
+}
+/**
+ * R1: N concurrent polls cost ~1 recompute per 10s window. The dedupe key is
+ * Redis-side, so it works across serverless instances.
+ */
+export async function getRelayStatusCountsCached(): Promise<RelayStatusCounts> {
+  const cached = parseStatusCounts(
+    await runRedisCommand<string | null>(['GET', RELAY_STATUS_CACHE_KEY])
+  );
+  if (cached) return cached;
+  const claimed = await runRedisCommand<string | null>([
+    'SET',
+    RELAY_STATUS_CACHE_KEY,
+    '1',
+    'EX',
+    String(RELAY_STATUS_CACHE_TTL_SECONDS),
+    'NX',
+  ]);
+  if (claimed !== 'OK') {
+    // Another instance is recomputing — wait briefly, then reuse if available.
+    await sleep(150);
+    const retried = parseStatusCounts(
+      await runRedisCommand<string | null>(['GET', RELAY_STATUS_CACHE_KEY])
+    );
+    if (retried) return retried;
+  }
+  const counts = await recomputeRelayStatusCounts();
+  await runRedisCommand<string>([
+    'SETEX',
+    RELAY_STATUS_CACHE_KEY,
+    String(RELAY_STATUS_CACHE_TTL_SECONDS),
+    JSON.stringify(counts),
+  ]).catch(() => undefined);
+  return counts;
 }

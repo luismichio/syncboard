@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { onRelayConflict, onRelayConnectionState, transferRelaySession } from '../companionRelayClient';
+import { onRelayActivity, onRelayConflict, onRelayConnectionState, transferRelaySession } from '../companionRelayClient';
 import type { RelayConnectionState } from '../companionRelayClient';
 import { useRelayStatus } from '../useRelayStatus';
 
@@ -55,7 +55,15 @@ export function RelayStatusBanner({
     onRelayConflict(() => {
       void refetch();
     });
-    return () => onRelayConflict(null);
+    // R1: relay ops (detect/import/sync) refresh the capacity readout on
+    // demand — the blind 30s poll is gone.
+    const offActivity = onRelayActivity(() => {
+      void refetch();
+    });
+    return () => {
+      onRelayConflict(null);
+      offActivity();
+    };
   }, [refetch]);
 
   // Relay connection state (idle | connecting | connected) so the banner can

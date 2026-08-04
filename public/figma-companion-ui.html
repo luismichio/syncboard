@@ -189,7 +189,7 @@
     <header>
       <div class="subtitle">SyncingBoard Companion</div>
       <h2>Figma Companion Relay</h2>
-      <div class="version-badge">v0.15.1 Community</div>
+      <div class="version-badge">v0.15.2 Community</div>
     </header>
 
     <div class="card">
@@ -219,6 +219,18 @@
       </div>
     </div>
 
+    <div id="transfer-card" class="card" style="display: none; border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.05);">
+      <div style="font-size: 10px; color: #f59e0b; font-family: monospace; font-weight: bold;">
+        ⚠ Companion Active in Another Tab
+      </div>
+      <div style="font-size: 9px; color: #9ca3af; margin-top: 4px; line-height: 1.3;">
+        This file pairing is currently connected in another window.
+      </div>
+      <button id="companion-transfer-btn" style="margin-top: 8px; width: 100%; font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 4px 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #f59e0b; border-radius: 4px; cursor: pointer;">
+        🔄 Transfer Connection to This Tab
+      </button>
+    </div>
+
     <div class="card">
       <div class="status-row">
         <span>Cloud Connection (WebSocket):</span>
@@ -245,6 +257,34 @@
     let reconnectAttempts = 0;
     let reconnectTimeout = null;
 let currentPairingId = '';
+
+    // v0.15.2 Community: stable tab id (Design B). Seeded on window so the transfer
+    // handler and the token request always use the SAME id for this tab.
+    const companionTabId = window.companionTabId || (window.companionTabId = (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'tab_' + Math.random().toString(36).substring(2, 10)));
+    let evictedReconnectAttempts = 0;
+
+    function releaseCompanionSession(pairingId) {
+      return fetch(`${RELAY_URL}/api/relay/companion/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pairingId, tabId: companionTabId, action: 'release' })
+      }).catch(() => undefined);
+    }
+
+    // A2.4 re-admission: an evicted tab stands by and retries with growing
+    // backoff (up to 30 attempts / 60s) so its pairing heals once a Miro
+    // token request re-admits it.
+    function scheduleEvictedReconnect() {
+      if (!currentPairingId) return;
+      if (evictedReconnectAttempts >= 30) {
+        log('Standby: re-admission gave up after 30 attempts. Click Connect to retry.');
+        return;
+      }
+      evictedReconnectAttempts++;
+      const delay = Math.min(5000 * Math.ceil(evictedReconnectAttempts / 3), 60000);
+      reconnectTimeout = setTimeout(() => connectBridge(true), delay);
+    }
+
 
     const pendingRequests = new Map();
     const pendingRequestTimers = new Map();
@@ -307,6 +347,27 @@ let currentPairingId = '';
         log('Error: Invalid Figma file URL.');
       }
     });
+
+    const companionTransferBtn = document.getElementById('companion-transfer-btn');
+    if (companionTransferBtn) {
+      companionTransferBtn.addEventListener('click', async () => {
+        if (!currentPairingId) return;
+        try {
+          const companionTabId = window.companionTabId || (window.companionTabId = 'tab_' + Math.random().toString(36).substring(2, 10));
+          const res = await fetch(`${RELAY_URL}/api/relay/companion/session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pairingId: currentPairingId, tabId: companionTabId, action: 'transfer' }),
+          });
+          if (res.ok) {
+            document.getElementById('transfer-card').style.display = 'none';
+            connectBridge(false);
+          }
+        } catch (err) {
+          log(`Transfer failed: ${err.message}`);
+        }
+      });
+    }
 
     let savedId = null;
     try {
@@ -388,17 +449,40 @@ let currentPairingId = '';
 
       // Prevent a prior client's terminal event from reconnecting over a newly
       // requested pairing.
+      const previousPairingId = currentPairingId;
+      window.__companionConflict = false;
       currentPairingId = '';
       await disconnectAbly('Connecting...');
+      if (previousPairingId && previousPairingId !== pairingId) {
+        void releaseCompanionSession(previousPairingId);
+      }
       currentPairingId = pairingId;
       updateStatus('connecting', 'Connecting WebSocket');
       log('Connecting to cloud relay channel...');
 
       try {
-        const tokenUrl = `${RELAY_URL}/api/ably/token?pairingId=${encodeURIComponent(pairingId)}&platform=figma`;
+        const tokenUrl = `${RELAY_URL}/api/ably/token?pairingId=${encodeURIComponent(pairingId)}&platform=figma&tabId=${encodeURIComponent(companionTabId)}`;
+        // Deterministic conflict detection: the token endpoint's 409 body
+        // (companion_conflict) is surfaced here instead of buried in an Ably
+        // auth failure string; the same callback handles token renewal.
         ablyClient = new Ably.Realtime({
-          authUrl: tokenUrl,
-          authMethod: 'GET',
+          authCallback: (data, callback) => {
+            fetch(tokenUrl, { cache: 'no-store' })
+              .then(async (res) => {
+                if (res.status === 409) {
+                  window.__companionConflict = true;
+                  callback(new Error('companion_conflict'), null);
+                  return;
+                }
+                if (!res.ok) {
+                  callback(new Error('Ably token request failed: HTTP ' + res.status), null);
+                  return;
+                }
+                const tokenDetails = await res.json();
+                callback(null, tokenDetails);
+              })
+              .catch((err) => callback(err, null));
+          },
           recover: false
         });
         const client = ablyClient;
@@ -443,6 +527,24 @@ let currentPairingId = '';
           }
         });
 
+        await ablyChannel.subscribe('companion-event', (msg) => {
+          const data = msg.data;
+          if (!data) return;
+          if (data.event === 'companion_transferred') {
+            if (data.tabId !== companionTabId) return;
+            log('Connection moved to another tab.');
+            currentPairingId = '';
+            document.getElementById('transfer-card').style.display = 'none';
+            void disconnectAbly('Moved to another tab');
+          } else if (data.event === 'companion_evicted') {
+            if (data.tabId !== companionTabId) return;
+            log('Standby — slot granted to active sync. Re-admitting shortly.');
+            updateStatus('disconnected', 'Standby (Slot granted to active sync)');
+            void disconnectAbly('Standby');
+            scheduleEvictedReconnect();
+          }
+        });
+
         client.connection.on('disconnected', () => {
           if (ablyClient !== client || !currentPairingId) return;
           updateStatus('connecting', 'Reconnecting');
@@ -461,12 +563,19 @@ let currentPairingId = '';
         client.connection.on('closed', () => recoverConnection('closed'));
 
         reconnectAttempts = 0;
+        evictedReconnectAttempts = 0;
         updateStatus('connected', 'Connected');
         log('Companion connected via Ably WebSocket.');
 
       } catch (err) {
         await disconnectAbly();
         const errMsg = err instanceof Error ? err.message : String(err);
+        if (window.__companionConflict) {
+          log('Companion active in another tab.');
+          document.getElementById('transfer-card').style.display = 'block';
+          updateStatus('disconnected', 'Active elsewhere');
+          return;
+        }
         log(`Connection failed: ${errMsg}`);
         updateStatus('disconnected', 'Failed');
         scheduleReconnect();
@@ -504,6 +613,15 @@ let currentPairingId = '';
     });
 
     window.addEventListener('pagehide', () => {
+      const pid = currentPairingId;
+      if (pid) {
+        try {
+          navigator.sendBeacon(
+            `${RELAY_URL}/api/relay/companion/session`,
+            new Blob([JSON.stringify({ pairingId: pid, tabId: companionTabId, action: 'release' })], { type: 'application/json' })
+          );
+        } catch (e) {}
+      }
       currentPairingId = '';
       void disconnectAbly();
     });

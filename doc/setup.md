@@ -243,6 +243,7 @@ Rate limiting is enabled by default when both `UPSTASH_REDIS_REST_URL` and `UPST
 | `RATE_LIMIT_COMMUNITY_RELAY_PER_DAY` | `100` | Penpot relay requests per day per pairing ID |
 | `RATE_LIMIT_COMMUNITY_RELAY_SESSION_PER_MIN` | `4` | Miro relay session signals per minute per session ID |
 | `RATE_LIMIT_COMMUNITY_MAX_RELAY_SESSIONS` | `40` | Concurrent relay-session lease ceiling across the deployment (target/source agnostic; legacy alias `RATE_LIMIT_COMMUNITY_MAX_MIRO_RELAY_SESSIONS`) |
+| `RATE_LIMIT_COMMUNITY_MAX_COMPANION_TOKENS` | `180` | Concurrent companion Ably tokens across the deployment (v0.15.2 Design A fairness; Miro detectors keep a permanent 20-socket floor on top of this) |
 | `RATE_LIMIT_COMMUNITY_UPDATE_IMAGE_PER_MIN` | `10` | Miro image updates per minute per user token |
 | `RATE_LIMIT_COMMUNITY_ABLY_TOKEN_PER_MIN` | `5` | Ably token generation per minute per requester |
 | `RATE_LIMIT_COMMUNITY_OAUTH_REFRESH_PER_MIN` | `3` | OAuth refresh exchanges per minute per refresh-token hash |

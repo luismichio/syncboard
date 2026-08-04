@@ -6,7 +6,7 @@ updated: 2026-08-03
 
 # SyncingBoard (Figma & Penpot to Miro Sync Engine)
 
-[![Version 0.15.1](https://img.shields.io/badge/version-0.15.1-%23007ACC?style=flat-square)](https://github.com/luismichio/syncingboard/blob/dev/package.json)
+[![Version 0.15.2](https://img.shields.io/badge/version-0.15.2-%23007ACC?style=flat-square)](https://github.com/luismichio/syncingboard/blob/dev/package.json)
 [![OSI Approved License](https://img.shields.io/badge/license-AGPLv3-%23A81C7D?style=flat-square&label=OSI%20Approved)](https://github.com/luismichio/syncingboard/blob/dev/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-%23007ACC.svg?style=flat-square&logo=typescript&logoColor=white)](https://github.com/luismichio/syncingboard/blob/dev/tsconfig.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-%23FF6B6B?style=flat-square)](https://github.com/luismichio/syncingboard/issues/new)

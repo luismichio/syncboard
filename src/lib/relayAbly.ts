@@ -40,6 +40,21 @@ export async function publishPenpotCommand(
 }
 
 /**
+ * Broadcast a companion-lifecycle event (eviction / transfer retirement) on
+ * the pairing channel. The companion UI subscribes to 'companion-event' and
+ * compares its own tabId; Miro subscribers never attach to this event name.
+ */
+export async function publishCompanionEvent(
+  pairingId: string,
+  platform: Platform,
+  event: 'companion_evicted' | 'companion_transferred',
+  tabId: string
+): Promise<void> {
+  const ably = getAblyRest();
+  const channel = ably.channels.get(channelName(platform, pairingId));
+  await channel.publish('companion-event', { event, tabId });
+}
+/**
  * Check if a companion is currently connected (present) on the Ably channel
  * AND has signaled readiness (fully initialized, actively handling commands).
  * Uses Ably's presence REST API instead of a Redis heartbeat.

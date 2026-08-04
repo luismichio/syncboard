@@ -1,6 +1,6 @@
 {
   "name": "syncingboard",
-  "version": "0.15.1",
+  "version": "0.15.2",
   "plan": "community",
   "private": true,
   "packageManager": "yarn@4.13.0",

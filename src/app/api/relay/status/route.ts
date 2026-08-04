@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { withRateLimit, COMMUNITY_PLAN } from '@/lib/rate-limit';
 import {
   deriveRelayStatusLevel,
-  getGlobalSyncCount,
-  getRelaySessionStatus,
+  getRelayStatusCountsCached,
   getUserBoardBinding,
 } from '@/lib/relayRedis';
+import { RELAY_SESSION_LIMIT } from '@/lib/relayRedis';
 
 const USER_ID_HASH_RE = /^[a-f0-9]{64}$/i;
 
@@ -30,8 +30,13 @@ async function getHandler(request: Request) {
     const boardIdRaw = searchParams.get('boardId') ?? '';
     const userIdHash = USER_ID_HASH_RE.test(userIdHashRaw) ? userIdHashRaw : null;
 
-    const { activeSessions, maxSessions } = await getRelaySessionStatus();
-    const globalSyncsToday = await getGlobalSyncCount();
+    // R1: counts are deduped under a 10s SET-NX-EX cache - N concurrent
+    // polls cost ~1 Redis recompute per window; the blind 30s client poll
+    // is gone (refetch on transitions + on demand instead).
+    const counts = await getRelayStatusCountsCached();
+    const activeSessions = counts.activeSessions;
+    const globalSyncsToday = counts.globalSyncsToday;
+    const maxSessions = RELAY_SESSION_LIMIT;
 
     let userConflict: boolean | undefined;
     let activeBoardId: string | undefined;

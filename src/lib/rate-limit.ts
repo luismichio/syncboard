@@ -22,6 +22,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import type { Ratelimit } from "@upstash/ratelimit";
+import type { Redis } from "@upstash/redis";
 import { incrementGlobalSyncCount } from "@/lib/relayRedis";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -304,6 +305,12 @@ const ENDPOINT_LIMITS: Record<string, RateLimitConfig | MultiWindowConfig> = {
 
 interface RateLimiterBackend {
   check(identifier: string, config: RateLimitConfig): Promise<RateLimitResult>;
+  /**
+   * R3: batch-check several sliding windows in ONE Redis EVAL (multi-window
+   * endpoints like relay:request cost 1 command instead of N). Optional —
+   * backends without it fall back to independent per-window checks.
+   */
+  checkMany?(identifier: string, configs: RateLimitConfig[]): Promise<RateLimitResult[]>;
 }
 
 /** In-memory fixed-window rate limiter for persistent infra (Docker/VPS/ECS). */
@@ -343,11 +350,41 @@ class InMemoryBackend implements RateLimiterBackend {
   }
 }
 
+const MULTI_WINDOW_SCRIPT = [
+  "local now = tonumber(ARGV[#ARGV])",
+  "local reqId = ARGV[#ARGV - 1]",
+  "local out = {}",
+  "for i = 1, #KEYS do",
+  "  local key = KEYS[i]",
+  "  local limit = tonumber(ARGV[(i - 1) * 2 + 1])",
+  "  local windowMs = tonumber(ARGV[(i - 1) * 2 + 2])",
+  "  local clearBefore = now - windowMs",
+  "  redis.call('ZREMRANGEBYSCORE', key, 0, clearBefore)",
+  "  local count = redis.call('ZCARD', key)",
+  "  local success = 0",
+  "  local remaining = 0",
+  "  if count < limit then",
+  "    redis.call('ZADD', key, now, reqId)",
+  "    redis.call('PEXPIRE', key, windowMs)",
+  "    success = 1",
+  "    remaining = limit - count - 1",
+  "  else",
+  "    remaining = 0",
+  "  end",
+  "  local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')",
+  "  local reset = now + windowMs",
+  "  if #oldest > 1 then reset = tonumber(oldest[2]) + windowMs end",
+  "  table.insert(out, {success, limit, remaining, reset})",
+  "end",
+  "return out",
+].join('\n');
+
 /** Redis-backed sliding-window rate limiter via @upstash/ratelimit. */
 class RedisBackend implements RateLimiterBackend {
   private instances = new Map<string, Ratelimit>();
   private initPromise: Promise<void> | null = null;
   private initialized = false;
+  private redis: Redis | null = null;
 
   private async init() {
     if (this.initialized) return;
@@ -357,6 +394,7 @@ class RedisBackend implements RateLimiterBackend {
         const { Ratelimit } = await import("@upstash/ratelimit");
         const { Redis } = await import("@upstash/redis");
         const redis = Redis.fromEnv();
+        this.redis = redis;
         for (const [, cfg] of Object.entries(ENDPOINT_LIMITS)) {
           if ("limit" in cfg && "window" in cfg && typeof cfg.window === "number") {
             const label = `${cfg.limit}req_${cfg.window}s`;
@@ -411,6 +449,53 @@ class RedisBackend implements RateLimiterBackend {
       reset: result.reset,
     };
   }
+
+  async checkMany(
+    identifier: string,
+    configs: RateLimitConfig[]
+  ): Promise<RateLimitResult[]> {
+    await this.init();
+    if (!this.redis || configs.length === 0) {
+      const out: RateLimitResult[] = [];
+      for (const c of configs) out.push(await this.check(identifier, c));
+      return out;
+    }
+    const keys = configs.map(
+      (c) => `syncingboard:rl:${getPlan()}:${c.limit}req_${c.window}s:${identifier}`
+    );
+    const args: string[] = [];
+    for (const c of configs) {
+      args.push(String(c.limit), String(c.window * 1000));
+    }
+    args.push(crypto.randomUUID(), String(Date.now()));
+    try {
+      const rawResults = (await this.redis.eval(
+        MULTI_WINDOW_SCRIPT,
+        keys,
+        args
+      )) as unknown;
+      if (!Array.isArray(rawResults) || rawResults.length !== configs.length) {
+        throw new Error('Unexpected batched rate-limit result.');
+      }
+      return rawResults.map((raw: unknown) => {
+        if (!Array.isArray(raw) || raw.length < 4) {
+          throw new Error('Invalid batched rate-limit window result.');
+        }
+        return {
+          success: Number(raw[0]) === 1,
+          limit: Number(raw[1]),
+          remaining: Number(raw[2]),
+          reset: Number(raw[3]),
+        };
+      });
+    } catch (e) {
+      // Fall back to independent checks if EVAL is unavailable.
+      const out: RateLimitResult[] = [];
+      for (const c of configs) out.push(await this.check(identifier, c));
+      return out;
+    }
+  }
+
 }
 
 // ─── Singleton backend ─────────────────────────────────────────────────────
@@ -534,9 +619,16 @@ export function withRateLimit(opts: WithRateLimitOptions) {
 
       // Multi-window (relay: 5/min + 30/hour + 100/day)
       if ("windows" in configs) {
-        const results = await Promise.all(
-          configs.windows.map((w) => backend.check(`${opts.endpoint}:${identifier}`, w))
-        );
+        // R3: batch all windows in one Lua EVAL when the backend supports it
+        // (1 Redis command instead of N); fall back to independent checks.
+        const results = backend.checkMany
+          ? await backend.checkMany(
+              `${opts.endpoint}:${identifier}`,
+              configs.windows
+            )
+          : await Promise.all(
+              configs.windows.map((w) => backend.check(`${opts.endpoint}:${identifier}`, w))
+            );
         const failed = results.find((r) => !r.success);
         if (failed) {
           return rateLimitResponse(failed);

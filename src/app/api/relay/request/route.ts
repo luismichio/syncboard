@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { withRateLimit } from '@/lib/rate-limit';
 import {
   deleteRelayRequestBinding,
-  deleteRelayResponse,
-  getRelayResponse,
   RelayCommand,
   storeRelayRequestBinding,
 } from '@/lib/relayRedis';
@@ -23,17 +21,6 @@ interface RelayRequestBody {
   async?: boolean;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function clampTimeout(timeoutMs: number | undefined, action: 'select' | 'export'): number {
-  const fallback = action === 'select' ? 7000 : 16000;
-  if (typeof timeoutMs !== 'number' || Number.isNaN(timeoutMs)) {
-    return fallback;
-  }
-  return Math.min(25_000, Math.max(1_000, Math.round(timeoutMs)));
-}
 
 function buildCommand(body: RelayRequestBody, requestId: string): RelayCommand {
   const action = body.action;
@@ -78,6 +65,15 @@ async function handler(request: Request) {
     if (commandAction !== 'select' && commandAction !== 'export') {
       return NextResponse.json({ error: 'action is required and must be select or export.' }, { status: 400 });
     }
+    // R4: async pub/sub is the only mode — the old 350ms Upstash long-poll
+    // (23-46 GETs per op) is gone. Reject sync callers up front so no future
+    // platform can silently reintroduce the poll.
+    if (body.async !== true) {
+      return NextResponse.json(
+        { error: 'Synchronous relay polling is not supported. Use async relay mode (async: true).' },
+        { status: 400 }
+      );
+    }
 
     const platform = body.platform || 'penpot';
     const online = await isPenpotOnlineAbly(pairingId, platform);
@@ -112,44 +108,17 @@ async function handler(request: Request) {
       throw error;
     }
 
-    if (body.async) {
-      return NextResponse.json({
-        error: null,
-        data: { requestId, async: true },
-      });
-    }
-
-    if (!hasRedis) {
+    if (!body.async) {
       return NextResponse.json(
-        { error: 'Synchronous relay polling requires Redis. Use async relay mode or configure Upstash Redis.' },
-        { status: 503 }
+        { error: 'Sync polling is deprecated. Requests must specify async: true.' },
+        { status: 400 }
       );
     }
 
-    const timeoutMs = clampTimeout(body.timeoutMs, commandAction);
-    const deadline = Date.now() + timeoutMs;
-
-    while (Date.now() < deadline) {
-      const response = await getRelayResponse(requestId);
-
-      if (response) {
-        await deleteRelayResponse(requestId);
-        await deleteRelayRequestBinding(requestId).catch(() => undefined);
-
-        if (response.error) {
-          return NextResponse.json({ error: response.error }, { status: 502 });
-        }
-
-        return NextResponse.json({
-          error: null,
-          data: response.data,
-        });
-      }
-
-      await sleep(350);
-    }
-
-    return NextResponse.json({ error: 'Relay request timed out waiting for companion response.' }, { status: 504 });
+    return NextResponse.json({
+      error: null,
+      data: { requestId, async: true },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Relay request failed.';
     return NextResponse.json({ error: message }, { status: 500 });

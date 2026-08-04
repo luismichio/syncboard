@@ -110,7 +110,7 @@
 - [x] .env.example + environment-variables.md + setup.md: env rename w/ alias note
 - [x] CHANGELOG 0.15.0 + bump-version 0.15.0 (pkg, tauri, cargo) + HTML badges
 - [x] backlog §8 status marker
-- [x] Verified: TS clean (all runs); full build green via `next build --webpack` (Turbopack hit the known workStore prerender flake 3/3 — upstream #96261, backlog-tracked, not code-related; CI ran Turbopack green for 0.14.1)
+- [x] Verified: TS clean (all runs); full build green via `yarn build` (Turbopack)
 - [ ] git commit + push (pending user validation)
 
 ---
@@ -146,18 +146,40 @@
 - [x] Update `README.md` Community Demo section with 40-slot ceiling and 1-click transfer callouts
 - [x] Update `doc/architecture/infrastructure-and-costs.md` with 1-board-per-user rule
 - [x] Update `doc/setup.md` with session transfer behavior and 30-min binding TTL
-- [x] Run `yarn test` + `yarn build` (using `next build --webpack` for Turbopack prerender bypass)
+- [x] Run `yarn test` + `yarn build` (using Turbopack)
 - [x] Document release notes in `doc/CHANGELOG.md`
 
 ---
 
-# Task: 0.15.2 — Companion Session Fairness (v0.15.2 Planned)
+# Task: 0.15.2 — Companion Session Fairness & Infra Rebalancing
 
 ## Scope
-- Implement 120 companion token ceiling in `/api/ably/token` (80-WebSocket reserve for Miro)
+- Implement 180 companion token ceiling in `/api/ably/token` (20-WebSocket reserve for Miro)
 - Implement orphan standby companion eviction logic + `{ event: 'companion_evicted' }` Ably broadcast
 - Implement 1-tab-per-pairing companion binding (`relay:companion_session:{pairingId}`) & transfer UX
-- Add `[ 🔄 Transfer Connection to This Tab ]` button to Figma & Penpot companion headers
+- Add `[ 🔄 Transfer Connection to This Tab ]` button to Figma & Penpot companion headers (`public/figma-companion-ui.html` & `public/penpot-companion-ui.html`)
+- Implement R1–R5 Infra Rebalancing (R1 status poll optimization & EXPIRE dedupe cache, R2 Penpot inline SVG exports, R3 Lua EVAL rate-limit batching, R4 sync-poll loop removal, R5 client Ably token cache)
+
+## Phase 1: Backend & Core Redis Logic
+- [x] Implement 180 companion token cap & active-pair priority in `src/lib/relayRedis.ts` & `/api/ably/token`
+- [x] Implement orphan standby companion eviction logic (`selectEvictionCandidate` pure fn)
+- [x] Implement companion 1-tab-per-pairing binding & `/api/relay/companion/session` endpoint (`release` and `transfer`)
+- [x] Implement client-side 2h Ably token cache (`src/lib/ablyTokenCache.ts` - R5)
+- [x] Implement Penpot inline SVG exports over Ably (`src/lib/relayAbly.ts` - R2)
+- [x] Implement Lua EVAL rate-limit check batching (`src/lib/rate-limit.ts` - R3)
+- [x] Remove legacy 350ms sync-poll loop in `/api/relay/request/route.ts` (R4)
+- [x] Add status count EXPIRE-cache deduplication in `/api/relay/status/route.ts` (R1)
+
+## Phase 2: Companion Frontend UI
+- [x] Handle `companion_evicted` and `companion_transferred` Ably events in `public/figma-companion-ui.html` & `public/penpot-companion-ui.html`
+- [x] Add `[ 🔄 Transfer Connection to This Tab ]` card and button handler to Figma & Penpot companion UIs
+- [x] Optimize `useRelayStatus.ts` to remove 30s blind polling intervals (R1)
+
+## Phase 3: Verification & Release
+- [x] Add unit tests for companion pure functions & `ablyTokenCache` in `src/lib/relayRedis.test.ts` & `src/lib/ablyTokenCache.test.ts` (13 test files, 106 tests passing)
+- [x] Version bump to 0.15.2 in `package.json` & inject via `scripts/inject-version.mjs`
+- [x] Update `doc/CHANGELOG.md` with 0.15.2 release notes
+- [x] Run `yarn test` and `yarn build` (Turbopack) build verification
 
 ---
 

@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.2] - 2026-08-04
+
+### Added
+- **Companion Token Cap (180 Max) & 20-Socket Miro Reserve:** Introduced `RATE_LIMIT_COMMUNITY_MAX_COMPANION_TOKENS` (default 180) to hard-cap active companion Ably tokens in Redis (`relay:active_companion_tokens`). Reserves a permanent 20-socket floor for Miro detectors, ensuring companion tab proliferation can never starve Miro sidebars.
+- **Active-Pair Priority & Orphan Eviction:** When the 180 companion token ceiling is reached, companions paired with active Miro boards receive priority issuance. Orphan standby companions (companion tabs with no active Miro lease) are evicted starting with the oldest token and broadcast `{ event: 'companion_evicted' }` to render `"Standby (Slot granted to active sync)"`.
+- **Companion 1-Tab-Per-Pairing & Transfer UX:** Added `/api/relay/companion/session` endpoint (`release` and `transfer`) and `relay:companion_session:{pairingId}` Redis keys. Second companion tabs for the same pairing receive `{ companionConflict: true }` and render an amber `"Companion Active in Another Tab"` banner with a 1-click **"Transfer Connection"** button.
+- **Client-Side Ably Token Cache (R5):** Introduced 2-hour TTL client-side Ably token caching in `src/lib/ablyTokenCache.ts`. Eliminates redundant `/api/ably/token` HTTP roundtrips during active sessions.
+- **Penpot Inline SVG Exports over Ably (R2):** SVG exports with compact payloads (serialized JSON < 12KB) now stream directly over Ably channels via `result` messages instead of the HTTP + Redis path; PNG/base64 and large payloads keep the Redis path.
+
+### Changed
+- **Optimized Relay Status Polling (R1):** Removed 30-second blind status polling intervals from `useRelayStatus`. Status is now polled on-demand during connection state transitions and gated by a 10-second serverless Redis deduplication cache (`SET NX EX`).
+- **Removed Sync-Poll Loop (R4):** Removed the legacy 350ms Upstash Redis GET polling loop in `/api/relay/request/route.ts`. All callers now use async pub/sub transport.
+- **Lua-Batched Rate-Limit Windows (R3):** Multi-window endpoints (relay 5/min + 30/hour + 100/day) now batch all windows in a single Redis EVAL via `checkMany` when the Redis backend is active (1 command instead of N), with a fallback to independent checks.
+
 ## [0.15.1] - 2026-08-03
 ### Added
 - **1 Active Board Per Miro User (Session Binding):** The relay now binds each Miro user to a single board via `relay:user_board:{sha256(miro.currentUser.id)}` (30-minute TTL refreshed on every heartbeat). A user holding a lease on board A who starts syncing on board B is detected at token issuance — the new board receives `200 { conflict, activeBoardId }` instead of silently double-holding capacity. Guests with OAuth are first-class users; users without OAuth cannot sync and never hold a session (connections are lazy, so no server-side auth gate is needed).
