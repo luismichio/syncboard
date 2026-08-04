@@ -81,7 +81,7 @@ For quick testing and evaluation, you can use the official pre-published plugins
 * **Plug and Play:** To enable selection auto-detection or Penpot sync, load the companion in Figma/Penpot, copy the Pairing ID from the Miro sidebar, and paste it into the companion to connect.
 * **Figma Companion Scope:** The Figma Companion plugin is **only needed for selection detection** (auto-detecting your active selection in Figma). You can import and sync screens directly into Miro using Figma URLs without installing the companion plugin.
 * **Rate Limits:** To keep the maintainer's shared infrastructure responsive for everyone, the Community version enforces daily rate limits on image exports and node queries.
-* **Fair Relay Pool:** The Community relay holds **40 concurrent sessions** with **1 active board per Miro user**. Opening a second board shows a **one-click "Transfer Session to This Board"** banner that moves your active session — transparent capacity, no hidden queues.
+* **Fair Relay Pool:** The Community relay holds **40 concurrent sessions** with **1 active board per Miro user**. Opening a second board shows a **one-click "Transfer Session to This Board"** banner that moves your active session — transparent capacity, no hidden queues. Companions get a fair pool too: a **180-token cap with a permanent 20-socket Miro reserve**, **1 active tab per pairing**, and orphan eviction with auto re-admission so active syncs always win.
 * **Setup Video Walkthroughs:**
   * **Figma Companion Setup:** [▶ Watch on YouTube](https://www.youtube.com/watch?v=pO_-icohQhQ)
   * **Penpot Companion Setup:** [▶ Watch on YouTube](https://www.youtube.com/watch?v=qEVvAl1ohoE)
@@ -94,7 +94,7 @@ For production use inside design teams, you can deploy your own instance of Sync
   * **Figma:** Register a developer app in the Figma Dev Portal to obtain a Client ID and Redirect URI pointing to your domain callback endpoint.
 * **Penpot:** No OAuth registration needed. Penpot connects via the Pairing ID and cloud relay. See the [setup guide](https://github.com/luismichio/syncingboard/blob/dev/doc/setup.md) for details.
 * **Companion Configuration:** 
-  * **In Figma:** Open the companion plugin, click **Configure** in the settings bar at the top, and save your custom domain.
+  * **In Figma:** The companion plugin loads the hosted production companion by default — no setup. Self-hosters point it at their own domain via the `DEFAULT_HOST` constant in `figma-plugin/ui.html` (and list that domain in the manifest's `allowedDomains`).
   * **In Penpot:** Add a custom plugin in your Penpot dashboard pointing to your self-hosted companion URL (e.g., `https://your-domain.com/penpot-companion-ui.html`).
 * **Full Data Ownership:** OAuth credentials, pairing states, and design image buffers are stored securely inside your private cloud infrastructure.
 
