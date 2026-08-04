@@ -1,235 +1,97 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background-color: #0b0c0d;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    #settings-bar {
-      background-color: #121417;
-      border-bottom: 1px solid #1f232a;
-      padding: 6px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 10px;
-      color: #6b7280;
-    }
-    #settings-toggle {
-      cursor: pointer;
-      color: #01C8F1;
-      text-decoration: underline;
-      font-weight: 600;
-    }
-    #settings-panel {
-      display: none;
-      background-color: #121417;
-      border-bottom: 1px solid #1f232a;
-      padding: 8px 12px;
-      flex-direction: column;
-      gap: 6px;
-    }
-    #settings-panel.active {
-      display: flex;
-    }
-    .panel-row {
-      display: flex;
-      gap: 8px;
-    }
-    input[type="text"] {
-      flex: 1;
-      background-color: #0b0c0d;
-      border: 1px solid #1f232a;
-      border-radius: 4px;
-      color: #f3f4f6;
-      padding: 4px 8px;
-      font-size: 10px;
-      font-family: monospace;
-    }
-    input[type="text"]:focus {
-      outline: none;
-      border-color: #01C8F1;
-    }
-    button {
-      background-color: #01C8F1;
-      color: #0b0c0d;
-      border: none;
-      border-radius: 4px;
-      padding: 4px 8px;
-      font-weight: bold;
-      font-size: 10px;
-      cursor: pointer;
-    }
-    iframe {
-      flex: 1;
-      width: 100%;
-      border: none;
-      background-color: #0b0c0d;
-    }
-
-    /* ── Figma Light Theme Overrides ────────────────────────── */
-    .figma-light body {
-      background-color: #f9fafb;
-    }
-    .figma-light #settings-bar {
-      background-color: #f3f4f6;
-      border-bottom: 1px solid #e5e7eb;
-      color: #4b5563;
-    }
-    .figma-light #settings-toggle {
-      color: #00A2C9;
-    }
-    .figma-light #settings-panel {
-      background-color: #f3f4f6;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .figma-light input[type="text"] {
-      background-color: #ffffff;
-      border: 1px solid #d1d5db;
-      color: #111827;
-    }
-    .figma-light input[type="text"]:focus {
-      border-color: #00A2C9;
-    }
-    .figma-light button {
-      background-color: #00A2C9;
-      color: #ffffff;
-    }
-    .figma-light iframe {
-      background-color: #f9fafb;
-    }
-  </style>
+<meta charset="utf-8">
+<style>
+body, html {
+  margin: 0;
+  padding: 0;
+  background-color: #0b0c0d;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+iframe {
+  flex: 1;
+  border: none;
+  background-color: #0b0c0d;
+}
+/* Figma Light Theme Override */
+.figma-light body {
+  background-color: #f9fafb;
+}
+.figma-light iframe {
+  background-color: #f9fafb;
+}
+</style>
 </head>
 <body>
-  <div id="settings-bar">
-    <span>SyncingBoard Host Settings</span>
-    <span id="settings-toggle">Configure</span>
-  </div>
+<iframe id="companion-iframe" src="about:blank"></iframe>
+<script>
+const DEFAULT_HOST = 'https://www.syncingboard.com';
+const iframe = document.getElementById('companion-iframe');
+let currentFileKey = 'unknown';
 
-  <div id="settings-panel">
-    <div style="font-size: 9px; color: #6b7280; text-transform: uppercase;">SyncingBoard Host Domain (Self-Hosts)</div>
-    <div class="panel-row">
-      <input type="text" id="host-input" placeholder="https://www.syncingboard.com" />
-      <button id="save-btn">Save</button>
-    </div>
-  </div>
+// Load the hosted companion into the iframe. The production host is fixed
+// (see manifest networkAccess.allowedDomains); self-hosters edit DEFAULT_HOST
+// in this file before importing the plugin from the local manifest.
+function loadIframe() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const secretKey = urlParams.get('key');
+  let targetUrl = `${DEFAULT_HOST}/figma-companion-ui.html?fileKey=${encodeURIComponent(currentFileKey)}`;
+  if (secretKey) {
+    targetUrl += `&key=${encodeURIComponent(secretKey)}`;
+  }
+  iframe.src = targetUrl;
+}
 
-  <iframe id="companion-iframe" src="about:blank"></iframe>
+// Ask the background script for the file key on startup
+parent.postMessage({ pluginMessage: { action: 'ui-ready' } }, '*');
 
-  <script>
-    const DEFAULT_HOST = 'https://www.syncingboard.com';
-    const iframe = document.getElementById('companion-iframe');
-    const hostInput = document.getElementById('host-input');
-    const saveBtn = document.getElementById('save-btn');
-    const settingsToggle = document.getElementById('settings-toggle');
-    const settingsPanel = document.getElementById('settings-panel');
+// Figma adds figma-light or figma-dark to <html> when themeColors: true
+function getActiveTheme() {
+  return document.documentElement.classList.contains('figma-light') ? 'light' : 'dark';
+}
+function sendThemeToIframe() {
+  const theme = getActiveTheme();
+  if (iframe.contentWindow) {
+    iframe.contentWindow.postMessage({ action: 'theme-change', theme }, '*');
+  }
+}
+// Listen for live theme switches in the editor
+const themeObserver = new MutationObserver(() => {
+  sendThemeToIframe();
+});
+themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
-    let currentHost = DEFAULT_HOST;
-    let currentFileKey = 'unknown';
+// Messages from the background script (figma.ui.postMessage)
+window.onmessage = (event) => {
+  const msg = event.data.pluginMessage;
+  if (!msg) return;
+  if (msg.action === 'file-key') {
+    currentFileKey = msg.fileKey || currentFileKey || 'unknown';
+    loadIframe();
+    return;
+  }
+  // Forward everything else (selection results, etc.) to the hosted companion
+  if (iframe.contentWindow) {
+    iframe.contentWindow.postMessage(msg, '*');
+  }
+};
 
-    // Load iframe
-    function loadIframe() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const secretKey = urlParams.get('key');
-      
-      let targetUrl = `${currentHost}/figma-companion-ui.html?fileKey=${encodeURIComponent(currentFileKey)}`;
-      if (secretKey) {
-        targetUrl += `&key=${encodeURIComponent(secretKey)}`;
-      }
-      iframe.src = targetUrl;
-    }
-
-    // Toggle settings panel
-    settingsToggle.addEventListener('click', () => {
-      const isActive = settingsPanel.classList.toggle('active');
-      settingsToggle.textContent = isActive ? 'Close' : 'Configure';
-    });
-
-    // Save custom host
-    saveBtn.addEventListener('click', () => {
-      let hostValue = hostInput.value.trim();
-      if (!hostValue) {
-        hostValue = DEFAULT_HOST;
-      }
-      // Remove trailing slash
-      if (hostValue.endsWith('/')) {
-        hostValue = hostValue.slice(0, -1);
-      }
-      parent.postMessage({ pluginMessage: { action: 'set-host', host: hostValue } }, '*');
-      currentHost = hostValue;
-      settingsPanel.classList.remove('active');
-      settingsToggle.textContent = 'Configure';
-      loadIframe();
-    });
-
-    // Request host from figma clientStorage on load
-    parent.postMessage({ pluginMessage: { action: 'get-host' } }, '*');
-
-    // ── Theme Detection & Mutation Observer ───────────────────────
-    
-    function getActiveTheme() {
-      // Figma adds figma-light or figma-dark class to <html> when themeColors: true is set
-      return document.documentElement.classList.contains('figma-light') ? 'light' : 'dark';
-    }
-
-    function sendThemeToIframe() {
-      const theme = getActiveTheme();
-      if (iframe.contentWindow) {
-        iframe.contentWindow.postMessage({ action: 'theme-change', theme }, '*');
-      }
-    }
-
-    // Listen for live theme switches in the editor
-    const themeObserver = new MutationObserver(() => {
-      sendThemeToIframe();
-    });
-    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-    // ── Message Passing Relay Bridge ───────────────────────────
-    
-    // 1. Forward Figma runtime messages -> Hosted Iframe
-    window.onmessage = (event) => {
-      const msg = event.data.pluginMessage;
-      if (!msg) return;
-
-      if (msg.action === 'host-result') {
-        currentHost = msg.host;
-        currentFileKey = msg.fileKey || 'unknown';
-        hostInput.value = currentHost;
-        loadIframe();
-        return;
-      }
-
-      // Forward other messages to hosted iframe
-      if (iframe.contentWindow) {
-        iframe.contentWindow.postMessage(msg, '*');
-      }
-    };
-
-    // 2. Forward Hosted Iframe messages -> Figma runtime
-    window.addEventListener('message', (event) => {
-      if (event.source === iframe.contentWindow) {
-        // Intercept ui-ready to send the theme immediately when the frame loads
-        if (event.data && event.data.action === 'ui-ready') {
-          sendThemeToIframe();
-        }
-        // Intercept link-file to pass it back to code.js
-        if (event.data && event.data.action === 'link-file') {
-          parent.postMessage({ pluginMessage: event.data }, '*');
-          return;
-        }
-        parent.postMessage({ pluginMessage: event.data }, '*');
-      }
-    });
-  </script>
+// Messages from the hosted companion -> background script
+window.addEventListener('message', (event) => {
+  if (event.source !== iframe.contentWindow) return;
+  const data = event.data || {};
+  // The companion announces readiness once loaded; reply with the theme.
+  // Do not forward this to the background script (it would loop on file-key).
+  if (data.action === 'ui-ready') {
+    sendThemeToIframe();
+    return;
+  }
+  parent.postMessage({ pluginMessage: data }, '*');
+});
+</script>
 </body>
 </html>

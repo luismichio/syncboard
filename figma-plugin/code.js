@@ -7,40 +7,39 @@ figma.showUI(__html__, {
 
 let globalFileKey = 'unknown';
 
-console.log("[SyncingBoard] Background script executing. Default globalFileKey:", globalFileKey);
-
-// Pre-load saved fileKey from storage immediately in the background on script execution
+// Pre-load saved fileKey from storage in the background
 try {
   figma.clientStorage.getAsync('syncingboard_file_key').then((val) => {
-    console.log("[SyncingBoard] Top-level clientStorage.getAsync resolved. Value:", val);
-    if (val) {
-      globalFileKey = val;
-      console.log("[SyncingBoard] Top-level load: globalFileKey updated to:", globalFileKey);
-    }
-  }).catch((e) => {
-    console.error("[SyncingBoard] Top-level clientStorage.getAsync failed:", e);
-  });
-} catch (e) {
-  console.error("[SyncingBoard] Top-level load catch block:", e);
-}
+    if (val) globalFileKey = val;
+  }).catch(() => {});
+} catch (e) {}
 
-// Listen to selection changes on the active page
-figma.on('selectionchange', () => {
-  const selection = figma.currentPage.selection;
-  let docFileKey = undefined;
+// Resolve the current file key: figma.fileKey > document metadata > clientStorage > memory
+function resolveFileKey() {
+  let docFileKey;
   try {
     docFileKey = figma.root.getPluginData('syncingboard_file_key');
   } catch (e) {
     // No plugin ID in manifest
   }
-  
+  return figma.fileKey || docFileKey || globalFileKey || 'unknown';
+}
+
+// Push the current file key to the UI so it can load the companion iframe
+function pushFileKey() {
+  figma.ui.postMessage({ action: 'file-key', fileKey: resolveFileKey() });
+}
+
+// Listen to selection changes on the active page
+figma.on('selectionchange', () => {
+  const selection = figma.currentPage.selection;
   figma.ui.postMessage({
     action: 'selection-changed-locally',
     data: selection[0]
       ? {
           id: selection[0].id,
           name: selection[0].name,
-          fileKey: figma.fileKey || docFileKey || globalFileKey || 'unknown',
+          fileKey: resolveFileKey(),
         }
       : null,
   });
@@ -51,122 +50,33 @@ figma.ui.onmessage = async (msg) => {
   if (!msg || typeof msg !== 'object') return;
 
   if (msg.action === 'ui-ready') {
-    console.log("[SyncingBoard] Message: ui-ready received.");
-    // Refresh saved fileKey from storage asynchronously to keep cache hot
+    // Refresh saved fileKey from storage to keep the cache hot, then reply
+    // so the UI can load the iframe with the resolved file key.
     try {
-      figma.clientStorage.getAsync('syncingboard_file_key').then((val) => {
-        console.log("[SyncingBoard] ui-ready clientStorage.getAsync resolved. Value:", val);
-        if (val) {
-          globalFileKey = val;
-          console.log("[SyncingBoard] ui-ready load: globalFileKey updated to:", globalFileKey);
-        }
-      }).catch((e) => {
-        console.error("[SyncingBoard] ui-ready clientStorage.getAsync failed:", e);
-      });
-    } catch (e) {
-      console.error("[SyncingBoard] ui-ready catch block:", e);
-    }
-    
-    // Simply acknowledge connection, do not trigger host-result loop
-    figma.ui.postMessage({ action: 'ui-ready' });
-    return;
-  }
-
-  if (msg.action === 'get-host') {
-    console.log("[SyncingBoard] Message: get-host received.");
-    try {
-      const host = await figma.clientStorage.getAsync('syncingboard_host_url');
-      
-      let docFileKey = undefined;
-      try {
-        docFileKey = figma.root.getPluginData('syncingboard_file_key');
-      } catch (e) {
-        // No plugin ID in manifest
-      }
-
-      const savedFileKey = await figma.clientStorage.getAsync('syncingboard_file_key');
-      globalFileKey = docFileKey || savedFileKey || 'unknown';
-      console.log("[SyncingBoard] get-host: loaded savedFileKey:", savedFileKey, "globalFileKey:", globalFileKey);
-
-      figma.ui.postMessage({
-        action: 'host-result',
-        host: host || 'https://www.syncingboard.com',
-        fileKey: figma.fileKey || docFileKey || savedFileKey || ''
-      });
-    } catch (err) {
-      console.error("[SyncingBoard] get-host failed:", err);
-      figma.ui.postMessage({
-        action: 'host-result',
-        host: 'https://www.syncingboard.com',
-        fileKey: ''
-      });
-    }
-    return;
-  }
-
-  if (msg.action === 'set-host') {
-    try {
-      await figma.clientStorage.setAsync('syncingboard_host_url', msg.host);
-      console.log("[SyncingBoard] Host saved successfully:", msg.host);
-    } catch (err) {
-      console.error("[SyncingBoard] set-host failed:", err);
-    }
+      const saved = await figma.clientStorage.getAsync('syncingboard_file_key');
+      if (saved) globalFileKey = saved;
+    } catch (e) {}
+    pushFileKey();
     return;
   }
 
   if (msg.action === 'link-file') {
-    console.log("[SyncingBoard] Message: link-file received with key:", msg.fileKey);
+    if (typeof msg.fileKey !== 'string') return;
     try {
-      if (typeof msg.fileKey === 'string') {
-        try {
-          figma.root.setPluginData('syncingboard_file_key', msg.fileKey);
-          console.log("[SyncingBoard] Saved key via setPluginData:", msg.fileKey);
-        } catch (e) {
-          console.log("[SyncingBoard] setPluginData failed (No ID). Saving via clientStorage instead.");
-          // No plugin ID in manifest. Fall back to clientStorage.
-          await figma.clientStorage.setAsync('syncingboard_file_key', msg.fileKey);
-          console.log("[SyncingBoard] Saved key via clientStorage.setAsync:", msg.fileKey);
-        }
-        
-        globalFileKey = msg.fileKey;
-        console.log("[SyncingBoard] link-file: globalFileKey set to:", globalFileKey);
-
-        // Dispatch updated host-result back to UI to reload iframe with the new fileKey
-        const host = await figma.clientStorage.getAsync('syncingboard_host_url');
-        figma.ui.postMessage({
-          action: 'host-result',
-          host: host || 'https://www.syncingboard.com',
-          fileKey: msg.fileKey
-        });
-      }
-    } catch (err) {
-      console.error("[SyncingBoard] link-file failed:", err);
+      figma.root.setPluginData('syncingboard_file_key', msg.fileKey);
+    } catch (e) {
+      // No plugin ID in manifest - fall back to clientStorage
+      await figma.clientStorage.setAsync('syncingboard_file_key', msg.fileKey);
     }
+    globalFileKey = msg.fileKey;
+    // Reload the iframe with the newly linked file key
+    pushFileKey();
     return;
   }
 
   if (msg.action === 'get-selection') {
-    console.log("[SyncingBoard] Message: get-selection received.");
     try {
       const selection = figma.currentPage.selection; // Synchronous read
-
-      let docFileKey = undefined;
-      try {
-        docFileKey = figma.root.getPluginData('syncingboard_file_key');
-      } catch (e) {
-        // No plugin ID in manifest
-      }
-
-      // Read from globalFileKey in memory (avoiding async clientStorage)
-      const fileKey = figma.fileKey || docFileKey || globalFileKey || 'unknown';
-      console.log("[SyncingBoard] get-selection values:", {
-        figmaFileKey: figma.fileKey,
-        docFileKey,
-        globalFileKey,
-        finalFileKey: fileKey,
-        selectionCount: selection.length
-      });
-
       figma.ui.postMessage({
         action: 'selection-result',
         requestId: msg.requestId,
@@ -174,13 +84,12 @@ figma.ui.onmessage = async (msg) => {
           ? {
               id: selection[0].id, // Keep raw ID with colons for Figma REST API
               name: selection[0].name,
-              fileKey: fileKey,
+              fileKey: resolveFileKey(),
             }
           : null,
-        selectionCount: selection.length
+        selectionCount: selection.length,
       });
     } catch (err) {
-      console.error("[SyncingBoard] get-selection failed:", err);
       figma.ui.postMessage({
         action: 'selection-result',
         requestId: msg.requestId,

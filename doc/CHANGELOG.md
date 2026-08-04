@@ -23,6 +23,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Removed Sync-Poll Loop (R4):** Removed the legacy 350ms Upstash Redis GET polling loop in `/api/relay/request/route.ts`. All callers now use async pub/sub transport.
 - **Lua-Batched Rate-Limit Windows (R3):** Multi-window endpoints (relay 5/min + 30/hour + 100/day) now batch all windows in a single Redis EVAL via `checkMany` when the Redis backend is active (1 command instead of N), with a fallback to independent checks.
 
+### Fixed (Figma Community review - post-release)
+- **Figma Plugin Network Access:** The production manifest `allowedDomains` now includes the apex `https://syncingboard.com` (the `*.syncingboard.com` wildcard only covers subdomains) and drops dev-only origins (`gitpod.io`, `github.dev`, `luiskobayashi.com` — moved to `devAllowedDomains` together with the local-TLS dev host). The reviewer-facing *"This content is blocked. Contact the site owner to fix the issue."* error was Figma's plugin-UI `frame-src` CSP refusing the companion iframe when the submitted manifest lacked the production domain.
+- **Zero-Setup Plugin UI:** Removed the custom-host Configure panel and the `clientStorage` host override from `figma-plugin/ui.html` + `code.js`; the plugin now always loads the companion from `https://www.syncingboard.com`. Self-hosters edit the `DEFAULT_HOST` constant in `ui.html` and list their domain in `allowedDomains`. Also stripped debug `console.log` noise from `code.js` for the submission artifact.
+
 ## [0.15.1] - 2026-08-03
 ### Added
 - **1 Active Board Per Miro User (Session Binding):** The relay now binds each Miro user to a single board via `relay:user_board:{sha256(miro.currentUser.id)}` (30-minute TTL refreshed on every heartbeat). A user holding a lease on board A who starts syncing on board B is detected at token issuance — the new board receives `200 { conflict, activeBoardId }` instead of silently double-holding capacity. Guests with OAuth are first-class users; users without OAuth cannot sync and never hold a session (connections are lazy, so no server-side auth gate is needed).

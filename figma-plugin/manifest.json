@@ -10,18 +10,17 @@
   ],
   "networkAccess": {
     "allowedDomains": [
-      "https://*.ably.com",
-      "https://*.ably-realtime.com",
       "https://*.syncingboard.com",
-      "https://*.luiskobayashi.com",
-      "https://*.gitpod.io",
-      "https://*.github.dev"
+      "https://syncingboard.com",
+      "https://*.ably.com",
+      "https://*.ably-realtime.com"
     ],
     "devAllowedDomains": [
       "http://localhost:3000",
       "http://localhost:3001",
-      "http://localhost:1420"
+      "http://localhost:1420",
+      "https://local-syncingboard.luiskobayashi.com"
     ],
-    "reasoning": "SyncingBoard requires connection to the Ably WebSocket network to receive sync signals from Miro, and your hosted Next.js API endpoints to fetch pairing tokens."
+    "reasoning": "The plugin embeds the SyncingBoard companion UI (https://www.syncingboard.com/figma-companion-ui.html) in an iframe and connects to the Ably WebSocket network to receive real-time sync signals from Miro. API endpoints on syncingboard.com are used to fetch pairing tokens. The embedded page's origin must be frameable, so the production host (including the apex domain) is listed in allowedDomains."
   }
 }
