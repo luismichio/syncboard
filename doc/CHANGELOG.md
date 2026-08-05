@@ -9,6 +9,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.3] - 2026-08-05
+
+### Fixed
+- **Dependabot Security Upgrades (9 Advisories)**: Upgraded `next` and `eslint-config-next` to `16.2.11`. Resolves GHSA-6gpp-xcg3-4w24, GHSA-m99w-x7hq-7vfj, GHSA-89xv-2m56-2m9x, GHSA-68g3-v927-f742, GHSA-4633-3j49-mh5q, GHSA-4c39-4ccg-62r3, GHSA-p9j2-gv94-2wf4, GHSA-q8wf-6r8g-63ch, and GHSA-955p-x3mx-jcvp (0 remaining vulnerabilities in `yarn npm audit`).
+
+### Changed
+- **Node 20 Environment Lock**: Added `.nvmrc` (`20.20.0`) and `package.json` `engines` constraint (`"node": "^20.0.0"`).
+- **Next.js `workStore` Resolution Verified**: Verified clean Turbopack pre-rendering and build exit 0 under both Node 20 and Node 24 with `next@16.2.11`.
+
 ## [0.15.2] - 2026-08-04
 
 ### Added

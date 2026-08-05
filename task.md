@@ -182,9 +182,32 @@
 - [x] Run `yarn test` and `yarn build` (Turbopack) build verification
 
 ---
+# Task: 0.15.3 — Dependabot Security Resolution & Node 20 Toolchain Pinning
+## Scope
+- Resolve 9 Dependabot security advisories in `next@16.2.10` by upgrading to `next@16.2.11` and `eslint-config-next@16.2.11`
+- Pin Node 20 toolchain runtime (`.nvmrc` & `package.json` `engines`) to bypass Node 24 async-context `workStore` pre-render crash during Turbopack builds
+- Validate full test suite (`yarn test`) and production pre-rendering (`yarn build`)
+- Document release notes in `doc/changelog.md` under version `0.15.3`
 
+## Phase 1: Toolchain Standardization & Node 20 Environment Lock
+- [x] Create `.nvmrc` specifying `20.20.0`
+- [x] Add `"engines": { "node": "^20.0.0" }` constraint to `package.json`
+- [x] Verify version injection script (`scripts/inject-version.mjs`) compatibility
+
+## Phase 2: Package Upgrade & Vulnerability Audit
+- [x] Upgrade `next` and `eslint-config-next` to `16.2.11` in `package.json`
+- [x] Run `yarn npm audit` to verify zero remaining security vulnerabilities
+
+## Phase 3: Runtime & Build Verification
+- [x] Run production build under Node 20 (`npx -y node@20 yarn build`) to verify clean Turbopack pre-rendering
+- [x] Run test suite (`yarn test`) to verify zero unit test regressions (123 tests)
+- [x] Test Node 24 build (`npx -y node@24 yarn build`) to record `workStore` upstream status in `doc/backlog.md`
+
+## Phase 4: Documentation & Changelog
+- [x] Add `[0.15.3]` release entry to `doc/changelog.md`
+- [x] Update `task.md` task completion status
+---
 # Task: 0.16.x — Tauri SyncBridge Hardening (v0.16.x Planned)
-
 ## Scope
 - Implement CORS & PNA Origin Whitelisting on bridge endpoints (`local-*.luiskobayashi.com:4401`)
 - Implement Header-based Token Transmission (remove tokens from query params)
