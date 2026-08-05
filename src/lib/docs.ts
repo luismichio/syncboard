@@ -199,13 +199,19 @@ export function getDocBySlug(slug: string): { meta: DocMeta; content: string } |
   const doc = docs.find((d) => d.slug === normalizedSlug || d.slug === normalizedSlug.replace(/\//g, '-'));
   if (!doc) return null;
 
-  // Block hidden docs
-  if (HIDDEN_DOCS.has(path.basename(doc.filename))) return null;
+  const baseName = path.basename(doc.filename);
+  if (HIDDEN_DOCS.has(baseName)) return null;
 
-  const isRootDoc = ROOT_DOCS.has(path.basename(doc.filename));
+  const isRootDoc = ROOT_DOCS.has(baseName);
   const filepath = isRootDoc
-    ? path.resolve(process.cwd(), doc.filename)
+    ? path.resolve(process.cwd(), baseName)
     : path.resolve(DOC_DIR, doc.filename);
+
+  // Path containment check: ensure path resides within DOC_DIR or is an authorized root doc
+  if (!isRootDoc && !filepath.startsWith(DOC_DIR)) return null;
+  if (isRootDoc && !ROOT_DOCS.has(path.basename(filepath))) return null;
+  if (!fs.existsSync(filepath)) return null;
+
   const content = stripFrontmatter(fs.readFileSync(filepath, 'utf-8')).replace(/\r/g, '');
 
   return { meta: doc, content };

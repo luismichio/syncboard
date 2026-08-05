@@ -8,9 +8,9 @@
     "node": "^20.0.0"
   },
   "resolutions": {
-    "postcss": "^8.5.3",
-    "tar": "^7.5.0",
-    "undici": "^7.3.0"
+    "postcss": "8.5.16",
+    "tar": "7.5.22",
+    "undici": "7.29.0"
   },
   "scripts": {
     "dev": "node scripts/inject-version.mjs && next dev",
