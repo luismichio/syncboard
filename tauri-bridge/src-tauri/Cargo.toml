@@ -26,4 +26,4 @@ reqwest = { version = "0.12", features = ["json"] }
 futures-util = "0.3"
 rand = "0.8"
 regex = "1"
-glib = "0.20"
+glib = "0.22"
