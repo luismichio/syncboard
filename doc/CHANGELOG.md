@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Local Dev Tunnel Domains (`next.config.ts` & `figma-plugin/manifest.json`)**:
   - Added wildcard tunnel domains (`*.protokoba.com`, `*.trycloudflare.com`) to `allowedDevOrigins` in `next.config.ts` so Next.js 16 allows requests from custom development tunnels.
   - Added `https://*.protokoba.com` and `https://protokoba.com` to `devAllowedDomains` in `figma-plugin/manifest.json` so Figma plugin's CSP permits embedding custom tunnel hosts in the companion iframe.
+  - Added `yarn local` script (`scripts/start-local-tunnel.mjs`) to automate launching `yarn dev` and `cloudflared tunnel run syncingboard-dev` in a single command.
 
 ### Fixed
 - **Dependabot Security Upgrades (Next.js, PostCSS, Tar & Cargo)**:
