@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { compileMDX } from "next-mdx-remote/rsc";
 import rehypeHighlight from "rehype-highlight";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import remarkGfm from "remark-gfm";
@@ -180,6 +181,18 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
           remarkGfm,
         ],
         rehypePlugins: [
+          [
+            rehypeSanitize,
+            {
+              ...defaultSchema,
+              attributes: {
+                ...defaultSchema.attributes,
+                div: [...(defaultSchema.attributes?.div || []), "className", "data-code"],
+                code: [...(defaultSchema.attributes?.code || []), "className"],
+                span: [...(defaultSchema.attributes?.span || []), "className"],
+              },
+            },
+          ],
           rehypeSlug,
           [
             rehypeAutolinkHeadings,
