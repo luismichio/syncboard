@@ -104,7 +104,8 @@ function extractDescription(md: string): string {
     if (trimmed.startsWith('>')) continue;
     if (trimmed.startsWith('<!--') || trimmed.startsWith('-->')) continue;
     if (trimmed.startsWith('<table') || trimmed.startsWith('<tr') || trimmed.startsWith('<td') || trimmed.startsWith('</table')) continue;
-    if (trimmed.startsWith('[!') || (trimmed.startsWith('[') && (trimmed.includes('badge') || trimmed.includes('shields.io') || trimmed.includes('vercel.com')))) continue;
+    const isBadgeUrl = /https?:\/\/(?:[a-z0-9-]+\.)*shields\.io|https?:\/\/(?:[a-z0-9-]+\.)*vercel\.com/i.test(trimmed);
+    if (trimmed.startsWith('[!') || (trimmed.startsWith('[') && (trimmed.includes('badge') || isBadgeUrl))) continue;
 
     const cleaned = trimmed.replace(/[*_`]/g, '').slice(0, 160);
     return cleaned;
