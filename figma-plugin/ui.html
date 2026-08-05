@@ -53,6 +53,7 @@ iframe {
 }
 .figma-light #host-toggle { color: #6b7280; }
 #host-panel { display: flex; flex-direction: column; gap: 6px; }
+#host-panel[hidden] { display: none; }
 #host-input {
   width: 100%;
   box-sizing: border-box;
@@ -159,7 +160,8 @@ window.onmessage = (event) => {
     if (input) input.value = previewHost;
     const panel = document.getElementById('host-panel');
     if (previewHost && panel) panel.hidden = false;
-    if (currentFileKey !== 'unknown') loadIframe();
+    // Always reload so Apply / Use default gives visible feedback.
+    loadIframe();
     return;
   }
   // Forward everything else (selection results, etc.) to the hosted companion
