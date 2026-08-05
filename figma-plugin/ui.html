@@ -25,14 +25,90 @@ iframe {
 .figma-light iframe {
   background-color: #f9fafb;
 }
+/* Optional preview-host footer (testing before production / self-hosting) */
+.host-footer {
+  border-top: 1px solid #1f232a;
+  padding: 6px 10px 8px;
+  background-color: #0b0c0d;
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.figma-light .host-footer {
+  border-top-color: #e5e7eb;
+  background-color: #f9fafb;
+}
+#host-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+}
+.figma-light #host-toggle { color: #6b7280; }
+#host-panel { display: flex; flex-direction: column; gap: 6px; }
+#host-input {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #121417;
+  border: 1px solid #1f232a;
+  border-radius: 4px;
+  color: #f3f4f6;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-family: monospace;
+}
+.figma-light #host-input {
+  background-color: #ffffff;
+  color: #111827;
+  border-color: #e5e7eb;
+}
+#host-input:focus { outline: none; border-color: #01C8F1; }
+#host-hint { font-size: 9px; color: #9ca3af; line-height: 1.4; }
+#host-error { font-size: 9px; color: #ef4444; min-height: 12px; }
+.host-row { display: flex; gap: 6px; }
+.host-footer button {
+  background-color: #121417;
+  color: #f3f4f6;
+  border: 1px solid #1f232a;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  cursor: pointer;
+}
+.figma-light .host-footer button {
+  background-color: #ffffff;
+  color: #111827;
+  border-color: #e5e7eb;
+}
+.host-footer button:hover { opacity: 0.9; }
 </style>
 </head>
 <body>
 <iframe id="companion-iframe" src="about:blank"></iframe>
+<div class="host-footer">
+  <button id="host-toggle" type="button">Preview host (optional)</button>
+  <div id="host-panel" hidden>
+    <input id="host-input" type="text" placeholder="https://your-host.example" />
+    <div id="host-hint">For testing before production or self-hosting. Leave empty to use the production companion. The host must be listed in the plugin's <code>allowedDomains</code> (dev: <code>devAllowedDomains</code>).</div>
+    <div class="host-row">
+      <button id="host-save" type="button">Apply</button>
+      <button id="host-clear" type="button">Use default</button>
+    </div>
+    <div id="host-error"></div>
+  </div>
+</div>
 <script>
 const DEFAULT_HOST = 'https://www.syncingboard.com';
 const iframe = document.getElementById('companion-iframe');
 let currentFileKey = 'unknown';
+let previewHost = '';
 
 // Load the hosted companion into the iframe. The production host is fixed
 // (see manifest networkAccess.allowedDomains); self-hosters edit DEFAULT_HOST
@@ -40,15 +116,17 @@ let currentFileKey = 'unknown';
 function loadIframe() {
   const urlParams = new URLSearchParams(window.location.search);
   const secretKey = urlParams.get('key');
-  let targetUrl = `${DEFAULT_HOST}/figma-companion-ui.html?fileKey=${encodeURIComponent(currentFileKey)}`;
+  const host = previewHost || DEFAULT_HOST;
+  let targetUrl = `${host}/figma-companion-ui.html?fileKey=${encodeURIComponent(currentFileKey)}`;
   if (secretKey) {
     targetUrl += `&key=${encodeURIComponent(secretKey)}`;
   }
   iframe.src = targetUrl;
 }
 
-// Ask the background script for the file key on startup
+// Ask the background script for the file key + preview host on startup
 parent.postMessage({ pluginMessage: { action: 'ui-ready' } }, '*');
+parent.postMessage({ pluginMessage: { action: 'get-host-config' } }, '*');
 
 // Figma adds figma-light or figma-dark to <html> when themeColors: true
 function getActiveTheme() {
@@ -75,6 +153,15 @@ window.onmessage = (event) => {
     loadIframe();
     return;
   }
+  if (msg.action === 'host-config') {
+    previewHost = msg.previewHost || '';
+    const input = document.getElementById('host-input');
+    if (input) input.value = previewHost;
+    const panel = document.getElementById('host-panel');
+    if (previewHost && panel) panel.hidden = false;
+    if (currentFileKey !== 'unknown') loadIframe();
+    return;
+  }
   // Forward everything else (selection results, etc.) to the hosted companion
   if (iframe.contentWindow) {
     iframe.contentWindow.postMessage(msg, '*');
@@ -93,6 +180,49 @@ window.addEventListener('message', (event) => {
   }
   parent.postMessage({ pluginMessage: data }, '*');
 });
+
+// Preview-host footer wiring (optional testing/self-host target)
+(function () {
+  const toggle = document.getElementById('host-toggle');
+  const panel = document.getElementById('host-panel');
+  const input = document.getElementById('host-input');
+  const save = document.getElementById('host-save');
+  const clear = document.getElementById('host-clear');
+  const error = document.getElementById('host-error');
+
+  toggle.addEventListener('click', () => {
+    panel.hidden = !panel.hidden;
+    toggle.textContent = panel.hidden ? 'Preview host (optional)' : 'Hide preview host';
+  });
+
+  function validateInput() {
+    const raw = input.value.trim();
+    if (!raw) return true;
+    const withScheme = /^https?:\/\//i.test(raw) ? raw : 'https://' + raw;
+    try {
+      const u = new URL(withScheme);
+      return (u.protocol === 'http:' || u.protocol === 'https:') && !!u.hostname;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  save.addEventListener('click', () => {
+    const raw = input.value.trim();
+    if (raw && !validateInput()) {
+      error.textContent = 'Enter a valid http(s)://host[:port] URL.';
+      return;
+    }
+    error.textContent = '';
+    parent.postMessage({ pluginMessage: { action: 'set-preview-host', host: raw } }, '*');
+  });
+
+  clear.addEventListener('click', () => {
+    error.textContent = '';
+    input.value = '';
+    parent.postMessage({ pluginMessage: { action: 'set-preview-host', host: '' } }, '*');
+  });
+})();
 </script>
 </body>
 </html>

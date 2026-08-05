@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Zero-Setup Plugin UI:** Removed the custom-host Configure panel and the `clientStorage` host override from `figma-plugin/ui.html` + `code.js`; the plugin now always loads the companion from `https://www.syncingboard.com`. Self-hosters edit the `DEFAULT_HOST` constant in `ui.html` and list their domain in `allowedDomains`. Also stripped debug `console.log` noise from `code.js` for the submission artifact.
 
 ### Changed (post-release)
+- **Preview host restored (optional):** the Figma plugin's footer now has a collapsed **"Preview host (optional)"** field for testing against a staging/tunnel host or self-hosting before production — persisted per plugin instance via `clientStorage`. Empty = production default (`https://www.syncingboard.com`); the host must be listed in `allowedDomains` (`devAllowedDomains` for dev plugins) due to the frame-src CSP.
 - **Unlimited pool mode:** `RATE_LIMIT_COMMUNITY_MAX_RELAY_SESSIONS` and `RATE_LIMIT_COMMUNITY_MAX_COMPANION_TOKENS` now accept `0` for an unlimited pool (previously `0`/invalid input fell back to the default). Unlimited pools report the enforcement ceiling and never derive a `full` relay status; the Redis Lua caps are raised so the `count >= limit` guard never trips. The real ceiling remains your Ably plan's connection limit.
 
 ## [0.15.1] - 2026-08-03

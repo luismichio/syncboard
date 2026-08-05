@@ -6,6 +6,7 @@ figma.showUI(__html__, {
 });
 
 let globalFileKey = 'unknown';
+let previewHost = '';
 
 // Pre-load saved fileKey from storage in the background
 try {
@@ -13,6 +14,28 @@ try {
     if (val) globalFileKey = val;
   }).catch(() => {});
 } catch (e) {}
+// Pre-load saved preview host override (optional testing/self-host target)
+try {
+  figma.clientStorage.getAsync('syncingboard_preview_host').then((val) => {
+    if (typeof val === 'string') previewHost = val;
+  }).catch(() => {});
+} catch (e) {}
+
+// Normalize a preview host: trim, strip trailing slashes, keep the scheme.
+// Bare hostnames default to https://. Invalid input returns '' (use default).
+function normalizeHost(raw) {
+  if (typeof raw !== 'string') return '';
+  let host = raw.trim().replace(/\/+$/, '');
+  if (!host) return '';
+  let scheme = 'https://';
+  const match = host.match(/^(https?:\/\/)/i);
+  if (match) {
+    scheme = match[1].toLowerCase();
+    host = host.slice(match[1].length);
+  }
+  if (!/^[a-zA-Z0-9.-]+(:[0-9]{1,5})?$/.test(host)) return '';
+  return scheme + host;
+}
 
 // Resolve the current file key: figma.fileKey > document metadata > clientStorage > memory
 function resolveFileKey() {
@@ -57,6 +80,26 @@ figma.ui.onmessage = async (msg) => {
       if (saved) globalFileKey = saved;
     } catch (e) {}
     pushFileKey();
+    return;
+  }
+
+  if (msg.action === 'get-host-config') {
+    figma.ui.postMessage({ action: 'host-config', previewHost });
+    return;
+  }
+
+  if (msg.action === 'set-preview-host') {
+    // Empty host = cleared (production default); invalid = ignored.
+    const host = normalizeHost(msg.host);
+    previewHost = host;
+    try {
+      if (host) {
+        await figma.clientStorage.setAsync('syncingboard_preview_host', host);
+      } else {
+        await figma.clientStorage.deleteAsync('syncingboard_preview_host');
+      }
+    } catch (e) {}
+    figma.ui.postMessage({ action: 'host-config', previewHost });
     return;
   }
 

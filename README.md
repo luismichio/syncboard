@@ -95,7 +95,7 @@ For production use inside design teams, you can deploy your own instance of Sync
   * **Figma:** Register a developer app in the Figma Dev Portal to obtain a Client ID and Redirect URI pointing to your domain callback endpoint.
 * **Penpot:** No OAuth registration needed. Penpot connects via the Pairing ID and cloud relay. See the [setup guide](https://github.com/luismichio/syncingboard/blob/dev/doc/setup.md) for details.
 * **Companion Configuration:** 
-  * **In Figma:** The companion plugin loads the hosted production companion by default — no setup. Self-hosters point it at their own domain via the `DEFAULT_HOST` constant in `figma-plugin/ui.html` (and list that domain in the manifest's `allowedDomains`).
+  * **In Figma:** The companion plugin loads the hosted production companion by default — no setup. Self-hosters point it at their own domain via the optional **"Preview host"** field at the bottom of the plugin panel (persisted per plugin), or at compile time via the `DEFAULT_HOST` constant in `figma-plugin/ui.html`; either way the domain must be listed in the manifest's `allowedDomains` (`devAllowedDomains` for dev plugins).
   * **In Penpot:** Add a custom plugin in your Penpot dashboard pointing to your self-hosted companion URL (e.g., `https://your-domain.com/penpot-companion-ui.html`).
 * **Full Data Ownership:** OAuth credentials, pairing states, and design image buffers are stored securely inside your private cloud infrastructure.
 

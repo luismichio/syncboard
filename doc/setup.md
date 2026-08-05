@@ -369,7 +369,10 @@ For testing and coding on your local machine (commands work on Windows, macOS, a
      1. Open the **Figma Desktop Application** (local manifest import requires the desktop app).
      2. Open any design file ➔ Click Figma menu ➔ **Plugins > Development > Import plugin from manifest...**
      3. Select `figma-plugin/manifest.json` from your local workspace folder.
-     4. Run the plugin (**Plugins > Development > SyncingBoard Companion**). Point it at your local tunnel by editing the `DEFAULT_HOST` constant in `figma-plugin/ui.html` (e.g. `https://YOUR_TUNNEL_URL`) and adding that origin to `devAllowedDomains` in `figma-plugin/manifest.json` before importing.
+     4. Run the plugin (**Plugins > Development > SyncingBoard Companion**). Point it at your local tunnel in one of two ways:
+        - **Runtime:** open the plugin, expand **"Preview host (optional)"** at the bottom, paste `https://YOUR_TUNNEL_URL`, click **Apply** (persisted per plugin instance).
+        - **Compile-time:** edit the `DEFAULT_HOST` constant in `figma-plugin/ui.html` before importing.
+        Either way, add that origin to `devAllowedDomains` in `figma-plugin/manifest.json` (the iframe is subject to the manifest's `allowedDomains`/frame-src CSP).
      5. Copy the **Pairing ID** from your local Miro sidebar, paste it into the companion, and click **Connect**.
 
    * **Penpot Companion (Local Manifest Import):**
