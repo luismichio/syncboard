@@ -49,7 +49,7 @@ SyncingBoard is deliberately built as a stateless proxy engine for key technical
 * **Dual-Platform Sync:** Supports **Figma** (cloud-native sync) and **Penpot** (relay-first sync) side-by-side.
 * **Figma & Penpot Selection Auto-Detect:** Detects active selections directly from companion plugins via the cloud relay — no desktop apps required.
 * **Cloud Relay Transport:** Public HTTPS relay (Upstash Redis + Vercel) coordinates between companions and the Miro plugin — no localhost calls, no PNA blocks, works in any browser.
-* **Automated Test Coverage:** 112 Vitest unit and integration tests validating token security, rate-limiting logic, URL parsers, and API route handlers (`yarn test`).
+* **Automated Test Coverage:** 123 Vitest unit and integration tests validating token security, rate-limiting logic, URL parsers, and API route handlers (`yarn test`).
 * **SyncBridge Companion (Planned Desktop Extender):** Tauri-powered desktop app for future advanced capabilities — large images (>4.5MB), Adobe UXP bridge, local LLMs, two-way sync. Not required for day-to-day sync.
 
 ### Integration & Compatibility Matrix

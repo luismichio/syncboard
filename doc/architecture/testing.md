@@ -1,6 +1,6 @@
 ---
 title: Testing & Quality Assurance
-description: Technical breakdown of SyncingBoard's 63+ automated Vitest test suites covering token security, rate limiting, URL parsers, and API route handlers.
+description: Technical breakdown of SyncingBoard's 123 automated Vitest tests across 16 files covering token security, rate limiting, URL parsers, relay fairness, and API route handlers.
 ---
 
 # Testing & Quality Assurance
@@ -11,7 +11,7 @@ SyncingBoard enforces strict automated testing across security, rate limiting, U
 
 ## Testing Strategy & Infrastructure
 
-SyncingBoard's test suite runs inside **Vitest** (`yarn test`) in zero-network isolation. All external Figma, Miro, Ably, and Upstash Redis network calls are mocked to ensure 100% deterministic test execution in under 3 seconds.
+SyncingBoard's test suite runs inside **Vitest** (`yarn test`) in zero-network isolation. All external Figma, Miro, Ably, and Upstash Redis network calls are mocked (or isolated behind pure functions) to ensure 100% deterministic test execution in seconds.
 
 ```mermaid
 graph TD
@@ -25,7 +25,7 @@ graph TD
 
 ## Test Suites Breakdown
 
-SyncingBoard includes **76 passing automated tests** across 11 specialized test files:
+SyncingBoard includes **123 passing automated tests** across 16 specialized test files:
 
 | Test File | Category | Focus Area & Assertions |
 | :--- | :--- | :--- |
@@ -40,6 +40,11 @@ SyncingBoard includes **76 passing automated tests** across 11 specialized test 
 | **`src/app/api/figma/render-batch/route.test.ts`** | API Routes | Multi-frame batch rendering (`POST /api/figma/render-batch`), 3-frame batch cap enforcement, and payload transformation. |
 | **`src/app/api/figma/node-info/route.test.ts`** | API Routes & Fallbacks | Figma frame metadata extraction (`POST /api/figma/node-info`) and fallback title resolution during network exceptions. |
 | **`src/app/api/miro/update-image/route.test.ts`** | API Routes & Canvas | Miro image widget binary updating (`PATCH /api/miro/update-image`), multipart form parsing, and `title` metadata signature preservation. |
+| **`src/lib/relayRedis.test.ts`** | Relay Fairness & Pools | `deriveRelayStatusLevel` thresholds (incl. `0` ceiling = unlimited), `parsePoolLimit`, `planAcquire`/`planTransfer` (40-session pool: renew/conflict/full), `selectEvictionCandidate` (oldest-orphan eviction, never evicts an active Miro pairing), `planCompanionTokenAcquisition` (180-token cap, orphan eviction, full-at-cap) — Redis-free pure planners mirroring the Lua scripts. |
+| **`src/lib/ablyTokenCache.test.ts`** | Client Cache (R5) | Ably token cache: stores/retrieves unexpired tokens, expiry invalidation, reuse within the 2h token TTL. |
+| **`src/app/api/relay/request/route.test.ts`** | API Routes (R4) | Async-only relay endpoint: `400` rejection of synchronous callers before any Ably/Redis work, plus the async happy-path (reaches the request path). |
+| **`src/app/api/relay/status/route.test.ts`** | API Routes (R1) | Community relay snapshot (`activeSessions`/`maxSessions`/status), `503` when the status store is unavailable, transfer-conflict fields (`userConflict`/`activeBoardId`), malformed `userIdHash` ignored without a Redis lookup. |
+| **`src/app/api/ably/token/route.test.ts`** | API Routes (Design B) | Pre-external-call validation: `400` for invalid `pairingId`/`sessionId`/`userIdHash`, and the graceful `500` when `ABLY_API_KEY` is not configured (409/429 capacity decisions are covered by the relayRedis planners). |
 
 ---
 
@@ -48,7 +53,7 @@ SyncingBoard includes **76 passing automated tests** across 11 specialized test 
 Run the test suite during development using the following commands:
 
 ```bash
-# Run all 63+ tests once
+# Run all 123 tests once
 yarn test
 
 # Run tests in interactive watch mode
@@ -73,3 +78,4 @@ To ensure tests execute fast without requiring real API keys or external service
 1. **Figma REST API:** Mocked via `global.fetch` spies returning sample JSON frame hierarchies and binary PNG buffers.
 2. **Upstash Redis:** Mocked using in-memory sliding window state stores (`Map<string, { count, reset }>`) so rate-limiting logic is tested without live Redis connections.
 3. **Miro Web SDK:** Mocked using synthetic widget objects asserting `isLocked`, `title`, and `scale` properties.
+4. **Relay fairness (Redis Lua):** The atomic Lua scripts are mirrored as exported pure functions (`planAcquire`, `planTransfer`, `selectEvictionCandidate`, `planCompanionTokenAcquisition`, `planCompanionBinding`) tested directly — the Redis behavior is verified without a live Upstash instance, and the Lua executes the same decision rules server-side.
