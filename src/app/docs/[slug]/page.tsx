@@ -258,7 +258,7 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <a
-              href={`https://github.com/luismichio/syncingboard/blob/main/doc/${doc.meta.filename}`}
+              href={`https://github.com/luismichio/syncingboard/blob/main/doc/${encodeURIComponent(path.basename(doc.meta.filename))}`}
               target="_blank"
               rel="noreferrer"
               className="hidden sm:inline-flex px-4 py-2 rounded-lg font-mono font-bold text-xs border border-border-card text-text-page hover:bg-bg-card transition duration-200 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
