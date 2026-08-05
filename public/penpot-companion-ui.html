@@ -312,7 +312,9 @@
 
     function log(message) {
       const time = new Date().toLocaleTimeString();
-      logBox.innerHTML += `<div>[${time}] ${message}</div>`;
+      const entry = document.createElement('div');
+      entry.textContent = `[${time}] ${message}`;
+      logBox.appendChild(entry);
       logBox.scrollTop = logBox.scrollHeight;
     }
 

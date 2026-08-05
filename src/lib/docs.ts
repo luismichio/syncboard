@@ -250,7 +250,13 @@ export function extractHeadings(md: string): DocHeading[] {
 
 /** Strips YAML frontmatter (delimited by `---` at start of file) from markdown content. */
 export function stripFrontmatter(md: string): string {
-  return md.replace(/^---[\s\S]*?---\s*/, '').trimStart();
+  let prev = md;
+  let current = md.replace(/^---[\s\S]*?---\s*/, '');
+  while (current !== prev) {
+    prev = current;
+    current = current.replace(/^---[\s\S]*?---\s*/, '');
+  }
+  return current.trimStart();
 }
 
 /**

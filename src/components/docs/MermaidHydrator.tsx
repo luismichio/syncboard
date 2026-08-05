@@ -54,7 +54,7 @@ export default function MermaidHydrator() {
         if (!el.hasAttribute("data-code")) {
           el.setAttribute("data-code", code);
         }
-        el.innerHTML = code;
+        el.textContent = code;
       });
 
       if (!mermaidInstance) {
