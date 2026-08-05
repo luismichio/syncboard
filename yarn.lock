@@ -2255,9 +2255,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ably@npm:^2.24.0":
-  version: 2.24.0
-  resolution: "ably@npm:2.24.0"
+"ably@npm:^2.26.0":
+  version: 2.26.0
+  resolution: "ably@npm:2.26.0"
   dependencies:
     "@ably/msgpack-js": "npm:^0.4.0"
     dequal: "npm:^2.0.3"
@@ -2273,7 +2273,7 @@ __metadata:
       optional: true
     react-dom:
       optional: true
-  checksum: 10c0/a0cff255010106d004e08e7db0c0b54313d387826cf190a3c8b3c5e528b5fe8e98868e6047eebd38b7db2853d8e9023e64806f808e36070ce753a99f5524bf64
+  checksum: 10c0/1660270c5e8e2bd23be95fa5b3447d9d518e59439df3e402a8564e62d977b12610aa55fd5393d2b1e1b8af9f534dae168ac04905f4813cef7a85123bdc6ee7c1
   languageName: node
   linkType: hard
 
@@ -7659,7 +7659,7 @@ __metadata:
     "@types/react-dom": "npm:^19"
     "@upstash/ratelimit": "npm:^2.0.8"
     "@upstash/redis": "npm:^1.38.0"
-    ably: "npm:^2.24.0"
+    ably: "npm:^2.26.0"
     eslint: "npm:^9"
     eslint-config-next: "npm:16.2.11"
     github-slugger: "npm:^2.0.0"
