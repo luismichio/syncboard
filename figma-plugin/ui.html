@@ -116,11 +116,21 @@ let previewHost = '';
 // Load the hosted companion into the iframe. The production host is fixed
 // (see manifest networkAccess.allowedDomains); self-hosters edit DEFAULT_HOST
 // in this file before importing the plugin from the local manifest.
+function isValidHostOrigin(h) {
+  try {
+    const parsed = new URL(h);
+    return parsed.protocol === 'https:' || (parsed.protocol === 'http:' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'));
+  } catch {
+    return false;
+  }
+}
+
 function loadIframe() {
   const urlParams = new URLSearchParams(window.location.search);
   const secretKey = urlParams.get('key');
-  const host = previewHost || DEFAULT_HOST;
-  let targetUrl = `${host}/figma-companion-ui.html?fileKey=${encodeURIComponent(currentFileKey)}`;
+  const candidateHost = previewHost || DEFAULT_HOST;
+  const safeHost = isValidHostOrigin(candidateHost) ? candidateHost : DEFAULT_HOST;
+  let targetUrl = `${safeHost}/figma-companion-ui.html?fileKey=${encodeURIComponent(currentFileKey)}`;
   if (secretKey) {
     targetUrl += `&key=${encodeURIComponent(secretKey)}`;
   }
