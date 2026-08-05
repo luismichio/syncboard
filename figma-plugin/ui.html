@@ -73,6 +73,7 @@ iframe {
 #host-input:focus { outline: none; border-color: #01C8F1; }
 #host-hint { font-size: 9px; color: #9ca3af; line-height: 1.4; }
 #host-error { font-size: 9px; color: #ef4444; min-height: 12px; }
+#host-error.ok { color: #10b981; }
 .host-row { display: flex; gap: 6px; }
 .host-footer button {
   background-color: #121417;
@@ -97,7 +98,7 @@ iframe {
   <button id="host-toggle" type="button">Preview host (optional)</button>
   <div id="host-panel" hidden>
     <input id="host-input" type="text" placeholder="https://your-host.example" />
-    <div id="host-hint">For testing before production or self-hosting. Leave empty to use the production companion. The host must be listed in the plugin's <code>allowedDomains</code> (dev: <code>devAllowedDomains</code>).</div>
+    <div id="host-hint">Optional. Prefilled with the current host; empty = production companion. The iframe can only load hosts listed in this plugin's <code>allowedDomains</code> (dev: <code>devAllowedDomains</code>) — self-hosters add their domain to their own copy of the manifest.</div>
     <div class="host-row">
       <button id="host-save" type="button">Apply</button>
       <button id="host-clear" type="button">Use default</button>
@@ -157,7 +158,8 @@ window.onmessage = (event) => {
   if (msg.action === 'host-config') {
     previewHost = msg.previewHost || '';
     const input = document.getElementById('host-input');
-    if (input) input.value = previewHost;
+    // Pre-fill with the effective host so Apply/Use default is always meaningful.
+    if (input) input.value = previewHost || DEFAULT_HOST;
     const panel = document.getElementById('host-panel');
     if (previewHost && panel) panel.hidden = false;
     // Always reload so Apply / Use default gives visible feedback.
@@ -209,19 +211,29 @@ window.addEventListener('message', (event) => {
     }
   }
 
+  function flashStatus(text) {
+    error.textContent = text;
+    error.classList.add('ok');
+    clearTimeout(flashStatus.timer);
+    flashStatus.timer = setTimeout(() => {
+      error.textContent = '';
+      error.classList.remove('ok');
+    }, 2500);
+  }
+
   save.addEventListener('click', () => {
     const raw = input.value.trim();
     if (raw && !validateInput()) {
       error.textContent = 'Enter a valid http(s)://host[:port] URL.';
       return;
     }
-    error.textContent = '';
+    flashStatus('Applied ✓ reloading...');
     parent.postMessage({ pluginMessage: { action: 'set-preview-host', host: raw } }, '*');
   });
 
   clear.addEventListener('click', () => {
-    error.textContent = '';
     input.value = '';
+    flashStatus('Using default host ✓ reloading...');
     parent.postMessage({ pluginMessage: { action: 'set-preview-host', host: '' } }, '*');
   });
 })();
