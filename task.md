@@ -209,6 +209,6 @@
 ---
 # Task: 0.16.x — Tauri SyncBridge Hardening (v0.16.x Planned)
 ## Scope
-- Implement CORS & PNA Origin Whitelisting on bridge endpoints (`local-*.luiskobayashi.com:4401`)
+- Implement CORS & PNA Origin Whitelisting on bridge endpoints (`local.syncingboard.com:4401`)
 - Implement Header-based Token Transmission (remove tokens from query params)
 - Enable FigJam desktop path over bridge (`figma-plugin/manifest.json` domain check)

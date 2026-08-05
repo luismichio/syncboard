@@ -115,7 +115,7 @@ export default function MiroPluginPage() {
 
     const check = async () => {
       try {
-        const res = await fetch('https://local-syncingboard.luiskobayashi.com:4401/health', {
+        const res = await fetch('https://local.syncingboard.com:4401/health', {
           method: 'GET',
           signal: AbortSignal.timeout(3000),
           targetAddressSpace: 'loopback',

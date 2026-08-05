@@ -455,7 +455,7 @@ cd tauri-bridge/src-tauri/resources
 mkcert \
   -cert-file cert.pem \
   -key-file key.pem \
-  local-syncingboard.luiskobayashi.com \
+  local.syncingboard.com \
   127.0.0.1 \
   localhost
 ```
@@ -463,7 +463,7 @@ mkcert \
 **Windows (PowerShell):**
 ```powershell
 cd tauri-bridge\src-tauri\resources
-mkcert -cert-file cert.pem -key-file key.pem local-syncingboard.luiskobayashi.com 127.0.0.1 localhost
+mkcert -cert-file cert.pem -key-file key.pem local.syncingboard.com 127.0.0.1 localhost
 ```
 
 **Step 4 --- Rebuild:**
@@ -478,16 +478,16 @@ yarn tauri dev      # development
 
 ### DNS Loopback Record
 
-SyncingBoard uses a public DNS A record pointing to `127.0.0.1` so that `local-syncingboard.luiskobayashi.com` resolves to your local machine with valid TLS.
+SyncingBoard uses a public DNS A record pointing to `127.0.0.1` so that `local.syncingboard.com` resolves to your local machine with valid TLS.
 
-- **Domain:** `local-syncingboard.luiskobayashi.com`
+- **Domain:** `local.syncingboard.com`
 - **Type:** `A`
 - **Value:** `127.0.0.1`
 
 If you fork this project with your own domain:
 1. Add an A record (`local-syncingboard` -> `127.0.0.1`) with your DNS provider.
    > Squarespace DNS does not accept dots in the Host field. Use a dash (`-`) as a separator.
-2. Update all occurrences of `local-syncingboard.luiskobayashi.com` in:
+2. Update all occurrences of `local.syncingboard.com` in:
    - `public/penpot-companion-ui.html`
    - `src/app/miro-plugin/companionRelayClient.ts`
    - `tauri-bridge/index.html`
@@ -499,11 +499,11 @@ If you fork this project with your own domain:
 Some routers block public domains from resolving to loopback addresses. Add a manual override to your `hosts` file:
 
 ```
-127.0.0.1 local-syncingboard.luiskobayashi.com
+127.0.0.1 local.syncingboard.com
 ```
 
 - **Windows:** `C:\Windows\System32\drivers\etc\hosts` (run Notepad as Administrator)
-- **macOS / Linux:** `sudo sh -c 'echo "127.0.0.1 local-syncingboard.luiskobayashi.com" >> /etc/hosts'`
+- **macOS / Linux:** `sudo sh -c 'echo "127.0.0.1 local.syncingboard.com" >> /etc/hosts'`
 
 Then flush DNS:
 - **Windows:** `ipconfig /flushdns`
