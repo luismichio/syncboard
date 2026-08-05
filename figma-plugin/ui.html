@@ -137,7 +137,13 @@ function loadIframe() {
   if (secretKey) {
     targetUrl += `&key=${encodeURIComponent(secretKey)}`;
   }
-  iframe.src = targetUrl;
+  try {
+    const validated = new URL(targetUrl);
+    if (!isValidHostOrigin(validated.origin)) throw new Error('Invalid origin');
+    iframe.src = validated.href;
+  } catch {
+    iframe.src = DEFAULT_HOST + '/figma-companion-ui.html';
+  }
 }
 
 // Ask the background script for the file key + preview host on startup
