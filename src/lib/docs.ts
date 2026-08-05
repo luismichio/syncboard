@@ -242,10 +242,15 @@ export function extractHeadings(md: string): DocHeading[] {
     if (match) {
       const level = match[1].length;
       const rawText = match[2].trim();
-      const displayText = rawText
-        .replace(/<[^>]+>/g, '')
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-        .replace(/[`*_~]/g, '')
+      let displayText = rawText;
+      let prevText = "";
+      while (displayText !== prevText) {
+        prevText = displayText;
+        displayText = displayText.replace(/<[^>]+>/g, "");
+      }
+      displayText = displayText
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/[`*_~]/g, "")
         .trim();
       const id = slugger.slug(rawText);
       headings.push({ level, text: displayText, id });
