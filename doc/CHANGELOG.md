@@ -12,7 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.15.3] - 2026-08-05
 
 ### Fixed
-- **Dependabot Security Upgrades (9 Advisories)**: Upgraded `next` and `eslint-config-next` to `16.2.11`. Resolves GHSA-6gpp-xcg3-4w24, GHSA-m99w-x7hq-7vfj, GHSA-89xv-2m56-2m9x, GHSA-68g3-v927-f742, GHSA-4633-3j49-mh5q, GHSA-4c39-4ccg-62r3, GHSA-p9j2-gv94-2wf4, GHSA-q8wf-6r8g-63ch, and GHSA-955p-x3mx-jcvp (0 remaining vulnerabilities in `yarn npm audit`).
+- **Dependabot Security Upgrades (Next.js, PostCSS, Tar & Cargo)**:
+  - Upgraded `next` and `eslint-config-next` to `16.2.11` (resolves Next.js App Router advisories GHSA-6gpp-xcg3-4w24, GHSA-m99w-x7hq-7vfj, GHSA-89xv-2m56-2m9x, GHSA-p9j2-gv94-2wf4, etc.).
+  - Added Yarn Berry package resolutions in `package.json` for `postcss` (`^8.5.3`) and `tar` (`^7.5.0`) to purge transitive `postcss@8.4.31` (GHSA-7fh5-64p2-3v2j ReDoS) and `node-tar` stack-overflow vulnerabilities.
+  - Updated 75 Cargo crates in `tauri-bridge/src-tauri/Cargo.lock` to latest secure patch versions (resolving `glib`, `tokio`, `hyper`, and `rustls` Rust advisories).
 
 ### Changed
 - **Node 20 Environment Lock**: Added `.nvmrc` (`20.20.0`) and `package.json` `engines` constraint (`"node": "^20.0.0"`).
