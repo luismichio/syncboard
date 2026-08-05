@@ -68,6 +68,9 @@ async function handler(request: Request) {
     // R4: async pub/sub is the only mode — the old 350ms Upstash long-poll
     // (23-46 GETs per op) is gone. Reject sync callers up front so no future
     // platform can silently reintroduce the poll.
+    // (R1 lease-SET-EX TTL, R3 Lua math, and R2 inline-vs-Redis routing are
+    // integration-gated: they only run against live Redis / the companion UI,
+    // covered by their JS logic mirrors in relayRedis.ts + manual QA.)
     if (body.async !== true) {
       return NextResponse.json(
         { error: 'Synchronous relay polling is not supported. Use async relay mode (async: true).' },
@@ -106,13 +109,6 @@ async function handler(request: Request) {
         await deleteRelayRequestBinding(requestId).catch(() => undefined);
       }
       throw error;
-    }
-
-    if (!body.async) {
-      return NextResponse.json(
-        { error: 'Sync polling is deprecated. Requests must specify async: true.' },
-        { status: 400 }
-      );
     }
 
     return NextResponse.json({
