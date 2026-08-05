@@ -508,7 +508,7 @@ export async function callFigmaSelectionTauri(): Promise<{ id: string; name: str
   }
 
   try {
-    const res = await fetch('https://local-syncingboard.luiskobayashi.com:4401/detect-figma', {
+    const res = await fetch('https://local.syncingboard.com:4401/detect-figma', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       targetAddressSpace: 'loopback',
