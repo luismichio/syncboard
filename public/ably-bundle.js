@@ -288,7 +288,7 @@
             result += "; hint=" + err.hint;
           if (err.detail && Object.keys(err.detail).length > 0)
             result += "; detail=" + JSON.stringify(err.detail);
-          if (err.href && !(err.message && err.message.indexOf("help.ably.io") > -1))
+          if (err.href && !(err.message && /https?:\/\/(?:[a-z0-9-]+\.)*ably\.io/i.test(err.message)))
             result += "; see " + err.href + " ";
           result += "]";
           return result;
