@@ -276,7 +276,9 @@ export function stripFrontmatter(md: string): string {
  */
 export function getWordCount(md: string): number {
   const body = stripFrontmatter(md);
-  const text = body.replace(/```[\s\S]*?```/g, '').replace(/<[^>]+>/g, '');
+  let text = body.replace(/```[\s\S]*?```/g, '');
+  let prev = '';
+  while (text !== prev) { prev = text; text = text.replace(/<[^>]+>/g, ''); }
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
