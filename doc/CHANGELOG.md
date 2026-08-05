@@ -12,6 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.15.3] - 2026-08-05
 
 ### Fixed
+- **Local Dev Tunnel Domains (`next.config.ts` & `figma-plugin/manifest.json`)**:
+  - Added wildcard tunnel domains (`*.protokoba.com`, `*.trycloudflare.com`) to `allowedDevOrigins` in `next.config.ts` so Next.js 16 allows requests from custom development tunnels.
+  - Added `https://*.protokoba.com` and `https://protokoba.com` to `devAllowedDomains` in `figma-plugin/manifest.json` so Figma plugin's CSP permits embedding custom tunnel hosts in the companion iframe.
+
+### Fixed
 - **Dependabot Security Upgrades (Next.js, PostCSS, Tar & Cargo)**:
   - Upgraded `next` and `eslint-config-next` to `16.2.11` (resolves Next.js App Router advisories GHSA-6gpp-xcg3-4w24, GHSA-m99w-x7hq-7vfj, GHSA-89xv-2m56-2m9x, GHSA-p9j2-gv94-2wf4, etc.).
   - Added Yarn Berry package resolutions in `package.json` for `postcss` (`^8.5.3`) and `tar` (`^7.5.0`) to purge transitive `postcss@8.4.31` (GHSA-7fh5-64p2-3v2j ReDoS) and `node-tar` stack-overflow vulnerabilities.

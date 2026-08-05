@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  allowedDevOrigins: ['*.loca.lt', '*.localtunnel.me', '*.ngrok-free.app'],
+  allowedDevOrigins: ['*.loca.lt', '*.localtunnel.me', '*.ngrok-free.app', '*.trycloudflare.com', '*.protokoba.com'],
   async headers() {
     return [
       {
