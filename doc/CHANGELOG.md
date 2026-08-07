@@ -9,6 +9,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-08-07
+### Added
+- **Shared Target Layer (Architecture):** Introduced a target-agnostic whiteboard core so FigJam can mirror Miro (and future Mural / Whiteboard / Excalidraw / tldraw targets can follow) instead of each target re-implementing placement/update/adopt logic.
+- **Target-agnostic core extracted into `src/lib/sync/`:** `companionRelayClient`, `relayAbly`, `useRelayStatus`, `pairingId` (`getOrCreatePairingId`), and the Figma/Penpot URL parsers are now pure platform-agnostic modules — moved from `src/app/miro-plugin/`, Miro-free, zero logic change (11 import sites updated).
+- **`TargetAdapter` seam (`src/lib/sync/targetTypes.ts`):** strictly-typed `NodeUpdate`, `AdoptMeta`, `FrameSelection`, `FramePlacement` (sourceUrl, renderWidth, metadata passthrough), `TrackedNode` (incl. `metadataSaved`/`metadataError`), `TargetCapabilities`, and the `TargetAdapter` interface — one contract every target implements: selection read, create-or-update placement, in-place update, adopt/re-target, title re-assert, geometry read, pairing host, and selection trigger.
+- **`MiroAdapter` (`src/app/miro-plugin/MiroAdapter.ts`):** full Miro Web SDK adapter implementing the shared seam above a minimal constructor-injected structural board (unit-testable; no `any`). 8 unit tests (MiroAdapter.test.ts).
+### Changed
+- **Miro plugin rerouted through the adapter (behavior-preserving, no feature change):** placement (`useFigmaImporter`, `usePenpotImporter`), the sync-all update loop (`useMiroSync` STEP-2 via `updateNode`), and replace-selected retarget/adopt (`useMiroPlugin` via `adopt` + `updateTitle`) now delegate `window.miro.*` calls to `new MiroAdapter(miro.board)`. Render batch, `update-image` PATCH, status/rate-limit/cooldown orchestration stay in the hooks — output unchanged, Miro tests stay green.
+- **Selection lifecycle stays target-specific (`useMiroSelection`):** the headless boot/retry, the non-SyncingBoard `hasAnyImage` adoption signal, natural `width`, and `BroadcastChannel` broadcast are plugin lifecycle, intentionally not tunneled through the adapter. Each target exposes its own `getSelection()`/`selectionTrigger()` contract (FigJam `FigJamAdapter.getSelection()` will mirror Miro's normalization).
+### Internal
+- **FigJam Phase-0 groundwork (equivalent-to-Miro target):** re-validated the Figma Plugin API against v1 spec — manifest stays `api: "1.0.0"` with `figjam` added to `editorType` (no API version bump); gated APIs (createSticky / createShapeWithText / createConnector / createCodeBlock / createGif / createTable / `figma.timer`) surfaced; `createImageAsync` and IMAGE fills are ungated. Pairing model confirmed from code: the **target owns/generates its pairing key** via `getOrCreatePairingId()` and the source companion (Figma/Penpot) joins — so the FigJam target generates its own `sb_` key. v1 FigJam runs cloud-tiered (Ably + Upstash chunked), no local bridge for the free tier (community Tauri bridge deferred).
+
+
 ## [0.15.3] - 2026-08-05
 
 ### Fixed

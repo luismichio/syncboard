@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { parseFigmaUrl } from './figmaUrlParser';
+import { parseFigmaUrl } from '@/lib/sync/figmaUrlParser';
 import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
+import { MiroAdapter } from './MiroAdapter';
 
 export interface FigmaNodeInfo {
   fileKey: string;
@@ -71,7 +72,7 @@ export function useFigmaImporter(
     const useTauri = typeof window !== 'undefined' && localStorage.getItem('syncingboard_use_tauri') === 'true';
     if (useTauri) {
       try {
-        const { callFigmaSelectionTauri } = await import('./companionRelayClient');
+        const { callFigmaSelectionTauri } = await import('@/lib/sync/companionRelayClient');
         const selection = await callFigmaSelectionTauri();
         if (selection) {
           setFigmaNodeInfo({
@@ -93,7 +94,7 @@ export function useFigmaImporter(
     }
 
     try {
-      const { callRelay, getOrCreatePairingId } = await import('./companionRelayClient');
+      const { callRelay, getOrCreatePairingId } = await import('@/lib/sync/companionRelayClient');
       const pairingId = getOrCreatePairingId();
 
         if (!pairingId) {
@@ -172,25 +173,28 @@ export function useFigmaImporter(
       const safeName = decodeHtmlEntities(fallbackName);
       const titleTag = `${safeName} [FigmaSync|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
 
-      const image = await miro.board.createImage({
-        url: dataUrl,
-        title: titleTag,
-        x,
-        y,
-      });
-
-      try {
-        if (typeof image.setMetadata !== 'function') {
-          throw new Error("image.setMetadata is not a function on the returned object");
-        }
-        await image.setMetadata('syncingboard', {
+      const node = await new MiroAdapter(miro.board).createOrUpdate({
+        selection: {
+          hostId: '',
+          key: `${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}`,
+          title: titleTag,
           fileKey: figmaNodeInfo.fileKey,
           nodeId: figmaNodeInfo.nodeId,
           nodeName: safeName,
           format,
           scale: resolvedScale,
-        });
-        await image.sync();
+          platform: 'figma',
+        },
+        sourceUrl: dataUrl,
+        x,
+        y,
+      });
+      const imageId = node.id;
+
+      try {
+        if (!node.metadataSaved) {
+          throw new Error(node.metadataError ?? 'Image metadata failed to save');
+        }
 
         // Non-blocking background registration of binary File resource on Miro backend
         // so that right-clicking and downloading the image from Miro uses the frame's actual name.
@@ -207,7 +211,7 @@ export function useFigmaImporter(
                 },
                 body: JSON.stringify({
                   boardId: boardInfo.id,
-                  itemId: image.id,
+                  itemId: imageId,
                   dataUrl,
                   nodeName: safeName,
                   fileKey: figmaNodeInfo.fileKey,
@@ -219,7 +223,7 @@ export function useFigmaImporter(
               });
               if (patchRes.ok) {
                 // Re-assert the widget title after PATCH to fix any server-side encoding
-                const widget = await miro.board.getById(image.id).catch(() => null);
+                const widget = await miro.board.getById(imageId).catch(() => null);
                 if (widget) {
                   widget.title = `${safeName} [FigmaSync|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}]`;
                   await widget.sync().catch(() => {});

@@ -188,7 +188,7 @@
     <header>
       <h2>SyncingBoard Companion</h2>
       <p class="subtitle">Penpot Companion Relay</p>
-      <span class="version-badge">v0.15.3 Community</span>
+      <span class="version-badge">v0.16.0 Community</span>
     </header>
     <div class="card">
       <label for="pairing-id">Pairing ID</label>
@@ -245,7 +245,7 @@
     let reconnectAttempts = 0;
     let currentPairingId = '';
 
-    // v0.15.3 Community: stable tab id (Design B). Seeded on window so the transfer
+    // v0.16.0 Community: stable tab id (Design B). Seeded on window so the transfer
     // handler and the token request always use the SAME id for this tab.
     const companionTabId = window.companionTabId || (window.companionTabId = (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'tab_' + Math.random().toString(36).substring(2, 10)));
     let evictedReconnectAttempts = 0;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { onRelayActivity, onRelayConflict, onRelayConnectionState, transferRelaySession } from '../companionRelayClient';
-import type { RelayConnectionState } from '../companionRelayClient';
-import { useRelayStatus } from '../useRelayStatus';
+import { onRelayActivity, onRelayConflict, onRelayConnectionState, transferRelaySession } from '@/lib/sync/companionRelayClient';
+import type { RelayConnectionState } from '@/lib/sync/companionRelayClient';
+import { useRelayStatus } from '@/lib/sync/useRelayStatus';
 
 // Manual retry cooldown: prevents hammering /api/relay/status when full
 // (user asked for a 5–10s delay between retry clicks).

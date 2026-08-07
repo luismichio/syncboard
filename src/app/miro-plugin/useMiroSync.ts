@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { SyncedImage } from './useMiroSelection';
-import { callPenpotMcpTool } from './companionRelayClient';
+import { callPenpotMcpTool } from '@/lib/sync/companionRelayClient';
 import { getValidToken } from '@/lib/tokens';
 import { trackEvent } from '@/lib/analytics';
 import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
+import { MiroAdapter } from './MiroAdapter';
 
 /**
  * Handles board sync with support for both Figma and Penpot:
@@ -75,6 +76,7 @@ return;
     if (typeof window === 'undefined') return;
     const miro = window.miro;
     if (!miro) return;
+    const adapter = new MiroAdapter(miro.board);
 
     // Get a fresh Miro token right before syncing — the one from mount may have expired
     const freshMiroToken = miroToken || await getValidToken('miro');
@@ -406,28 +408,17 @@ throw new Error(errData.error || 'Failed to update image on Miro board');
         // Title is updated via the SDK (not the REST API PATCH) to avoid
         // HTML entity encoding differences between the two Miro interfaces.
         try {
-          const widget = await miro.board.getById(item.id);
-          if (widget && 'setMetadata' in widget && typeof widget.setMetadata === 'function') {
-            const existingMeta = await widget.getMetadata().catch(() => ({})) as Record<string, unknown>;
-            const existingSyncingboard = existingMeta?.syncingboard as Record<string, unknown> | undefined;
-            await widget.setMetadata('syncingboard', {
-              fileKey: item.fileKey,
-              nodeId: item.nodeId,
-              nodeName: liveName,
-              format: item.format || (item.platform === 'penpot' ? 'svg' : 'png'),
-              scale: item.scale || 2,
-              platform: item.platform || 'figma',
-              // Preserve natural dimensions from the original import if they exist
-              ...(existingSyncingboard?.width ? { width: existingSyncingboard.width } : {}),
-              ...(existingSyncingboard?.height ? { height: existingSyncingboard.height } : {}),
-            });
-
-            // Update widget title to reflect the live frame name
-            const tag = item.platform === 'penpot' ? 'PenpotSync' : 'FigmaSync';
-            const titleTag = `${decodeHtmlEntities(liveName)} [${tag}|${item.fileKey}|${item.nodeId}]`;
-            widget.title = titleTag;
-            await widget.sync();
-          }
+          const tag = item.platform === 'penpot' ? 'PenpotSync' : 'FigmaSync';
+          const titleTag = `${decodeHtmlEntities(liveName)} [${tag}|${item.fileKey}|${item.nodeId}]`;
+          await adapter.updateNode(item.id, {
+            nodeName: liveName,
+            fileKey: item.fileKey,
+            nodeId: item.nodeId,
+            format: item.format || (item.platform === 'penpot' ? 'svg' : 'png'),
+            scale: item.scale || 2,
+            platform: item.platform || 'figma',
+            title: titleTag,
+          });
         } catch (metaErr) {
           console.warn('Failed to update widget metadata/title:', metaErr);
         }

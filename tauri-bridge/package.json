@@ -1,7 +1,7 @@
 {
   "name": "tauri-bridge",
   "private": true,
-  "version": "0.15.3",
+  "version": "0.16.0",
   "resolutions": {
     "postcss": "8.5.25",
     "tar": "7.5.22",

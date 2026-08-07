@@ -10,7 +10,7 @@ import {
   releaseRelaySession,
   setCompanionSession,
 } from '@/lib/relayRedis';
-import { generateAblyToken, publishCompanionEvent, RelayTokenRole } from '@/lib/relayAbly';
+import { generateAblyToken, publishCompanionEvent, RelayTokenRole } from '@/lib/sync/relayAbly';
 
 const PAIRING_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 const SESSION_ID_RE = /^[a-f0-9-]{36}$/i;

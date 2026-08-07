@@ -7,6 +7,7 @@ import { useMiroSync } from './useMiroSync';
 import { getValidToken } from '@/lib/tokens';
 import { trackEvent } from '@/lib/analytics';
 import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
+import { MiroAdapter } from './MiroAdapter';
 
 export type SyncStatusType = 'success' | 'error' | 'progress' | 'info';
 
@@ -127,6 +128,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
     if (typeof window === 'undefined') return;
     const miro = window.miro;
     if (!miro) return;
+    const adapter = new MiroAdapter(miro.board);
 
     setIsSyncing(true);
 
@@ -147,28 +149,14 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
       }[] = [];
 
       for (const img of images) {
-        // Read existing metadata (re-targeting if syncingboard already exists)
-        const existingMeta = await img.getMetadata() as Record<string, unknown> | undefined;
-        const existingSync = existingMeta?.syncingboard as Record<string, unknown> | undefined;
-
-        // Attach/update syncingboard metadata with the new frame info
-        const syncMeta: Record<string, unknown> = {
+        await adapter.adopt(img.id, {
           fileKey,
           nodeId,
           nodeName,
           format,
           scale,
           platform,
-        };
-
-        // Preserve natural width if it exists (from a previous Penpot import)
-        if (existingSync?.width && typeof existingSync.width === 'number') {
-          syncMeta.width = existingSync.width;
-        }
-
-        await img.setMetadata('syncingboard', syncMeta);
-        await img.sync();
-
+        });
         adoptedItems.push({
           id: img.id,
           width: img.width ?? undefined,
@@ -213,7 +201,7 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
       } else {
         // Penpot
         updateSyncStatus('Exporting Penpot frame...', 'progress');
-        const { callPenpotMcpTool } = await import('./companionRelayClient');
+        const { callPenpotMcpTool } = await import('@/lib/sync/companionRelayClient');
         const mcpResponse = await callPenpotMcpTool('export_shape', {
           shapeId: nodeId,
           format,
@@ -268,13 +256,9 @@ export function useMiroPlugin(propagate: boolean = false, preserveSize: boolean 
 
         // Update widget title via SDK to reflect the new frame name
         try {
-          const widget = await miro.board.getById(item.id);
-          if (widget) {
-            const tag = platform === 'penpot' ? 'PenpotSync' : 'FigmaSync';
-            const titleTag = `${decodeHtmlEntities(nodeName)} [${tag}|${fileKey}|${nodeId}]`;
-            widget.title = titleTag;
-            await widget.sync();
-          }
+          const tag = platform === 'penpot' ? 'PenpotSync' : 'FigmaSync';
+          const titleTag = `${decodeHtmlEntities(nodeName)} [${tag}|${fileKey}|${nodeId}]`;
+          await adapter.updateTitle(item.id, titleTag);
         } catch {
           // SDK title assignment may fail silently
         }

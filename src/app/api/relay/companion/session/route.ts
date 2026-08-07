@@ -5,7 +5,7 @@ import {
   releaseCompanionSession,
   transferCompanionSession,
 } from '@/lib/relayRedis';
-import { publishCompanionEvent } from '@/lib/relayAbly';
+import { publishCompanionEvent } from '@/lib/sync/relayAbly';
 
 const PAIRING_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 const TAB_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
