@@ -676,5 +676,17 @@ let currentPairingId = '';
       }
     });
   </script>
+  <script>
+    // Append the local/current build id (dev only): v0.16.1 -> v0.16.1.local-<sha>
+    (function () {
+      var badge = document.querySelector('.version-badge');
+      if (!badge) return;
+      fetch('/api/build-id').then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.build) {
+          badge.textContent = badge.textContent.replace(' Community', '.' + d.build + ' Community');
+        }
+      }).catch(function () {});
+    })();
+  </script>
 </body>
 </html>
