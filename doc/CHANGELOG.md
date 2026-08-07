@@ -9,6 +9,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.1] - 2026-08-07
+
+### Added
+- **FigJam Mirror UI (M1)** — the FigJam plugin now shows a mirrored SyncingBoard panel instead of a stub. When `figma.editorType === 'figjam'`, the plugin loads a hosted React mirror (`/figjam-plugin`) that reuses the Miro sidebar components (AppHeader, TabNav, Sync/Import/Settings tabs, BoardStatusFooter), driven by a new `useFigJamPlugin` hook over the plugin `figma.ui` postMessage bridge.
+- `figma-plugin/code.js` FigJam command branch: `figjam-place` (create or in-place IMAGE-swap of a tracked Rectangle), `figjam-list` / `figjam-state`, `figjam-place-result`; tracked rectangles dedupe by `fileKey|nodeId` via `setPluginData`.
+- `figma-plugin/manifest.json` now declares `editorType: ["figma", "figjam"]` (api stays “1.0.0”); design vs FigJam runtime split (`figma.editorType`) in `code.js` and `ui.html`.
+- `public/figjam-companion-ui.html` (static fallback mirror) shipped alongside the React route.
+
+### Internal
+
+- Archived the previous run of `figjam-plugin/ui.html` FigJam stub (replaced by the hosted mirror route).
+- `.gitignore` now excludes local build logs + scratch scripts.
+
 ## [0.16.0] - 2026-08-07
 ### Added
 - **Shared Target Layer (Architecture):** Introduced a target-agnostic whiteboard core so FigJam can mirror Miro (and future Mural / Whiteboard / Excalidraw / tldraw targets can follow) instead of each target re-implementing placement/update/adopt logic.
