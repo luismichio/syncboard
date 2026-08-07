@@ -470,6 +470,7 @@
                   callback(new Error('Ably token request failed: HTTP ' + res.status), null);
                   return;
                 }
+                window.__companionConflict = false;
                 const tokenDetails = await res.json();
                 callback(null, tokenDetails);
               })
@@ -537,6 +538,9 @@
 
         reconnectAttempts = 0;
         evictedReconnectAttempts = 0;
+        window.__companionConflict = false;
+        const transferCard = document.getElementById('transfer-card');
+        if (transferCard) transferCard.style.display = 'none';
         updateStatus('connected', 'Connected');
         log('Companion connected via Ably WebSocket.');
       } catch (err) {

@@ -180,12 +180,6 @@ window.onmessage = (event) => {
     const input = document.getElementById('host-input');
     // Pre-fill with the effective host so Apply/Use default is always meaningful.
     if (input) input.value = previewHost || DEFAULT_HOST;
-    const panel = document.getElementById('host-panel');
-    if (previewHost && panel) {
-      panel.hidden = false;
-      const toggle = document.getElementById('host-toggle');
-      if (toggle) toggle.textContent = 'Hide preview host';
-    }
     // Always reload so Apply / Use default gives visible feedback.
     loadIframe();
     return;
