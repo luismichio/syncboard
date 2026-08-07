@@ -2,9 +2,10 @@ interface AppHeaderProps {
   tokensLoading: boolean;
   figmaToken: string | null;
   miroToken: string | null;
+  hideMiro?: boolean;
 }
 
-export function AppHeader({ tokensLoading, figmaToken, miroToken }: AppHeaderProps) {
+export function AppHeader({ tokensLoading, figmaToken, miroToken, hideMiro = false }: AppHeaderProps) {
   return (
     <header className="mb-4 flex items-center justify-between">
       <div className="flex items-start gap-2.5">
@@ -36,6 +37,7 @@ export function AppHeader({ tokensLoading, figmaToken, miroToken }: AppHeaderPro
           }}
         />
 
+        {!hideMiro && (
         <div
           className={`w-[18px] h-[18px] transition duration-200 ${tokensLoading ? 'bg-yellow-500/50' : miroToken ? 'bg-accent' : 'bg-text-muted/30'}`}
           style={{
@@ -46,6 +48,7 @@ export function AppHeader({ tokensLoading, figmaToken, miroToken }: AppHeaderPro
             maskPosition: 'center',
           }}
         />
+        )}
       </div>
     </header>
   );

@@ -68,7 +68,7 @@ function trackedToSynced(items: FigjamTracked[]): SyncedImage[] {
 }
 
 export function useFigJamPlugin() {
-  const { figmaToken, tokensLoading } = useAuthTokens(false);
+  const { figmaToken, tokensLoading, connectFigma, disconnectFigma } = useAuthTokens(false);
   const [selectedItems, setSelectedItems] = useState<SyncedImage[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
@@ -306,10 +306,6 @@ export function useFigJamPlugin() {
     [renderNode, placeOnBoard, status]
   );
 
-  const connectFigma = useCallback(() => {
-    status('Connect Figma in Settings', 'info');
-  }, []);
-
   const pairingId = getOrCreatePairingId();
 
   return {
@@ -327,7 +323,7 @@ export function useFigJamPlugin() {
     isDetectingLocal,
     connectFigma,
     connectMiro: () => {},
-    disconnectFigma: async (): Promise<void> => undefined,
+    disconnectFigma,
     disconnectMiro: async (): Promise<void> => undefined,
     parseFigmaLink,
     detectLocalFigmaSelection,

@@ -17,6 +17,7 @@ interface SettingsTabProps {
   defaultPngScale: number;
   onDefaultPngScaleChange: (value: number) => void;
   availableScales: number[];
+  hideMiro?: boolean;
 }
 
 export function SettingsTab({
@@ -35,6 +36,7 @@ export function SettingsTab({
   defaultPngScale,
   onDefaultPngScaleChange,
   availableScales,
+  hideMiro = false,
 }: SettingsTabProps) {
   const [showPairingId, setShowPairingId] = useState(false);
   return (
@@ -71,7 +73,10 @@ export function SettingsTab({
             )}
           </div>
 
-          <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
+          <div
+            className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center"
+            style={hideMiro ? { display: 'none' } : undefined}
+          >
             <div>
               <div className="text-xs font-semibold text-text-page">Miro REST Status</div>
               <div className="text-[10px] text-text-muted">OAuth connection for board image updates</div>

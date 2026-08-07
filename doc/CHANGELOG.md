@@ -19,6 +19,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Internal
 
+- GA/consent is fully suppressed on the FigJam plugin route (`/figjam-plugin`): the g-tag/sw/gtag scripts never load and the cookie banner is hidden (extended the same iframe-route guard used by `/miro-plugin`).
+- FigJam panel hides the Miro connection dot (AppHeader `hideMiro`) and the “Miro REST Status” row (SettingsTab `hideMiro`); Penpot source-sync is kept as-is.
+
 - Archived the previous run of `figjam-plugin/ui.html` FigJam stub (replaced by the hosted mirror route).
 - `.gitignore` now excludes local build logs + scratch scripts.
 

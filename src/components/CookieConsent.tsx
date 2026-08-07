@@ -8,8 +8,12 @@ export default function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Only show on public pages (not the Miro plugin iframe)
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/miro-plugin')) {
+    // Only show on public pages (not the plugin iframes)
+    if (
+      typeof window !== 'undefined' &&
+      (window.location.pathname.startsWith('/miro-plugin') ||
+        window.location.pathname.startsWith('/figjam-plugin'))
+    ) {
       return;
     }
 

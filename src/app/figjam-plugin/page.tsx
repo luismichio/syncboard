@@ -114,7 +114,7 @@ export default function FigJamPluginPage() {
 
   return (
     <div className="flex flex-col min-h-screen p-5 bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page transition-colors duration-200">
-      <AppHeader tokensLoading={hook.tokensLoading} figmaToken={hook.figmaToken} miroToken={null} />
+      <AppHeader tokensLoading={hook.tokensLoading} figmaToken={hook.figmaToken} miroToken={null} hideMiro />
       <TabNav activeTab={activeTab} selectedItemsCount={hook.selectedItems.length} onTabChange={setActiveTab} />
       <section className="flex-grow flex flex-col">
         {activeTab === 'sync' && (
@@ -175,6 +175,7 @@ export default function FigJamPluginPage() {
             connectMiro={() => {}}
             disconnectFigma={hook.disconnectFigma}
             disconnectMiro={hook.disconnectMiro}
+            hideMiro
             copiedPairing={copiedPairing}
             pairingId={pairingId}
             copyPairingId={copyPairingId}
