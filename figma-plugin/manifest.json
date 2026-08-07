@@ -6,7 +6,8 @@
   "ui": "ui.html",
   "documentAccess": "dynamic-page",
   "editorType": [
-    "figma"
+    "figma",
+    "figjam"
   ],
   "networkAccess": {
     "allowedDomains": [
