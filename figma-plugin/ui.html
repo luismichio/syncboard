@@ -180,8 +180,16 @@ function isValidHostOrigin(h) {
   try {
     const parsed = new URL(h);
     const host = parsed.hostname;
-    const isDomain = host === 'www.syncingboard.com' || host.endsWith('.syncingboard.com') || host === 'localhost' || host === '127.0.0.1';
-    const isProtocol = parsed.protocol === 'https:' || (parsed.protocol === 'http:' && (host === 'localhost' || host === '127.0.0.1'));
+    const isDomain =
+      host === 'www.syncingboard.com' ||
+      host.endsWith('.syncingboard.com') ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === 'protokoba.com' ||
+      host.endsWith('.protokoba.com');
+    const isProtocol =
+      parsed.protocol === 'https:' ||
+      (parsed.protocol === 'http:' && (host === 'localhost' || host === '127.0.0.1'));
     return isDomain && isProtocol;
   } catch {
     return false;
