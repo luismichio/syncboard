@@ -165,12 +165,11 @@ let previewHost = '';
 let currentEditorType = 'figma';
 
 // Switch between the Figma design companion (hosted iframe) and the
-// FigJam target notice based on the editor the plugin runs in.
+// FigJam target mirror based on the editor the plugin runs in.
 function applyEditorMode(editorType) {
   currentEditorType = (typeof editorType === 'string' && editorType) ? editorType : 'figma';
-  const isFigjam = currentEditorType !== 'figma';
-  // The preview-host footer is a design-companion feature; hide it in FigJam.
-  document.querySelector('.host-footer').style.display = isFigjam ? 'none' : '';
+  // The preview-host footer works in both editors: it selects which server
+  // hosts the companion/mirror iframe (self-hosting / testing override).
   loadIframe();
 }
 
