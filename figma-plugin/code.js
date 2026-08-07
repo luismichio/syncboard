@@ -1,4 +1,9 @@
 // SyncingBoard Figma Companion Plugin - Background script
+// One package runs in both Figma (design companion) and FigJam (target mirror).
+// Branch on figma.editorType so the design-file companion logic never runs in FigJam.
+const EDITOR_TYPE = typeof figma.editorType === 'string' ? figma.editorType : 'figma';
+const IS_FIGJAM = EDITOR_TYPE !== 'figma';
+
 figma.showUI(__html__, {
   width: 320,
   height: 480,
@@ -7,6 +12,9 @@ figma.showUI(__html__, {
 
 let globalFileKey = 'unknown';
 let previewHost = '';
+
+// Announce which editor this plugin runs in so the UI can render the right mode.
+figma.ui.postMessage({ action: 'editor-type', editorType: EDITOR_TYPE });
 
 // Pre-load saved fileKey from storage in the background
 try {
@@ -38,7 +46,9 @@ function normalizeHost(raw) {
 }
 
 // Resolve the current file key: figma.fileKey > document metadata > clientStorage > memory
+// FigJam files have no design fileKey, so a FigJam instance resolves to '' (target side).
 function resolveFileKey() {
+  if (IS_FIGJAM) return '';
   let docFileKey;
   try {
     docFileKey = figma.root.getPluginData('syncingboard_file_key');

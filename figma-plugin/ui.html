@@ -75,6 +75,49 @@ iframe {
 #host-error { font-size: 9px; color: #ef4444; min-height: 12px; }
 #host-error.ok { color: #10b981; }
 .host-row { display: flex; gap: 6px; }
+/* FigJam mode (target / Miro-mirror) notice */
+#figjam-notice {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+#figjam-notice[hidden] { display: none; }
+.fj-body {
+  max-width: 260px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fj-badge {
+  display: inline-block;
+  margin: 0 auto;
+  background: rgba(1, 200, 241, 0.14);
+  color: #01C8F1;
+  border: 1px solid rgba(1, 200, 241, 0.35);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.fj-title {
+  color: #f3f4f6;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.fj-note {
+  color: #9ca3af;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.figma-light #figjam-notice .fj-title { color: #111827; }
+.figma-light #figjam-notice .fj-note { color: #4b5563; }
 .host-footer button {
   background-color: #121417;
   color: #f3f4f6;
@@ -94,6 +137,13 @@ iframe {
 </head>
 <body>
 <iframe id="companion-iframe" src="about:blank"></iframe>
+<div id="figjam-notice" hidden>
+  <div class="fj-body">
+    <div class="fj-badge">FigJam mode</div>
+    <div class="fj-title">SyncingBoard — FigJam target</div>
+    <div class="fj-note">This editor is the FigJam destination (Miro-mirror side). The target seam (FigJamAdapter) and Figma&#8594;FigJam pairing are in place; the full mirror UI ships in a coming update.</div>
+  </div>
+</div>
 <div class="host-footer">
   <button id="host-toggle" type="button">Preview host (optional)</button>
   <div id="host-panel" hidden>
@@ -112,6 +162,18 @@ const DEFAULT_HOST = 'https://www.syncingboard.com';
 const iframe = document.getElementById('companion-iframe');
 let currentFileKey = 'unknown';
 let previewHost = '';
+let currentEditorType = 'figma';
+
+// Switch between the Figma design companion (hosted iframe) and the
+// FigJam target notice based on the editor the plugin runs in.
+function applyEditorMode(editorType) {
+  currentEditorType = (typeof editorType === 'string' && editorType) ? editorType : 'figma';
+  const isFigjam = currentEditorType !== 'figma';
+  document.getElementById('figjam-notice').hidden = !isFigjam;
+  iframe.style.display = isFigjam ? 'none' : '';
+  document.querySelector('.host-footer').style.display = isFigjam ? 'none' : '';
+  if (!isFigjam) loadIframe();
+}
 
 // Load the hosted companion into the iframe. The production host is fixed
 // (see manifest networkAccess.allowedDomains); self-hosters edit DEFAULT_HOST
@@ -170,9 +232,13 @@ themeObserver.observe(document.documentElement, { attributes: true, attributeFil
 window.onmessage = (event) => {
   const msg = event.data.pluginMessage;
   if (!msg) return;
+  if (msg.action === 'editor-type') {
+    applyEditorMode(msg.editorType);
+    return;
+  }
   if (msg.action === 'file-key') {
     currentFileKey = msg.fileKey || currentFileKey || 'unknown';
-    loadIframe();
+    if (currentEditorType === 'figma') loadIframe();
     return;
   }
   if (msg.action === 'host-config') {
@@ -180,8 +246,8 @@ window.onmessage = (event) => {
     const input = document.getElementById('host-input');
     // Pre-fill with the effective host so Apply/Use default is always meaningful.
     if (input) input.value = previewHost || DEFAULT_HOST;
-    // Always reload so Apply / Use default gives visible feedback.
-    loadIframe();
+    // Reload for Apply / Use default feedback (never in FigJam mode).
+    if (currentEditorType === 'figma') loadIframe();
     return;
   }
   // Forward everything else (selection results, etc.) to the hosted companion
