@@ -201,7 +201,7 @@ function loadIframe() {
   const secretKey = urlParams.get('key');
   const candidateHost = previewHost || DEFAULT_HOST;
   const safeHost = isValidHostOrigin(candidateHost) ? candidateHost : DEFAULT_HOST;
-  const route = currentEditorType === 'figma' ? 'figma-companion-ui.html' : 'figjam-plugin';
+  const route = currentEditorType === 'figma' ? 'figma-companion-ui.html' : 'figjam-mirror';
   let targetUrl = `${safeHost}/${route}?fileKey=${encodeURIComponent(currentFileKey)}`;
   if (secretKey) {
     targetUrl += `&key=${encodeURIComponent(secretKey)}`;

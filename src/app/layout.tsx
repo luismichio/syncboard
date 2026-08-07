@@ -95,7 +95,7 @@ export default function RootLayout({
         {/* Google Consent Mode v2 — default deny before GA loads */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', wait_for_update: 500 }); window.__sbSkipGA = (typeof location !== 'undefined' && location.pathname.indexOf('/figjam-plugin') === 0) ? true : false;`,
+            __html: `window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', wait_for_update: 500 }); window.__sbSkipGA = (typeof location !== 'undefined' && (location.pathname.indexOf('/figjam-plugin') === 0 || location.pathname.indexOf('/figjam-mirror') === 0)) ? true : false;`,
           }}
         />
         {/* Google Analytics — never loaded on the FigJam plugin route */}

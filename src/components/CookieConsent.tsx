@@ -12,7 +12,8 @@ export default function CookieConsent() {
     if (
       typeof window !== 'undefined' &&
       (window.location.pathname.startsWith('/miro-plugin') ||
-        window.location.pathname.startsWith('/figjam-plugin'))
+        window.location.pathname.startsWith('/figjam-plugin') ||
+        window.location.pathname.startsWith('/figjam-mirror'))
     ) {
       return;
     }
