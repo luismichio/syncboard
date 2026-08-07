@@ -29,6 +29,16 @@ const nextConfig: NextConfig = {
           { key: "Access-Control-Allow-Headers", value: "Content-Type" },
         ],
       },
+      // Dev-mode only: keep chunk URLs no-store so embedded caches (Figma
+      // desktop app) cannot serve an old bundle under a stable chunk name.
+      ...(process.env.NODE_ENV === "development"
+        ? [
+            {
+              source: "/_next/static/chunks/:path*",
+              headers: [{ key: "Cache-Control", value: "no-store" }],
+            },
+          ]
+        : []),
     ];
   },
 };
