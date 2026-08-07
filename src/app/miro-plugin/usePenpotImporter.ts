@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { parsePenpotUrl } from './penpotUrlParser';
-import { callPenpotMcpTool, callRelay, getOrCreatePairingId } from './companionRelayClient';
+import { parsePenpotUrl } from '@/lib/sync/penpotUrlParser';
+import { callPenpotMcpTool, callRelay, getOrCreatePairingId } from '@/lib/sync/companionRelayClient';
 import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
+import { MiroAdapter } from './MiroAdapter';
 
 export interface PenpotNodeInfo {
   fileId: string;
@@ -142,37 +143,32 @@ export function usePenpotImporter(
         ? Math.round(naturalWidth * scale)
         : undefined;
 
-      const imageOptions: {
-        url: string;
-        title: string;
-        x: number;
-        y: number;
-        width?: number;
-      } = {
-        url: dataUrl,
-        title: titleTag,
+      const node = await new MiroAdapter(miro.board).createOrUpdate({
+        selection: {
+          hostId: '',
+          key: `${capturedFileId}|${capturedObjectId}`,
+          title: titleTag,
+          fileKey: capturedFileId,
+          nodeId: capturedObjectId,
+          nodeName: resolvedName,
+          format,
+          scale,
+          platform: 'penpot',
+        },
+        sourceUrl: dataUrl,
         x,
         y,
-      };
-
-      if (displayWidth) imageOptions.width = displayWidth;
-
-      const image = await miro.board.createImage(imageOptions);
-      if (typeof image.setMetadata !== 'function') {
-        throw new Error('image.setMetadata is not supported.');
-      }
-
-      await image.setMetadata('syncingboard', {
-        fileKey: capturedFileId,
-        nodeId: capturedObjectId,
-        nodeName: resolvedName,
-        format,
-        scale,
-        platform: 'penpot',
-        width: naturalWidth,
-        height: naturalHeight,
+        renderWidth: displayWidth,
+        metadata: {
+          platform: 'penpot',
+          width: naturalWidth,
+          height: naturalHeight,
+        },
       });
-      await image.sync();
+      if (!node.metadataSaved) {
+        throw new Error(node.metadataError ?? 'image metadata is not supported.');
+      }
+      const imageId = node.id;
 
       if (miroToken) {
         const registerImage = async () => {
@@ -186,7 +182,7 @@ export function usePenpotImporter(
               },
               body: JSON.stringify({
                 boardId: boardInfo.id,
-                itemId: image.id,
+                itemId: imageId,
                 dataUrl,
                 nodeName: resolvedName,
                 fileKey: capturedFileId,
@@ -197,7 +193,7 @@ export function usePenpotImporter(
               }),
             });
             if (patchRes.ok) {
-              const widget = await miro.board.getById(image.id).catch(() => null);
+              const widget = await miro.board.getById(imageId).catch(() => null);
               if (widget) {
                 widget.title = `${resolvedName} [PenpotSync|${capturedFileId}|${capturedObjectId}]`;
                 await widget.sync().catch(() => {});

@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { compileMDX } from "next-mdx-remote/rsc";
 import rehypeHighlight from "rehype-highlight";
-import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import remarkGfm from "remark-gfm";
@@ -14,7 +13,7 @@ import { DISPLAY } from "@/lib/version";
 import TOC from "@/components/docs/TOC";
 import MermaidHydrator from "@/components/docs/MermaidHydrator";
 import CodeCopyHydrator from "@/components/docs/CodeCopyHydrator";
-import VideoTabGroupHydrator from "@/components/docs/VideoTabGroupHydrator";
+import VideoTabs from "@/components/docs/VideoTabs";
 import CookieSettingsButton from "@/components/CookieSettingsButton";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -174,6 +173,9 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
 
   const { content } = await compileMDX({
     source: doc.content,
+    components: {
+      VideoTabs,
+    },
     options: {
       parseFrontmatter: false,
       mdxOptions: {
@@ -181,18 +183,6 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
           remarkGfm,
         ],
         rehypePlugins: [
-          [
-            rehypeSanitize,
-            {
-              ...defaultSchema,
-              attributes: {
-                ...defaultSchema.attributes,
-                div: [...(defaultSchema.attributes?.div || []), "className", "data-code"],
-                code: [...(defaultSchema.attributes?.code || []), "className"],
-                span: [...(defaultSchema.attributes?.span || []), "className"],
-              },
-            },
-          ],
           rehypeSlug,
           [
             rehypeAutolinkHeadings,
@@ -308,7 +298,6 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
           </article>
           <MermaidHydrator />
           <CodeCopyHydrator />
-          <VideoTabGroupHydrator />
 
           {/* Back link */}
           <div className="mt-16 pt-8 border-t border-border-card">

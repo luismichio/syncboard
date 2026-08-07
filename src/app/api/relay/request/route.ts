@@ -8,7 +8,7 @@ import {
 import {
   publishPenpotCommand,
   isPenpotOnlineAbly,
-} from '@/lib/relayAbly';
+} from '@/lib/sync/relayAbly';
 
 interface RelayRequestBody {
   pairingId?: string;

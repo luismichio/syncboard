@@ -1,6 +1,6 @@
 import { Rest } from 'ably';
 import type { TokenParams } from 'ably';
-import type { RelayCommand } from './relayRedis';
+import type { RelayCommand } from '@/lib/relayRedis';
 
 const CHANNEL_PREFIXES = {
   figma: 'figma',

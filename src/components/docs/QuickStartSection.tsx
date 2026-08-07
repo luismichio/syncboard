@@ -76,7 +76,6 @@ export function QuickStartSection() {
                 Install to Miro Team ↗
               </a>
             </div>
-
             {/* Step 2A */}
             <div className="p-4 rounded-xl bg-bg-page/50 border border-border-card/60 flex flex-col justify-between">
               <div>
@@ -90,12 +89,14 @@ export function QuickStartSection() {
                   Authorize 1-click read-only Figma access in Miro SyncingBoard App settings. <span className="text-text-page font-medium">Optional:</span> install Figma Desktop plugin for live frame selection.
                 </p>
               </div>
-              <Link
-                href="/docs/setup#for-community-version"
+              <a
+                href="https://www.figma.com/community/plugin/1660413000378332441/syncingboard-companion"
+                target="_blank"
+                rel="noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border-card text-text-page font-mono text-xs font-semibold hover:bg-bg-card transition"
               >
-                Optional: Figma Companion →
-              </Link>
+                Figma Companion Plugin ↗
+              </a>
             </div>
 
             {/* Step 2B */}
@@ -111,12 +112,14 @@ export function QuickStartSection() {
                   Install the Penpot Companion Plugin inside Penpot to link your design canvas directly to Miro using a secure <span className="text-text-page font-medium">Pairing Key</span>.
                 </p>
               </div>
-              <Link
-                href="/docs/setup#for-community-version-1"
+              <a
+                href="https://penpot.app/penpothub/plugins/sunc-board-comparison"
+                target="_blank"
+                rel="noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border-card text-text-page font-mono text-xs font-semibold hover:bg-bg-card transition"
               >
-                Install Penpot Companion →
-              </Link>
+                Penpot Companion Plugin ↗
+              </a>
             </div>
           </div>
         </div>

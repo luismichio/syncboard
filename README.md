@@ -6,7 +6,7 @@ updated: 2026-08-04
 
 # SyncingBoard (Figma & Penpot to Miro Sync Engine)
 
-[![Version 0.15.3](https://img.shields.io/badge/version-0.15.3-%23007ACC?style=flat-square)](https://github.com/luismichio/syncingboard/blob/dev/package.json)
+[![Version 0.16.0](https://img.shields.io/badge/version-0.16.0-%23007ACC?style=flat-square)](https://github.com/luismichio/syncingboard/blob/dev/package.json)
 [![OSI Approved License](https://img.shields.io/badge/license-AGPLv3-%23A81C7D?style=flat-square&label=OSI%20Approved)](https://github.com/luismichio/syncingboard/blob/dev/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-%23007ACC.svg?style=flat-square&logo=typescript&logoColor=white)](https://github.com/luismichio/syncingboard/blob/dev/tsconfig.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-%23FF6B6B?style=flat-square)](https://github.com/luismichio/syncingboard/issues/new)
@@ -77,7 +77,10 @@ SyncingBoard can be utilized in two different hosting configurations:
 > **User-Owned OAuth Architecture:** SyncingBoard maintains zero user databases and requires no user registration. Every user authenticates directly with their own personal Figma and Miro accounts via standard OAuth 2.0. Access tokens remain stored client-side inside the user's active Miro board session.
 
 For quick testing and evaluation, you can use the official pre-published plugins running on the public Community infrastructure hosted at **`https://www.syncingboard.com`**.
-* **Zero Configuration:** Simply install the official **[SyncingBoard Miro App](https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fwww.syncingboard.com%2Fapi%2Foauth%2Fmiro%2Fcallback)** to your Miro team.
+* **Zero Configuration:** Simply install the official market plugins:
+  * **Miro App:** **[Install SyncingBoard to Miro](https://miro.com/app-install/?response_type=code&client_id=3458764677695474299&redirect_uri=https%3A%2F%2Fwww.syncingboard.com%2Fapi%2Foauth%2Fmiro%2Fcallback)**
+  * **Figma Companion:** **[Figma Community Plugin](https://www.figma.com/community/plugin/1660413000378332441/syncingboard-companion)**
+  * **Penpot Companion:** **[Penpot Hub Plugin](https://penpot.app/penpothub/plugins/sunc-board-comparison)**
 * **1-Click OAuth Connect:** Connect your Miro account (and your Figma account if syncing from Figma) via 1-click OAuth buttons inside the Miro sidebar. Penpot doesn't require OAuth, but connects via Pairing ID and cloud relay.
 * **Plug and Play:** To enable selection auto-detection or Penpot sync, load the companion in Figma/Penpot, copy the Pairing ID from the Miro sidebar, and paste it into the companion to connect.
 * **Figma Companion Scope:** The Figma Companion plugin is **only needed for selection detection** (auto-detecting your active selection in Figma). You can import and sync screens directly into Miro using Figma URLs without installing the companion plugin.

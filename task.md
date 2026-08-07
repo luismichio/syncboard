@@ -212,3 +212,30 @@
 - Implement CORS & PNA Origin Whitelisting on bridge endpoints (`local.syncingboard.com:4401`)
 - Implement Header-based Token Transmission (remove tokens from query params)
 - Enable FigJam desktop path over bridge (`figma-plugin/manifest.json` domain check)
+---
+# Task: FigJam Phase 0 — Validation Spike (kickoff 2026-08-07)
+## Goal
+Validate the blocking unknowns from `doc/dev/plan/plan_2026_08_03_figjam.md` §4 (Phase 0 checklist) before Phase 1 (manifest + code branch). Outcome sets Phase 1 scope (no api bump; add `figjam` to editorType; networkAccess unchanged for v1 cloud-tier).
+
+**Confirmed product goal (2026-08-07):** FigJam is a first-class **target equivalent to Miro** — everything Miro does, FigJam does; Figma↔Miro mirrors Figma↔FigJam, adjusting only for FigJam platform deltas.
+
+**Pairing model (confirmed from code):** the **target owns/generates its pairing** (`src/lib/pairingId.ts` `getOrCreatePairingId()` — used by the Miro plugin/`page.tsx`/`companionRelayClient`/importers). The source companion (Figma/Penpot) joins the target's `sb_` key. So the **FigJam(target) ALSO generates its own pairid** via `getOrCreatePairingId()` — the Figma companion joins it. No new protocol; faithful mirror of Miro.
+
+## Architecture decision (2026-08-07): shared target layer (modular, mirrored UI)
+Accepted: build a **target-agnostic core + thin `TargetAdapter` seam + shared UI components**, so Miro / FigJam / future (Mural, Whiteboard, Excalidraw, tldraw) mirror "as much as possible." Phased, backwards-compatible:
+- **(1a) Domain extraction:** pull the target-agnostic machinery out of Miro into pure/testable modules (`relay session subscribe/pull`, `sync-job state machine` → idle/Loading/Completed/429-cooldown, `pairing ownership`, feature model = skip/lock, deselect, geometry, GIF). NO behavior change; Miro tests stay green.
+- **(1b) `TargetAdapter` seam:** thin interface (`createSelection`, `createOrUpdate(image hash)`, `skipGuard/locked`, `geometry`, `status`). Domain never touches an SDK directly.
+- **(1c) FigJam adapter:** build Phase 1 **on top of the extracted core** — FigJam becomes the first validator of the seam (in-place `createImageAsync`→`Rectangle` IMAGE-fill swap).
+- **(later) Miro UI onto shared components** for literal UI mirror.
+## Phase 0 re-validation (live Figma docs, 2026-08-07)
+- [x] `figma.editorType` / manifest `api` — manifest reference canonical example: `"api": "1.0.0"` with `"editorType": ["figma","figjam"]` and `"documentAccess": "dynamic-page"` → **NO bump; Phase 1 = add `"figjam"` only**
+- [x] FigJam-gated APIs (current docs): `createSticky()`, `createShapeWithText()`, `createConnector()`, `createCodeBlock()`, `createGif()`, `createTable(numRows,numColumns)`, `figma.timer` — gated on `editorType` incl. `figjam`
+- [x] `createImageAsync` / IMAGE fills NOT gated → available in FigJam with the shared plugin
+- [x] FigJam node model: create+modify = Sticky/ShapeWithText/Connector/CodeBlock/Media/Table; modify-only = BooleanOperation/Stamp/Widget; Figma types (Rectangle/Text/Line/Vector/Polygon/Star/Slice) creatable via plugin API inside FigJam
+- [x] Styles read-only in FigJam; no `createComponent`/`combineAsVariants` (matches plan §2.2)
+- [ ] Runtime checks (manual; needs a FigJam file + dev-mode plugin): `dynamic-page` behavior in FigJam, permissions/view-edit, in-place imageHash swap
+- [ ] FigJam pairing/relay smoke test (dev: pairing key → relay subscribe → payload fetch)
+## Note — Community Tauri bridge domain (DEFERRED, NOT a Phase-0 blocker)
+- `protokoba.com` = personal dev domain only (not public/community)
+- Community bridge still desired — revisit LATER; Phase 0/1 proceed cloud-tier-only (Ably + Upstash; >4.5 MB chunked via relayRedis, no bridge dependency for v1 free tier)
+- Dev bridge testing may use local protokoba tunnel domain

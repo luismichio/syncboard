@@ -1,5 +1,5 @@
 import Ably from 'ably';
-import { getOrCreatePairingId } from '@/lib/pairingId';
+import { getOrCreatePairingId } from '@/lib/sync/pairingId';
 import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 import {
   ablyTokenCacheKey,

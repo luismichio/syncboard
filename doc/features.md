@@ -8,36 +8,20 @@ description: Explore SyncingBoard's core capabilities in action with short video
 Explore how SyncingBoard bridges design tools (**Figma** & **Penpot**) with interactive canvas whiteboards (**Miro**) in real time.
 
 ---
-## Getting Started — Figma & Penpot Setup
+
+## Getting Started - Figma & Penpot Setup
+
 Set up **SyncingBoard** by installing the **Miro** app, then setting up **Figma** and **Penpot**.
 
-### Figma Companion Setup Walkthrough
-<div className="my-6 flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe className="h-full w-full" src="https://www.youtube-nocookie.com/embed/pO_-icohQhQ" title="Figma Companion Setup" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen loading="lazy"></iframe>
-</div>
-
-### Penpot Companion Setup Walkthrough
-<div className="my-6 flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-border-card bg-bg-card shadow-sm">
-  <iframe className="h-full w-full" src="https://www.youtube-nocookie.com/embed/qEVvAl1ohoE" title="Penpot Companion Setup" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen loading="lazy"></iframe>
-</div>
+<VideoTabs figma="https://www.youtube-nocookie.com/embed/pO_-icohQhQ" penpot="https://www.youtube-nocookie.com/embed/qEVvAl1ohoE" />
 
 ---
 
 ## Frame Selection & Detection Relay
 
-SyncingBoard's companion plugins stream active canvas selections in real time over **Ably WebSockets**. Selecting a frame in Figma Desktop/Web or Penpot instantly populates the Miro sidebar panel — with **zero server polling** and **zero Redis overhead**.
+SyncingBoard's companion plugins stream active canvas selections in real time over **Ably WebSockets**. Selecting a frame in Figma Desktop/Web or Penpot instantly populates the Miro sidebar panel - with **zero server polling** and **zero Redis overhead**.
 
-### Figma Walkthrough
-
-<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
-  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
-</div>
-
-### Penpot Walkthrough
-
-<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
-  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
-</div>
+<VideoTabs figma="coming-soon" penpot="coming-soon" />
 
 * **Key Highlights:**
   * Active selection relay across open design tabs and companion plugins.
@@ -50,17 +34,7 @@ SyncingBoard's companion plugins stream active canvas selections in real time ov
 
 Update selected screens in-place on Miro canvas. Toggle **"Also update all board copies"** to automatically search the canvas and propagate screen updates across every duplicate widget simultaneously.
 
-### Figma Walkthrough
-
-<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
-  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
-</div>
-
-### Penpot Walkthrough
-
-<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
-  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
-</div>
+<VideoTabs figma="coming-soon" penpot="coming-soon" />
 
 * **Key Highlights:**
   * Single-click in-place screen updates.
@@ -73,17 +47,7 @@ Update selected screens in-place on Miro canvas. Toggle **"Also update all board
 
 Adopt any existing image widget on your Miro board (even non-SyncingBoard imports or copy-pasted screenshots) or retarget an existing widget to a new Figma/Penpot frame **without changing widget IDs**.
 
-### Figma Walkthrough
-
-<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
-  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
-</div>
-
-### Penpot Walkthrough
-
-<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
-  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
-</div>
+<VideoTabs figma="coming-soon" penpot="coming-soon" />
 
 * **Key Highlights:**
   * Widget IDs remain intact.
@@ -96,17 +60,7 @@ Adopt any existing image widget on your Miro board (even non-SyncingBoard import
 
 Update image pixel content on Miro canvas while preserving custom layout dimensions, manual crops, and widget aspect ratios.
 
-### Figma Walkthrough
-
-<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
-  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
-</div>
-
-### Penpot Walkthrough
-
-<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
-  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
-</div>
+<VideoTabs figma="coming-soon" penpot="coming-soon" />
 
 * **Key Highlights:**
   * Preserves manual widget resizes and crop layouts.
@@ -118,11 +72,7 @@ Update image pixel content on Miro canvas while preserving custom layout dimensi
 
 Choose between crisp vector **SVG** exports (ideal for responsive text and icons with ~10x less bandwidth) or high-resolution **PNG** scaling (1x, 2x, and up to 4x for self-hosters).
 
-### Figma & Penpot Resolution Walkthrough
-
-<div className="my-6 flex aspect-video w-full flex-col items-center justify-center rounded-xl border border-dashed border-border-card bg-bg-card p-6 text-center shadow-sm">
-  <p className="text-sm font-medium text-text-muted text-center">Video Walkthrough Coming Soon</p>
-</div>
+<VideoTabs figma="coming-soon" penpot="coming-soon" />
 
 ---
 
@@ -130,10 +80,10 @@ Choose between crisp vector **SVG** exports (ideal for responsive text and icons
 
 To prevent unauthorized users on public whiteboards from reading your live design selection channel, SyncingBoard uses cryptographically random **16-character Pairing IDs** (`pairingId.ts`).
 
-In the Miro sidebar UI, the Pairing ID input field is masked (`●●●●●●●●`) with an interactive toggle button to reveal or copy the key securely.
+In the Miro sidebar UI, the Pairing ID input field is masked (`????????`) with an interactive toggle button to reveal or copy the key securely.
 
 ```text
-Pairing ID:  [ ●●●●●●●●●●●●●●●● ]  [ Reveal ]  [ Copy ]
+Pairing ID:  [ ???????????????? ]  [ Reveal ]  [ Copy ]
 ```
 
 * **Key Security Highlights:**
@@ -145,6 +95,6 @@ Pairing ID:  [ ●●●●●●●●●●●●●●●● ]  [ Reveal ]  [
 
 ## Explore More Documentation
 
-* [Quickstart Setup Guide](/docs/setup) — Learn how to set up SyncingBoard in 2 minutes.
-* [System Architecture](/docs/architecture) — Learn how SyncingBoard's 3-layer adapter system works.
-* [Frequently Asked Questions](/docs/faq) — Common questions about pricing, privacy, and self-hosting.
+* [Quickstart Setup Guide](/docs/setup) - Learn how to set up SyncingBoard in 2 minutes.
+* [System Architecture](/docs/architecture) - Learn how SyncingBoard's 3-layer adapter system works.
+* [Frequently Asked Questions](/docs/faq) - Common questions about pricing, privacy, and self-hosting.
