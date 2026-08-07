@@ -150,7 +150,7 @@ async function figjamPlace(payload) {
 
   if (existing) {
     // In-place update: swap the IMAGE fill hash, keep geometry + identity.
-    existing.fills = [{ type: 'IMAGE', imageHash: image.hash }];
+    existing.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' }];
     try {
       existing.setPluginData(SB_META_KEY, JSON.stringify({
         fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
@@ -171,7 +171,7 @@ async function figjamPlace(payload) {
     rect.x = Math.round(figma.viewport.center.x - W / 2);
     rect.y = Math.round(figma.viewport.center.y - H / 2);
   }
-  rect.fills = [{ type: 'IMAGE', imageHash: image.hash }];
+  rect.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' }];
   try {
     rect.setPluginData(SB_META_KEY, JSON.stringify({
       fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),

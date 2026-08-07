@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.16.1] - 2026-08-07
 
 ### Fixed
+- FigJam fills now carry `scaleMode: 'FILL'` — FigJam's validator rejects a bare `{ type: 'IMAGE', imageHash }` (`figjam-place failed (in set_fills: ... Required value missing at [0].scaleMode)`), which the real-error path finally surfaced.
 - The Figma/FigJam panel iframe URL now carries a unique `&_t=<timestamp>` cache-buster: route chunk names stay identical across dev-server recompiles, and the Figma desktop app can cache the old bundle under the same URL (diagnosed via the browser-vs-panel build-id split — the desktop panel kept showing `local-63c65f8` while the server served `local-a947486`). Even the busted reload still showed the old build, proving chunk caches are page-agnostic — so dev mode ALSO sends `Cache-Control: no-store` for `/_next/static/chunks/:*` (`next.config.ts`), forcing a real chunk refetch every Apply/boot.
 
 ### Added
