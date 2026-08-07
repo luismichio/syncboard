@@ -148,8 +148,19 @@ async function figjamPlace(payload) {
       return { ok: false, error: `createImageAsync failed (${detail})` };
     }
 
+    // Recover the PNG's own pixel size from the data-URL so the rect gets
+    // the SOURCE frame's aspect ratio: FigJam's FILL crop then shows the
+    // whole image instead of cropping to whatever size the rect held before
+    // ("using the previous rectangle as crop area").
+    const png = pngDataSize(payload.dataUrl);
+    const scale = Number.isFinite(payload.scale) && payload.scale > 0 ? payload.scale : 1;
+    const targetW = png ? Math.max(1, Math.round(png.width / scale)) : null;
+    const targetH = png ? Math.max(1, Math.round(png.height / scale)) : null;
+
   if (existing) {
-    // In-place update: swap the IMAGE fill hash, keep geometry + identity.
+    // In-place update: match the rect to the source frame size, then swap
+    // the IMAGE fill hash; keep identity + position.
+    if (targetW && targetH) existing.resize(targetW, targetH);
     existing.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' }];
     try {
       existing.setPluginData(SB_META_KEY, JSON.stringify({
@@ -164,8 +175,8 @@ async function figjamPlace(payload) {
 
   const rect = figma.createRectangle();
   rect.name = title;
-  const W = Number.isFinite(payload.width) ? payload.width : 240;
-  const H = Number.isFinite(payload.height) ? payload.height : 160;
+  const W = targetW || (Number.isFinite(payload.width) ? payload.width : 240);
+  const H = targetH || (Number.isFinite(payload.height) ? payload.height : 160);
   rect.resize(W, H);
   if (figma.viewport && Number.isFinite(figma.viewport.center.x) && Number.isFinite(figma.viewport.center.y)) {
     rect.x = Math.round(figma.viewport.center.x - W / 2);
@@ -186,6 +197,24 @@ async function figjamPlace(payload) {
     const detail = err instanceof Error ? err.message : String(err);
     return { ok: false, error: `figjam-place failed (${detail})` };
   }
+}
+
+// Return { width, height } from a PNG data-URL (IHDR is always at bytes
+// 16-23, big-endian). Falls back to null so callers keep their defaults.
+function pngDimensions(dataUrl) {
+  try {
+    const comma = dataUrl.indexOf(',');
+    if (comma < 0) return null;
+    const bytes = figma.base64Decode(dataUrl.slice(comma + 1));
+    if (bytes.length < 24) return null;
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const width = dv.getUint32(16);
+    const height = dv.getUint32(20);
+    if (width > 0 && height > 0 && width < 100000 && height < 100000) {
+      return { width, height };
+    }
+  } catch (e) {}
+  return null;
 }
 
 // Push the current file key to the UI so it can load the companion iframe
