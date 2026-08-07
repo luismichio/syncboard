@@ -246,3 +246,8 @@ M1 (this slice): Plugin figjam-mode command bridge in `figma-plugin/code.js` (pl
 M2: Destination relay pull - subscribe to the `figma:<pairing>` channel, apply each pushed frame (reuse companionRelayClient + relay routes; the Figma companion already publishes there for Miro).
 M3: FigJam-side polish - status pill (Syncing/Completed/429), deselect/skip, group settings.
 Cloud-tier v1 scope: Figma->FigJam image snapshot, in-place, no dupes (plan_2026_08_03_figjam.md).
+
+STATUS: M1 committed (8491e24); M2 mirrored panel committed (944d91f) - /figjam-plugin reuses the
+Miro components (AppHeader/TabNav/Sync/Import/Settings + BoardStatusFooter) via useFigJamKey over the
+postMessage bridge. Local build blocked by the env workStore flake; CI authoritative.
+Remaining: real relay-pull (companion pushes -> application) + real FigJam runtime pass.
