@@ -264,6 +264,17 @@ figma.ui.onmessage = async (msg) => {
   }
 
   if (msg.action === 'get-selection') {
+    if (EDITOR_TYPE !== 'figma') {
+      // FigJam is the destination: its own selection is not a source. The
+      // source selection lives in the Figma design file (or a pasted link).
+      figma.ui.postMessage({
+        action: 'selection-result',
+        requestId: msg.requestId,
+        data: null,
+        error: 'Selection lives in Figma, not FigJam — run this plugin in the Figma design file or paste a Figma frame link.',
+      });
+      return;
+    }
     try {
       const selection = figma.currentPage.selection; // Synchronous read
       figma.ui.postMessage({

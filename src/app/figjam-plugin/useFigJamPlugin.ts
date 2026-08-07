@@ -73,6 +73,7 @@ export function useFigJamPlugin() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [figmaInput, setFigmaInput] = useState('');
+  const [figmaParseError, setFigmaParseError] = useState<string | null>(null);
   const [figmaNodeInfo, setFigmaNodeInfo] = useState<{
     fileKey: string;
     nodeId: string;
@@ -189,9 +190,11 @@ export function useFigJamPlugin() {
     async (url: string): Promise<void> => {
       const parsed = parseFigmaUrl(url);
       if (!parsed) {
+        setFigmaParseError('Not a Figma frame link — copy the frame share link from Figma (needs ?node-id=…).');
         status('That does not look like a Figma file link', 'error');
         return;
       }
+      setFigmaParseError(null);
       setFigmaInput(url);
       const capture: { fileKey: string; nodeId: string; name: string } = {
         fileKey: parsed.fileKey,
@@ -318,6 +321,7 @@ export function useFigJamPlugin() {
     setSelectedItems,
     isSyncing,
     syncStatus,
+    figmaParseError,
     figmaInput,
     figmaNodeInfo,
     isDetectingLocal,

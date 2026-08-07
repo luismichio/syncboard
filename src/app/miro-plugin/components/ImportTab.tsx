@@ -26,6 +26,7 @@ figmaConnected?: boolean;
   // Figma
   figmaToken: string | null;
   figmaInput: string;
+  figmaParseError?: string | null;
   figmaNodeInfo: FigmaNodeInfo | null;
   isDetectingLocal: boolean;
   parseFigmaLink: (url: string) => Promise<void>;
@@ -70,6 +71,7 @@ figmaConnected,
   setPreserveSize,
   figmaToken,
   figmaInput,
+  figmaParseError,
   figmaNodeInfo,
   isDetectingLocal,
   parseFigmaLink,
@@ -149,6 +151,9 @@ figmaConnected,
                   }}
                   className="w-full text-xs p-2.5 bg-bg-card border border-border-card rounded text-text-page focus:outline-none focus:border-accent"
                 />
+                {figmaParseError && (
+                  <p className="text-[10px] font-mono text-red-600 dark:text-red-400 mt-1">{figmaParseError}</p>
+                )}
               </div>
 
               {figmaNodeInfo && (

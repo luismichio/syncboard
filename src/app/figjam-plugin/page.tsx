@@ -153,6 +153,7 @@ export default function FigJamPluginPage() {
             setPreserveSize={setPreserveSize}
             figmaToken={hook.figmaToken}
             figmaInput={hook.figmaInput}
+            figmaParseError={hook.figmaParseError}
             figmaNodeInfo={hook.figmaNodeInfo}
             isDetectingLocal={hook.isDetectingLocal}
             parseFigmaLink={hook.parseFigmaLink}
