@@ -271,7 +271,7 @@ figma.ui.onmessage = async (msg) => {
         action: 'selection-result',
         requestId: msg.requestId,
         data: null,
-        error: 'Selection lives in Figma, not FigJam — run this plugin in the Figma design file or paste a Figma frame link.',
+        error: 'No source selection yet — choose a frame in Figma Files, or paste a Figma frame link here (source-side relay comes with M3).',
       });
       return;
     }

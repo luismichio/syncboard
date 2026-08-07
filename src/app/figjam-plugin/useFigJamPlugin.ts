@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthTokens } from '@/app/miro-plugin/useAuthTokens';
+import { parseFigmaUrl } from '@/lib/sync/figmaUrlParser';
 import { SyncedImage } from '@/app/miro-plugin/useMiroSelection';
 import { getOrCreatePairingId } from '@/lib/sync/pairingId';
 import type { SyncStatus, SyncStatusType } from '@/app/miro-plugin/useMiroPlugin';
@@ -40,18 +41,6 @@ interface BridgeMsg {
 function postToPlugin(msg: Record<string, unknown>): void {
   if (typeof window === 'undefined') return;
   window.parent.postMessage(msg, '*');
-}
-
-function parseFigmaUrl(raw: string): { fileKey: string; nodeId: string } | null {
-  if (typeof raw !== 'string') return null;
-  const url = raw.trim();
-  const fileMatch = url.match(/\/(?:design|file|dev)\/([A-Za-z0-9_-]+)/);
-  const nodeMatch = url.match(/[?&]node-id=([^&=]+)/);
-  if (!fileMatch || !nodeMatch) return null;
-  const fileKey = fileMatch[1];
-  const nodeId = decodeURIComponent(nodeMatch[1]) || '';
-  if (!fileKey || !nodeId) return null;
-  return { fileKey, nodeId };
 }
 
 function trackedToSynced(items: FigjamTracked[]): SyncedImage[] {
