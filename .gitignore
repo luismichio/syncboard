@@ -63,3 +63,12 @@ CLAUDE.md
 # Planning docs
 /doc/backlog.md
 __commit_msg.txt
+
+# Local build/scratch artifacts
+build.log
+build.*.log
+verify.ps1
+.probe*.ps1
+.tmp_*.mjs
+.tmp_*.cjs
+.probe.ps1

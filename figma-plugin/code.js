@@ -16,6 +16,14 @@ let previewHost = '';
 // Announce which editor this plugin runs in so the UI can render the right mode.
 figma.ui.postMessage({ action: 'editor-type', editorType: EDITOR_TYPE });
 
+// FigJam target: snapshot the currently tracked rectangles so the hosted
+// mirror UI can render the sync list on open.
+if (IS_FIGJAM) {
+  try {
+    figma.ui.postMessage({ action: 'figjam-state', tracked: figjamTrackedSummary() });
+  } catch (e) {}
+}
+
 // Pre-load saved fileKey from storage in the background
 try {
   figma.clientStorage.getAsync('syncingboard_file_key').then((val) => {
@@ -56,6 +64,118 @@ function resolveFileKey() {
     // No plugin ID in manifest
   }
   return figma.fileKey || docFileKey || globalFileKey || 'unknown';
+}
+
+// ---- FigJam target mirror (editorType === 'figjam') -------------------------
+// The FigJam board is a destination. These helpers create a tracked Rectangle
+// with an IMAGE fill and update it in place (imageHash swap), deduplicated by
+// fileKey|nodeId. They mirror FigJamAdapter (src/app/figjam-plugin/).
+const SB_META_KEY = 'syncingboard';
+
+function figjamKey(fileKey, nodeId) {
+  return `${fileKey}|${nodeId}`;
+}
+
+function figjamAllTracked() {
+  try {
+    return figma.currentPage.findAll(function (n) {
+      try {
+        return typeof n.getPluginData === 'function' && !!n.getPluginData(SB_META_KEY);
+      } catch (e) {
+        return false;
+      }
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+function figjamFindByKey(fileKey, nodeId) {
+  return figjamAllTracked().find(function (n) {
+    try {
+      const meta = JSON.parse(n.getPluginData(SB_META_KEY) || '{}');
+      return meta.fileKey === fileKey && meta.nodeId === nodeId;
+    } catch (e) {
+      return false;
+    }
+  }) || null;
+}
+
+function figjamMeta(node) {
+  try {
+    return JSON.parse(node.getPluginData(SB_META_KEY) || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function figjamTrackedSummary() {
+  return figjamAllTracked().map(function (n) {
+    const meta = figjamMeta(n);
+    return {
+      id: n.id,
+      key: meta.key || figjamKey(meta.fileKey || '', meta.nodeId || ''),
+      fileKey: meta.fileKey || '',
+      nodeId: meta.nodeId || '',
+      name: meta.name || n.name || '',
+    };
+  });
+}
+
+// Place (create or in-place update) a rendered figure as an image Rectangle.
+async function figjamPlace(payload) {
+  if (!payload || typeof payload.dataUrl !== 'string') {
+    return { ok: false, error: 'missing dataUrl' };
+  }
+  const fileKey = String(payload.fileKey || '');
+  const nodeId = String(payload.nodeId || '');
+  if (!fileKey || !nodeId) {
+    return { ok: false, error: 'missing fileKey/nodeId' };
+  }
+  const title = `${payload.name || nodeId} [FigmaSync|${fileKey}|${nodeId}]`;
+  const existing = figjamFindByKey(fileKey, nodeId);
+
+  let image;
+  try {
+    image = await figma.createImageAsync(payload.dataUrl);
+  } catch (err) {
+    return { ok: false, error: 'createImageAsync failed (data-URI unsupported?)' };
+  }
+
+  if (existing) {
+    // In-place update: swap the IMAGE fill hash, keep geometry + identity.
+    existing.fills = [{ type: 'IMAGE', imageHash: image.hash }];
+    try {
+      existing.setPluginData(SB_META_KEY, JSON.stringify({
+        fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
+        imageHash: image.hash, name: payload.name || figjamMeta(existing).name || '',
+        format: payload.format || 'png', scale: payload.scale || 1,
+      }));
+    } catch (e) {}
+    figma.currentPage.selection = [existing];
+    return { ok: true, nodeId: existing.id, key: figjamKey(fileKey, nodeId), created: false };
+  }
+
+  const rect = figma.createRectangle();
+  rect.name = title;
+  const W = Number.isFinite(payload.width) ? payload.width : 240;
+  const H = Number.isFinite(payload.height) ? payload.height : 160;
+  rect.resize(W, H);
+  if (figma.viewport && Number.isFinite(figma.viewport.center.x) && Number.isFinite(figma.viewport.center.y)) {
+    rect.x = Math.round(figma.viewport.center.x - W / 2);
+    rect.y = Math.round(figma.viewport.center.y - H / 2);
+  }
+  rect.fills = [{ type: 'IMAGE', imageHash: image.hash }];
+  try {
+    rect.setPluginData(SB_META_KEY, JSON.stringify({
+      fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
+      imageHash: image.hash,
+      name: payload.name || '', format: payload.format || 'png', scale: payload.scale || 1,
+    }));
+  } catch (e) {}
+  figma.currentPage.appendChild(rect);
+  figma.currentPage.selection = [rect];
+  return { ok: true, nodeId: rect.id, key: figjamKey(fileKey, nodeId), created: true };
 }
 
 // Push the current file key to the UI so it can load the companion iframe
@@ -124,6 +244,22 @@ figma.ui.onmessage = async (msg) => {
     globalFileKey = msg.fileKey;
     // Reload the iframe with the newly linked file key
     pushFileKey();
+    return;
+  }
+
+  if (msg.action === 'figjam-place') {
+    // Destination: place (create or in-place update) a rendered figure.
+    const result = await figjamPlace(msg.payload);
+    figma.ui.postMessage({
+      action: 'figjam-place-result',
+      requestId: msg.requestId,
+      ...result,
+    });
+    return;
+  }
+
+  if (msg.action === 'figjam-list') {
+    figma.ui.postMessage({ action: 'figjam-state', tracked: figjamTrackedSummary() });
     return;
   }
 

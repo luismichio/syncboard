@@ -169,10 +169,9 @@ let currentEditorType = 'figma';
 function applyEditorMode(editorType) {
   currentEditorType = (typeof editorType === 'string' && editorType) ? editorType : 'figma';
   const isFigjam = currentEditorType !== 'figma';
-  document.getElementById('figjam-notice').hidden = !isFigjam;
-  iframe.style.display = isFigjam ? 'none' : '';
+  // The preview-host footer is a design-companion feature; hide it in FigJam.
   document.querySelector('.host-footer').style.display = isFigjam ? 'none' : '';
-  if (!isFigjam) loadIframe();
+  loadIframe();
 }
 
 // Load the hosted companion into the iframe. The production host is fixed
@@ -195,7 +194,8 @@ function loadIframe() {
   const secretKey = urlParams.get('key');
   const candidateHost = previewHost || DEFAULT_HOST;
   const safeHost = isValidHostOrigin(candidateHost) ? candidateHost : DEFAULT_HOST;
-  let targetUrl = `${safeHost}/figma-companion-ui.html?fileKey=${encodeURIComponent(currentFileKey)}`;
+  const route = currentEditorType === 'figma' ? 'figma-companion-ui.html' : 'figjam-companion-ui.html';
+  let targetUrl = `${safeHost}/${route}?fileKey=${encodeURIComponent(currentFileKey)}`;
   if (secretKey) {
     targetUrl += `&key=${encodeURIComponent(secretKey)}`;
   }
@@ -204,7 +204,7 @@ function loadIframe() {
     if (!isValidHostOrigin(validated.origin)) throw new Error('Invalid origin');
     iframe.src = validated.href;
   } catch {
-    iframe.src = DEFAULT_HOST + '/figma-companion-ui.html';
+    iframe.src = `${DEFAULT_HOST}/${route}`;
   }
 }
 
@@ -238,7 +238,7 @@ window.onmessage = (event) => {
   }
   if (msg.action === 'file-key') {
     currentFileKey = msg.fileKey || currentFileKey || 'unknown';
-    if (currentEditorType === 'figma') loadIframe();
+    loadIframe();
     return;
   }
   if (msg.action === 'host-config') {
@@ -246,8 +246,8 @@ window.onmessage = (event) => {
     const input = document.getElementById('host-input');
     // Pre-fill with the effective host so Apply/Use default is always meaningful.
     if (input) input.value = previewHost || DEFAULT_HOST;
-    // Reload for Apply / Use default feedback (never in FigJam mode).
-    if (currentEditorType === 'figma') loadIframe();
+    // Reload for Apply / Use default feedback.
+    loadIframe();
     return;
   }
   // Forward everything else (selection results, etc.) to the hosted companion

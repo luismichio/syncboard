@@ -239,3 +239,10 @@ Accepted: build a **target-agnostic core + thin `TargetAdapter` seam + shared UI
 - `protokoba.com` = personal dev domain only (not public/community)
 - Community bridge still desired — revisit LATER; Phase 0/1 proceed cloud-tier-only (Ably + Upstash; >4.5 MB chunked via relayRedis, no bridge dependency for v1 free tier)
 - Dev bridge testing may use local protokoba tunnel domain
+
+## FigJam Mirror UI (v1) - Milestones (2026-08-07)
+M1 (this slice): Plugin figjam-mode command bridge in `figma-plugin/code.js` (place/update/adopt image via `createImageAsync`+IMAGE fill + `setPluginData` tracking, in-page dedup by nodeKey) + `ui.html` FigJam mode loads a hosted mirror page + new `public/figjam-companion-ui.html` (pairing display, status, selection, import-a-Figma-link -> render-batch -> place on FigJam board). Mirrors Miro import.
+  Runtime check: in a real FigJam file, import a Figma frame/link -> Rectangle with IMAGE fill appears; re-import -> same node swaps imageHash (no new node); selection lists it.
+M2: Destination relay pull - subscribe to the `figma:<pairing>` channel, apply each pushed frame (reuse companionRelayClient + relay routes; the Figma companion already publishes there for Miro).
+M3: FigJam-side polish - status pill (Syncing/Completed/429), deselect/skip, group settings.
+Cloud-tier v1 scope: Figma->FigJam image snapshot, in-place, no dupes (plan_2026_08_03_figjam.md).

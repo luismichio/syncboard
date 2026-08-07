@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SyncingBoard · FigJam Mirror</title>
+<style>
+  :root{
+    --bg:#0b0c0d; --surface:#121417; --border:#232833; --text:#f3f4f6;
+    --muted:#9ca3af; --accent:#01C8F1; --ok:#10b981; --warn:#f59e0b; --err:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .app{padding:14px;display:flex;flex-direction:column;gap:12px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .logo{display:flex;align-items:center;gap:8px;font-weight:700}
+  .logo .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  .logo small{color:var(--muted);font-weight:500}
+  .card{background:var(--surface);border:1px solid #1f232a;border-radius:10px;padding:12px}
+  label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+  input[type=password],input[type=text],select{
+    width:100%;background:#0d0f11;border:1px solid #232833;color:var(--text);
+    border-radius:6px;padding:6px 8px;font-size:12px
+  }
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:6px;align-items:center}
+  button{cursor:pointer;border-radius:6px;padding:6px 10px;font-size:12px;border:1px solid #232833;background:#1a1d22;color:var(--text)}
+  button:hover{opacity:.9}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#062026;font-weight:600}
+  button:disabled{opacity:.5;cursor:default}
+  .status-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;border:1px solid #232833;color:var(--muted)}
+  .status-pill .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .status-pill.connected{color:var(--accent-soft,#7bd8ff);border-color:rgba(0,200,241,.35)}
+  .status-pill.connected .dot{background:var(--accent)}
+  .status-pill.syncing{color:var(--warn)}
+  .status-pill.syncing .dot{background:var(--warn)}
+  .status-pill.error{color:var(--err)}
+  .status-pill.error .dot{background:var(--err)}
+  .status-pill.cooldown{color:var(--warn)}
+  .row{margin-top:4px}
+  .hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.45}
+  ul{list-style:none;margin:0;padding:0}
+  li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #1a1e24;font-size:12px}
+  li:first-child{border-top:none}
+  li .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chip{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--muted)}
+  .empty{color:var(--muted);font-size:12px;text-align:center;padding:8px 0}
+  .check{color:var(--accent-soft,#7bd8ff)}
+  body.figma-light{--bg:#f9fafb;--surface:#ffffff;--text:#111827;--muted:#6b7280;border-color:#e5e7eb}
+  body.figma-light .card{border-color:#e5e7eb}
+  body.figma-light input,body.figma-light select{background:#fff;border-color:#e5e7eb;color:#111827}
+  body.figma-light button{border-color:#e5e7eb;background:#fff;color:#111827}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo"><span class="dot"></span>FigJam Mirror<small>SyncingBoard</small></div>
+    <span id="status" class="status-pill"><span class="dot"></span>Idle</span>
+  </header>
+
+  <div class="card">
+    <label for="pairing-id">Pairing ID (bind to the Figma companion)</label>
+    <div class="row">
+      <input type="text" id="pairing-id" placeholder="sb_xxxxx" spellcheck="false" />
+      <button id="copy-btn" type="button">Copy</button>
+    </div>
+    <div class="hint">Share this key with the Figma companion that owns the design file. The companion publishes renders to this pairing channel and this FigJam mirror applies them on the board (in-place, no duplicates).</div>
+  </div>
+
+  <div class="card">
+    <div class="hint" style="margin-top:0">On the board, select a Figma-mirrored Rectangle to make it the active sync target, or detect it below.</div>
+    <button id="detect-btn" class="primary" type="button">Detect selection</button>
+    <div id="selection" class="hint" style="margin-top:6px">No selection yet.</div>
+  </div>
+
+  <div class="card">
+    <label for="node-id">Source node (fileKey|nodeId · renders into this board)</label>
+    <div class="row">
+      <input type="text" id="node-id" placeholder="demo|0:1" spellcheck="false" />
+      <button id="sync-btn" class="primary" type="button">Sync</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <input type="text" id="node-name" placeholder="display name" style="flex:1" />
+      <input type="number" id="scale" value="1" min="1" max="4" style="width:64px" title="scale" />
+    </div>
+    <div class="hint">Sync places / in-place updates the tracked Rectangle for that figure. When the companion pushes a render for the same node id, the mirror re-uses the node and swaps its image (no duplicates).</div>
+  </div>
+
+  <div class="card">
+    <div class="hint" style="margin-top:0;font-weight:600">On this board</div>
+    <ul id="tracked"><li class="empty">Nothing synced yet.</li></ul>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var PLACEHOLDER_W = 96, PLACEHOLDER_H = 72;
+  var PLACEHOLDER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABICAIAAACGBWc0AAAAhElEQVR4nO3QQQ0AIBDAsMO/MezgAAd82aPJBCydtY8ezfeDeIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQp3AUCVoLM9DZ9QAAAAAElFTkSuQmCC';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var statusEl = $('status');
+
+  function setStatus(label, tone) {
+    statusEl.className = 'status-pill' + (tone ? ' ' + tone : '');
+    statusEl.innerHTML = '<span class="dot"></span>' + label;
+  }
+
+  // Read a pairing id shared with the Figma companion; create one otherwise.
+  var pairingId = '';
+  function getPairing() {
+    var saved = null;
+    try { saved = localStorage.getItem('syncingboard_pairing_id'); } catch (e) {}
+    if (saved && /^sb_[\w-]+$/.test(saved)) pairingId = saved;
+    if (!pairingId) {
+      pairingId = 'sb_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+      try { localStorage.setItem('syncingboard_pairing_id', pairingId); } catch (e) {}
+    }
+    $('pairing-id').value = pairingId;
+  }
+
+  function send(msg) { window.parent.postMessage(msg, '*'); }
+
+  // ---- Commands to the plugin (figma.ui.onmessage) ----
+  function askSelection() {
+    send({ action: 'get-selection', requestId: 'fj-sel-' + Date.now() });
+    setStatus('Detecting…', 'syncing');
+  }
+  function askList() { send({ action: 'figjam-list' }); }
+
+  function placeFrame() {
+    var nodeIdRaw = $('node-id').value.trim();
+    if (!nodeIdRaw) { setStatus('Node id required', 'error'); return; }
+    var sep = nodeIdRaw.indexOf('|') >= 0 ? '|' : '/';
+    var parts = nodeIdRaw.split(sep);
+    var fileKey = parts[0] || 'demo';
+    var nodeId = parts[1] || parts[0] || '1x';
+    var scale = Math.min(4, Math.max(1, Number($('scale').value) || 1));
+    var name = $('node-name').value.trim() || nodeId;
+    setStatus('Syncing…', 'syncing');
+    send({
+      action: 'figjam-place',
+      requestId: 'fj-p-' + Date.now(),
+      payload: {
+        fileKey: fileKey, nodeId: nodeId, name: name,
+        format: 'png', scale: scale,
+        width: PLACEHOLDER_W, height: PLACEHOLDER_H,
+        dataUrl: PLACEHOLDER,
+      },
+    });
+  }
+
+  function renderList(items) {
+    var ul = $('tracked');
+    ul.innerHTML = '';
+    if (!Array.isArray(items) || items.length === 0) {
+      var empty = document.createElement('li');
+      empty.className = 'empty';
+      empty.textContent = 'Nothing synced yet.';
+      ul.appendChild(empty);
+      return;
+    }
+    items.forEach(function (it) {
+      var li = document.createElement('li');
+      var name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = it.name || it.nodeId || it.id;
+      var key = document.createElement('span');
+      key.className = 'chip';
+      key.textContent = it.key || '';
+      li.appendChild(name);
+      li.appendChild(key);
+      ul.appendChild(li);
+    });
+  }
+
+  // ---- Messages from the plugin ----
+  window.onmessage = function (event) {
+    var msg = event.data;
+    if (!msg || typeof msg !== 'object') return;
+
+    if (msg.type === 'theme-change') {
+      document.body.classList.toggle('figma-light', msg.theme === 'light');
+      return;
+    }
+    if (msg.action === 'selection-result') {
+      if (msg.error) { $('selection').textContent = 'Selection error: ' + msg.error; setStatus('Error', 'error'); return; }
+      var sel = msg.data || null;
+      $('selection').textContent = sel
+        ? 'Detected: ' + sel.name + '  (' + sel.id + ')'
+        : 'No selection on the board.';
+      if (sel) {
+        // Pre-fill the sync target from the selected tracked node meta (if any).
+        var id = String(sel.id || '');
+        if (id.indexOf(':') >= 0) $('node-id').value = id;
+        if (sel.name) $('node-name').value = sel.name;
+        setStatus('Connected', 'connected');
+      }
+      return;
+    }
+    if (msg.action === 'figjam-state') {
+      renderList(msg.tracked || []);
+      return;
+    }
+    if (msg.action === 'figjam-place-result') {
+      if (msg.ok) {
+        var label = msg.created ? 'Synced (' + msg.key + ')' : 'Updated in place (' + msg.key + ')';
+        setStatus(label, 'connected');
+        askList();
+      } else {
+        setStatus(msg.error || 'Sync failed', 'error');
+      }
+      return;
+    }
+  };
+
+  // ---- Wire UI ----
+  var booted = false;
+  function boot() {
+    if (booted) return;
+    booted = true;
+    init();
+  }
+  document.addEventListener('DOMContentLoaded', boot);
+  if (document.readyState !== 'loading') boot();
+  function init() {
+    getPairing();
+    $('detect-btn').addEventListener('click', askSelection);
+    $('sync-btn').addEventListener('click', placeFrame);
+    $('copy-btn').addEventListener('click', function () {
+      var t = document.createElement('textarea');
+      t.value = pairingId;
+      document.body.appendChild(t);
+      t.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(t);
+    });
+    askList();
+    setStatus('Ready', 'connected');
+  }
+
+  // Signal readiness so the plugin shell can start forwarding.
+  send({ action: 'ui-ready' });
+})();
+</script>
+</body>
+</html>
