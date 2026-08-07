@@ -13,7 +13,6 @@ import { SyncTab } from './components/SyncTab';
 import { ImportTab } from './components/ImportTab';
 import { SettingsTab } from './components/SettingsTab';
 import { VersionStamp } from '@/components/VersionStamp';
-import { MiroSdkBootstrap } from './MiroSdkBootstrap';
 import { GroupedSyncedImage, ImportPlatform, MiroPluginTab } from './types';
 
 const MAX_SCALE = PLAN === 'community' ? 2 : 4;
@@ -326,7 +325,7 @@ export default function MiroPluginPage() {
 
   return (
     <div className="flex flex-col min-h-screen p-5 bg-bg-page text-text-page font-sans selection:bg-accent selection:text-bg-page transition-colors duration-200">
-      <MiroSdkBootstrap />
+
       <AppHeader
         tokensLoading={tokensLoading}
         figmaToken={figmaToken}
