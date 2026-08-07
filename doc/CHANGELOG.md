@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - FigJam panel hides the Miro connection dot (AppHeader `hideMiro`) and the “Miro REST Status” row (SettingsTab `hideMiro`); Penpot source-sync is kept as-is.
 - FigJam mode now shows the same “Preview host (optional)” footer as Figma mode (self-host/testing override), instead of hiding it.
 - Preview-host allow-list extended with `*.protokoba.com` / `protokoba.com` (matches the manifest `devAllowedDomains`), so a dev host no longer falls back to production and 404s the FigJam route.
+- Version bumped to `0.16.1`; local `yarn dev` shows a build id (`v0.16.1.local-<git-sha>`) that is never rendered in production bundles (`inject-version.mjs` writes `BUILD`, `version.ts` suppresses it when compiled with `NODE_ENV=production`).
 
 - Archived the previous run of `figjam-plugin/ui.html` FigJam stub (replaced by the hosted mirror route).
 - `.gitignore` now excludes local build logs + scratch scripts.

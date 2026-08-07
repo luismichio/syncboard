@@ -16,7 +16,7 @@ function loadVersion(): VersionInfo {
   // Prefer the generated file (written by inject-version.mjs during dev/build)
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-    const generated = require('./version.generated') as { VERSION: string; PLAN: string };
+    const generated = require('./version.generated') as { VERSION: string; PLAN: string; BUILD?: string };
     return { version: generated.VERSION, plan: generated.PLAN };
   } catch {
     // Fallback for first checkout before running inject-version
@@ -26,8 +26,20 @@ function loadVersion(): VersionInfo {
   }
 }
 
+function loadBuild(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+    const generated = require('./version.generated') as { BUILD?: string };
+    return generated.BUILD || '';
+  } catch {
+    return '';
+  }
+}
+
 const { version, plan } = loadVersion();
+const build = process.env.NODE_ENV === 'production' ? '' : loadBuild();
 
 export const VERSION: string = version;
 export const PLAN: string = plan;
-export const DISPLAY: string = `v${VERSION} ${PLAN.charAt(0).toUpperCase()}${PLAN.slice(1)}`;
+export const BUILD: string = build;
+export const DISPLAY: string = `v${VERSION}${build ? `.${build}` : ''} ${plan.charAt(0).toUpperCase()}${plan.slice(1)}`;

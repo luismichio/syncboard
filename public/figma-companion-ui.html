@@ -189,7 +189,7 @@
     <header>
       <div class="subtitle">SyncingBoard Companion</div>
       <h2>Figma Companion Relay</h2>
-      <div class="version-badge">v0.16.0 Community</div>
+      <div class="version-badge">v0.16.1 Community</div>
     </header>
 
     <div class="card">
@@ -258,7 +258,7 @@
     let reconnectTimeout = null;
 let currentPairingId = '';
 
-    // v0.16.0 Community: stable tab id (Design B). Seeded on window so the transfer
+    // v0.16.1 Community: stable tab id (Design B). Seeded on window so the transfer
     // handler and the token request always use the SAME id for this tab.
     const companionTabId = window.companionTabId || (window.companionTabId = (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'tab_' + Math.random().toString(36).substring(2, 10)));
     let evictedReconnectAttempts = 0;
