@@ -28,5 +28,9 @@ export function VersionStamp({ as = 'span', className }: { as?: 'span' | 'p' | '
   const display = useSyncExternalStore(emptySubscribe, getSnapshot, getServerSnapshot);
   if (!display) return null;
   const Tag = as;
-  return <Tag className={className}>{display}</Tag>;
+  // Default style = the design-system footer stamp; callers may override
+  // with a className (e.g. the /docs badge).
+  const styleClass =
+    className ?? 'text-center text-[9px] font-mono text-text-muted/50';
+  return <Tag className={styleClass}>{display}</Tag>;
 }

@@ -124,24 +124,29 @@ function figjamTrackedSummary() {
 
 // Place (create or in-place update) a rendered figure as an image Rectangle.
 async function figjamPlace(payload) {
-  if (!payload || typeof payload.dataUrl !== 'string') {
-    return { ok: false, error: 'missing dataUrl' };
-  }
-  const fileKey = String(payload.fileKey || '');
-  const nodeId = String(payload.nodeId || '');
-  if (!fileKey || !nodeId) {
-    return { ok: false, error: 'missing fileKey/nodeId' };
-  }
-  const title = `${payload.name || nodeId} [FigmaSync|${fileKey}|${nodeId}]`;
-  const existing = figjamFindByKey(fileKey, nodeId);
-
-  let image;
+  // Whole-body try/catch: FigJam runs this inside the editor and any
+  // synchronous throw (node lookup, createRectangle, appendChild...) would
+  // otherwise silence the result entirely and leave the mirror waiting on
+  // its watchdog. Always answer with a result.
   try {
-    image = await figma.createImageAsync(payload.dataUrl);
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: `createImageAsync failed (${detail})` };
-  }
+    if (!payload || typeof payload.dataUrl !== 'string') {
+      return { ok: false, error: 'missing dataUrl' };
+    }
+    const fileKey = String(payload.fileKey || '');
+    const nodeId = String(payload.nodeId || '');
+    if (!fileKey || !nodeId) {
+      return { ok: false, error: 'missing fileKey/nodeId' };
+    }
+    const title = `${payload.name || nodeId} [FigmaSync|${fileKey}|${nodeId}]`;
+    const existing = figjamFindByKey(fileKey, nodeId);
+
+    let image;
+    try {
+      image = await figma.createImageAsync(payload.dataUrl);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return { ok: false, error: `createImageAsync failed (${detail})` };
+    }
 
   if (existing) {
     // In-place update: swap the IMAGE fill hash, keep geometry + identity.
@@ -177,6 +182,10 @@ async function figjamPlace(payload) {
   figma.currentPage.appendChild(rect);
   figma.currentPage.selection = [rect];
   return { ok: true, nodeId: rect.id, key: figjamKey(fileKey, nodeId), created: true };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `figjam-place failed (${detail})` };
+  }
 }
 
 // Push the current file key to the UI so it can load the companion iframe
