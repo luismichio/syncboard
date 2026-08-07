@@ -7,7 +7,7 @@ import { DocSectionHeader } from '@/components/docs/DocSectionHeader';
 import { DocSearchInput } from '@/components/docs/DocSearchInput';
 import CookieSettingsButton from '@/components/CookieSettingsButton';
 import ThemeToggle from '@/components/ThemeToggle';
-import { DISPLAY } from '@/lib/version';
+import { VersionStamp } from '@/components/VersionStamp';
 
 import QuickStartSection from '@/components/docs/QuickStartSection';
 
@@ -160,9 +160,10 @@ export function DocsIndexClient({ docs }: DocsIndexClientProps) {
             >
               VIEW ON GITHUB
             </a>
-            <span className="hidden md:inline-flex text-xs font-mono text-text-muted px-3 py-2 rounded-lg border border-border-card">
-              {DISPLAY}
-            </span>
+            <VersionStamp
+              as="span"
+              className="hidden md:inline-flex text-xs font-mono text-text-muted px-3 py-2 rounded-lg border border-border-card"
+            />
           </div>
         </div>
       </header>

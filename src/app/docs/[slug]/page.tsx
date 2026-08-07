@@ -9,7 +9,7 @@ import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import remarkGfm from "remark-gfm";
 import { visit } from "unist-util-visit";
 import { getAllDocs, getDocBySlug, extractHeadings, getWordCount } from "@/lib/docs";
-import { DISPLAY } from "@/lib/version";
+import { VersionStamp } from "@/components/VersionStamp";
 import TOC from "@/components/docs/TOC";
 import MermaidHydrator from "@/components/docs/MermaidHydrator";
 import CodeCopyHydrator from "@/components/docs/CodeCopyHydrator";
@@ -255,9 +255,10 @@ export default async function DocPage(props: { params: Promise<{ slug: string }>
             >
               VIEW ON GITHUB
             </a>
-            <span className="hidden md:inline-flex text-xs font-mono text-text-muted px-3 py-2 rounded-lg border border-border-card shrink-0">
-              {DISPLAY}
-            </span>
+            <VersionStamp
+              as="span"
+              className="hidden md:inline-flex text-xs font-mono text-text-muted px-3 py-2 rounded-lg border border-border-card shrink-0"
+            />
           </div>
         </div>
       </header>

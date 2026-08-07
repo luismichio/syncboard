@@ -1,4 +1,4 @@
-import { DISPLAY } from "@/lib/version";
+import { VersionStamp } from "@/components/VersionStamp";
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,7 +14,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           borderTop: "1px solid var(--border-card)",
         }}
       >
-        SyncingBoard {DISPLAY}
+        SyncingBoard <VersionStamp />
       </footer>
     </>
   );

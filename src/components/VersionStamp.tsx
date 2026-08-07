@@ -24,8 +24,9 @@ function getServerSnapshot(): string {
  * even when a long-running dev server still holds a stale module — preventing
  * React hydration mismatches in the plugin footers.
  */
-export function VersionStamp() {
+export function VersionStamp({ as = 'span', className }: { as?: 'span' | 'p' | 'div'; className?: string }) {
   const display = useSyncExternalStore(emptySubscribe, getSnapshot, getServerSnapshot);
   if (!display) return null;
-  return <p className="text-center text-[9px] font-mono text-text-muted/50">{display}</p>;
+  const Tag = as;
+  return <Tag className={className}>{display}</Tag>;
 }
