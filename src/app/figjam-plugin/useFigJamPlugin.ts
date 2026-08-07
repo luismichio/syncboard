@@ -73,6 +73,7 @@ export function useFigJamPlugin() {
   const [editorType, setEditorType] = useState('figma');
 
   const tokenRef = useRef<string | null>(figmaToken);
+  const placeWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     tokenRef.current = figmaToken;
   }, [figmaToken]);
@@ -101,6 +102,10 @@ export function useFigJamPlugin() {
           break;
         }
         case 'figjam-place-result': {
+          if (placeWatchdogRef.current) {
+            clearTimeout(placeWatchdogRef.current);
+            placeWatchdogRef.current = null;
+          }
           setIsSyncing(false);
           if (msg.ok) {
             setSyncStatus({
@@ -158,6 +163,17 @@ export function useFigJamPlugin() {
   const placeOnBoard = useCallback(
     (payload: { fileKey: string; nodeId: string; name: string; scale: number; dataUrl: string }) => {
       setIsSyncing(true);
+      // Watchdog: if the plugin never confirms (figjam-place-result), don't
+      // leave the UI stuck in "Rendering…" forever — surface it instead.
+      if (placeWatchdogRef.current) clearTimeout(placeWatchdogRef.current);
+      placeWatchdogRef.current = setTimeout(() => {
+        placeWatchdogRef.current = null;
+        setIsSyncing(false);
+        setSyncStatus({
+          message: 'Placement sent but the plugin did not confirm (re-import the plugin; check the plugin console).',
+          type: 'error',
+        });
+      }, 25000);
       postToPlugin({
         action: 'figjam-place',
         requestId: 'fjs-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),

@@ -139,7 +139,8 @@ async function figjamPlace(payload) {
   try {
     image = await figma.createImageAsync(payload.dataUrl);
   } catch (err) {
-    return { ok: false, error: 'createImageAsync failed (data-URI unsupported?)' };
+    const detail = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `createImageAsync failed (${detail})` };
   }
 
   if (existing) {

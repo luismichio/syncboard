@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - FigJam “Detect selection” no longer reads FigJam nodes (it is the destination): it explains the selection lives in Figma (run the plugin there / paste a link).
 - Import paste feedback: a missing `?node-id=` (or invalid link) now shows an inline error under the input instead of failing silently.
 - FigJam link import: uses the shared `parseFigmaUrl` (converts `node-id=754-64083` → `754:64083`, the format Figma's REST API requires). Fixes the wrong fallback name (“Pasted Screen”) and “Figma render returned no image for the node” when placing.
+- FigJam placement: 25s watchdog prevents the UI from staying stuck in “Rendering…” when the plugin never confirms; `createImageAsync` failures now report the real error instead of a generic hint.
 
 - Archived the previous run of `figjam-plugin/ui.html` FigJam stub (replaced by the hosted mirror route).
 - `.gitignore` now excludes local build logs + scratch scripts.
