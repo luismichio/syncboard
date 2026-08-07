@@ -61,12 +61,11 @@ Only needed if you sync from **Figma**. Penpot-only users can skip to the Penpot
 ### Install Figma Companion Plugin (Optional — for Selection Auto-Detect)
 
 To enable automatic canvas selection detection in the Miro sidebar without installing the SyncBridge desktop app, you can load the Figma Companion Plugin in your workspace:
-
 #### For Community Version
-1. Go to the Figma Community and search for **"SyncingBoard Companion"**.
+1. Open the official **[SyncingBoard Companion Plugin on Figma Community](https://www.figma.com/community/plugin/1660413000378332441/syncingboard-companion)**.
 2. Click **Save** or **Run** to add it to your Figma account (works in both Figma Browser and Desktop).
 3. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion input, and click **Connect**.
-4. **File Pairing (First Time Only):** If prompted with *"Pair Figma Design File — This Figma file is not linked to Miro yet"*, paste the URL of your current Figma design file into the input and click **Link**. This permanently links the document metadata (`figma.root`) so you will never be asked again for that file.
+4. **File Pairing (First Time Only):** If prompted with *"Pair Figma Design File - This Figma file is not linked to Miro yet"*, paste the URL of your current Figma design file into the input and click **Link**. This permanently links the document metadata (`figma.root`) so you will never be asked again for that file.
 
 #### For Self-Hosted Version
 > [!NOTE]
@@ -79,7 +78,7 @@ To enable automatic canvas selection detection in the Miro sidebar without insta
 5. Once imported, run the plugin: **Plugins > Development > SyncingBoard Companion**.
 6. **Set the Host Domain (Self-Hosters):** The plugin loads the companion from the fixed production host (`https://www.syncingboard.com`) with no configuration required. If you self-host SyncingBoard, open `figma-plugin/ui.html` and change the `DEFAULT_HOST` constant to your deployed domain, then make sure that domain is also listed in `figma-plugin/manifest.json` under `networkAccess.allowedDomains` before importing the plugin.
 7. Copy the **Pairing ID** from your Miro sidebar, paste it into the companion, and click **Connect**.
-8. **File Pairing (First Time Only):** If prompted with *"Pair Figma Design File — This Figma file is not linked to Miro yet"*, paste the URL of your current Figma design file into the input and click **Link**. This permanently links the document metadata (`figma.root`) so you will never be asked again for that file.
+8. **File Pairing (First Time Only):** If prompted with *"Pair Figma Design File - This Figma file is not linked to Miro yet"*, paste the URL of your current Figma design file into the input and click **Link**. This permanently links the document metadata (`figma.root`) so you will never be asked again for that file.
 
 ---
 
@@ -90,32 +89,36 @@ To enable automatic canvas selection detection in the Miro sidebar without insta
 To use SyncingBoard with **Penpot**, install the Companion Plugin in your Penpot workspace:
 
 #### For Community Version
-1. In Penpot, open any design file.
-2. In the right-hand panel, click the **Plugins** tab (puzzle icon).
-3. Search for **"SyncingBoard Companion"** inside the Penpot Templates & Libraries, or click the `+` button and paste the official Community manifest URL:
-   ```
-   https://www.syncingboard.com/penpot-manifest.json
-   ```
-4. Click **Install**, open the companion sidebar, copy the **Pairing ID** from your Miro sidebar, and click **Connect**.
+1. Open the official **[SyncingBoard Companion Plugin on Penpot Hub](https://penpot.app/penpothub/plugins/sunc-board-comparison)** and click **Install**.
+2. Alternatively, inside Penpot:
+   * Open the **Plugin Manager** from the main menu/toolbar (or press `Ctrl + Alt + P` / `⌘ + Alt + P`).
+   * Paste the official Community manifest URL into the manifest URL field:
+     ```
+     https://www.syncingboard.com/penpot-manifest.json
+     ```
+   * Click **Install**.
+3. Run the plugin in Penpot, enter the **Pairing ID** obtained from your Miro sidebar, and click **Connect**.
 
 #### For Self-Hosted Version
-1. In Penpot, open any design file.
-2. In the right-hand panel, click the **Plugins** tab (puzzle icon).
-3. Click the `+` button and paste your own custom hosted manifest URL:
+1. Open Penpot's **Plugin Manager** from the main menu/toolbar (or press `Ctrl + Alt + P` / `⌘ + Alt + P`).
+2. Paste your custom hosted manifest URL into the manifest URL field:
    ```
-   https://www.syncingboard.com/penpot-manifest.json
+   https://your-domain.com/penpot-manifest.json
    ```
-4. Click **Install**, open the companion sidebar, copy the **Pairing ID** from your Miro sidebar, and click **Connect**.
+3. Click **Install**.
+4. Run the plugin in Penpot, enter the **Pairing ID** obtained from your Miro sidebar, and click **Connect**.
 
 > **Note:** The Penpot Companion communicates over the cloud relay (public HTTPS). No local server or desktop app is required. Rendering happens locally in your browser tab; transport goes through SyncingBoard's relay.
 
 #### Local Development Installation
 
-1. Follow the steps above to add a new plugin.
-2. For the Manifest URL, use your local address:
+1. Open Penpot's **Plugin Manager** (`Ctrl + Alt + P` / `⌘ + Alt + P`).
+2. Enter your local development manifest URL:
    ```
-   http://localhost:3000/penpot-manifest.json
+   https://dev-test.protokoba.com/penpot-manifest.json
    ```
+   *(or `http://localhost:3000/penpot-manifest.json` if Penpot is configured to reach localhost)*.
+3. Click **Install**.
 
 #### Troubleshooting: Companion Plugin Not Connecting
 

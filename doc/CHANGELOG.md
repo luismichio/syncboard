@@ -12,10 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.15.3] - 2026-08-05
 
 ### Fixed
-- **Local Dev Tunnel Domains (`next.config.ts` & `figma-plugin/manifest.json`)**:
+- **Local Dev Tunnel Domains & Companion Transfer Banner**:
   - Added wildcard tunnel domains (`*.protokoba.com`, `*.trycloudflare.com`) to `allowedDevOrigins` in `next.config.ts` so Next.js 16 allows requests from custom development tunnels.
   - Added `https://*.protokoba.com` and `https://protokoba.com` to `devAllowedDomains` in `figma-plugin/manifest.json` so Figma plugin's CSP permits embedding custom tunnel hosts in the companion iframe.
   - Added `yarn local` script (`scripts/start-local-tunnel.mjs`) to automate launching `yarn dev` and `cloudflared tunnel run syncingboard-dev` in a single command.
+  - **Companion Transfer Banner Auto-Dismiss**: Fixed `figma-companion-ui.html` and `penpot-companion-ui.html` so the amber `"Companion Active in Another Tab"` banner (`transfer-card`) automatically hides when a standby companion tab successfully connects after the primary tab closes.
 
 ### Fixed
 - **Dependabot Security Upgrades (Next.js, PostCSS, Tar & Cargo)**:
