@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useFigJamPlugin } from './useFigJamPlugin';
 import { SyncedImage } from '@/app/miro-plugin/useMiroSelection';
 import { getOrCreatePairingId, rotatePairingId } from '@/lib/sync/pairingId';
-import { DISPLAY, PLAN } from '@/lib/version';
+import { PLAN } from '@/lib/version';
 import { AppHeader } from '@/app/miro-plugin/components/AppHeader';
 import { TabNav } from '@/app/miro-plugin/components/TabNav';
 import { BoardStatusFooter } from '@/app/miro-plugin/components/BoardStatusFooter';
 import { SyncTab } from '@/app/miro-plugin/components/SyncTab';
 import { ImportTab } from '@/app/miro-plugin/components/ImportTab';
 import { SettingsTab } from '@/app/miro-plugin/components/SettingsTab';
+import { VersionStamp } from '@/components/VersionStamp';
 import {
   GroupedSyncedImage,
   ImportPlatform,
@@ -191,7 +192,7 @@ export default function FigJamPluginPage() {
         )}
       </section>
       <footer className="mt-4 pt-3 border-t border-border-card">
-        <p className="text-center text-[9px] font-mono text-text-muted/50">{DISPLAY}</p>
+        <VersionStamp />
       </footer>
       <BoardStatusFooter status={hook.syncStatus} />
     </div>

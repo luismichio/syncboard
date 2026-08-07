@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMiroPlugin } from './useMiroPlugin';
 import { SyncedImage } from './useMiroSelection';
-import { DISPLAY, PLAN } from '@/lib/version';
+import { PLAN } from '@/lib/version';
 import { getOrCreatePairingId, rotatePairingId } from '@/lib/sync/pairingId';
 import { heartbeatRelaySession, releaseLocalRelaySession, setRelayIdentity, sha256Hex } from '@/lib/sync/companionRelayClient';
 import { AppHeader } from './components/AppHeader';
@@ -12,6 +12,7 @@ import { BoardStatusFooter } from './components/BoardStatusFooter';
 import { SyncTab } from './components/SyncTab';
 import { ImportTab } from './components/ImportTab';
 import { SettingsTab } from './components/SettingsTab';
+import { VersionStamp } from '@/components/VersionStamp';
 import { GroupedSyncedImage, ImportPlatform, MiroPluginTab } from './types';
 
 const MAX_SCALE = PLAN === 'community' ? 2 : 4;
@@ -418,7 +419,7 @@ export default function MiroPluginPage() {
       </section>
 
       <footer className="mt-4 pt-3 border-t border-border-card">
-        <p className="text-center text-[9px] font-mono text-text-muted/50">{DISPLAY}</p>
+        <VersionStamp />
       </footer>
 
       <BoardStatusFooter status={syncStatus} />
