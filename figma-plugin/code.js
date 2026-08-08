@@ -235,37 +235,36 @@ function pushFileKey() {
   figma.ui.postMessage({ action: 'file-key', fileKey: resolveFileKey() });
 }
 
-// Listen to selection changes on the active page
-figma.on('selectionchange', () => {
-  const selection = figma.currentPage.selection;
-  figma.ui.postMessage({
-    action: 'selection-changed-locally',
-    data: selection[0]
-      ? {
-          id: selection[0].id,
-          name: selection[0].name,
-          fileKey: resolveFileKey(),
-        }
-      : null,
-  });
-});
-
-// Keep the mirror's tracked list truthful: any board mutation (delete,
-// duplicate, rename...) pushes a refreshed figjam-state. Debounced so
-// bulk operations don't spam the bridge.
-let figjamStateTimer = null;
-try {
-  figma.on('documentchange', () => {
-    if (figjamStateTimer) clearTimeout(figjamStateTimer);
-    figjamStateTimer = setTimeout(() => {
-      figjamStateTimer = null;
-      figma.ui.postMessage({ action: 'figjam-state', tracked: figjamTrackedSummary() });
-    }, 400);
-  });
-} catch (e) {
-  // documentchange may be unavailable in some editor contexts; the mirror
-  // also polls figjam-list as a fallback.
+// Selection state sent to the mirror: ONLY the currently selected tracked
+// rectangles (the Sync tab + badge are selection-driven, like Miro).
+function figjamSelectionSummary() {
+  const selection = figma.currentPage.selection || [];
+  return selection
+    .filter(function (n) {
+      try {
+        return typeof n.getPluginData === 'function' && !!n.getPluginData(SB_META_KEY);
+      } catch (e) {
+        return false;
+      }
+    })
+    .map(function (n) {
+      const meta = figjamMeta(n);
+      return {
+        id: n.id,
+        key: meta.key || figjamKey(meta.fileKey || '', meta.nodeId || ''),
+        fileKey: meta.fileKey || '',
+        nodeId: meta.nodeId || '',
+        name: meta.name || n.name || '',
+      };
+    });
 }
+
+// Listen to selection changes on the active page: the mirror's Sync tab is
+// SELECTION-DRIVEN (like Miro) — the badge counts selected tracked mirrors
+// and cards show only the selected ones.
+figma.on('selectionchange', () => {
+  figma.ui.postMessage({ action: 'figjam-selection', tracked: figjamSelectionSummary() });
+});
 
 // Message listener from UI
 figma.ui.onmessage = async (msg) => {
@@ -324,6 +323,11 @@ figma.ui.onmessage = async (msg) => {
       requestId: msg.requestId,
       ...result,
     });
+    return;
+  }
+
+  if (msg.action === 'get-selection-state') {
+    figma.ui.postMessage({ action: 'figjam-selection', tracked: figjamSelectionSummary() });
     return;
   }
 

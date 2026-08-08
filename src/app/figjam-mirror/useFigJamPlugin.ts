@@ -98,12 +98,11 @@ export function useFigJamPlugin() {
       if (!msg || typeof msg !== 'object' || typeof msg.action !== 'string') return;
 
       switch (msg.action) {
-        case 'figjam-state': {
-          const tracked = msg.selected ?? msg.tracked ?? [];
-          // The board summary is authoritative — an empty report means nothing
-          // is tracked, so REPLACE (a stale keep-on-empty caused "Sync" to act
-          // as if a selection was still active after an empty board).
-          setSelectedItems(trackedToSynced(tracked));
+        case 'figjam-selection': {
+          // Selection-driven (Miro): the tab shows ONLY the tracked mirrors
+          // selected on the FigJam canvas — empty selection = empty Sync (0),
+          // never the full board registry.
+          setSelectedItems(trackedToSynced(msg.tracked ?? []));
           break;
         }
         case 'figjam-place-result': {
@@ -142,15 +141,10 @@ export function useFigJamPlugin() {
     };
 
     window.addEventListener('message', onBridge);
-    postToPlugin({ action: 'figjam-list' });
-    // Poll the tracked list while the panel is open: deletions/duplicates on
-    // the board happen outside this messaging pair, so keep the registry in
-    // sync even if the plugin's documentchange event is unavailable.
-    const poll = setInterval(() => postToPlugin({ action: 'figjam-list' }), 5000);
-    return () => {
-      window.removeEventListener('message', onBridge);
-      clearInterval(poll);
-    };
+    // Kick the initial selection state on open: the plugin replies with
+    // figjam-selection for the current canvas selection.
+    postToPlugin({ action: 'get-selection-state' });
+    return () => window.removeEventListener('message', onBridge);
   }, []);
 
   const renderNode = useCallback(async (fileKey: string, nodeId: string, scale?: number) => {

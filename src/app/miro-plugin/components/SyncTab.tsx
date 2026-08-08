@@ -44,7 +44,7 @@ export function SyncTab({
     <div className="flex-grow flex flex-col justify-between">
       <div className="space-y-3">
         <h4 className="text-[10px] uppercase font-mono tracking-widest text-text-muted">
-          {mirrorMode ? 'Mirrored FigJam Screens' : 'Selected Canvas Screens'}
+          {mirrorMode ? 'Selected FigJam Mirrors' : 'Selected Canvas Screens'}
 {!hasMiroToken && (
   <div className="p-3 rounded-md border border-amber-500/40 flex flex-col gap-1">
     <span className="text-[9px] font-mono text-text-muted leading-tight">
@@ -194,7 +194,7 @@ export function SyncTab({
               {cooldownSeconds > 0
           ? `COMMUNITY COOLDOWN · ${cooldownSeconds}s`
           : mirrorMode
-            ? (syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC ALL MIRRORS')
+            ? (syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED MIRRORS')
             : (syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED')}
             </button>
 
@@ -205,7 +205,7 @@ export function SyncTab({
         ) : (
           <div className="p-8 rounded-md border border-dashed border-border-card text-center text-xs text-text-muted py-12">
             {mirrorMode
-              ? 'Nothing mirrored to this board yet — paste a Figma frame link in Import and place it.'
+              ? 'Select FigJam mirrors on the board to update them in place — or place one in Import first.'
               : 'Select one or more Figma or Penpot screenshots on the board canvas to update them in-place.'}
           </div>
         )}
