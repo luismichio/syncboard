@@ -18,6 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - **Scale & format now apply** — the Sync card group controls call `figjam-set-meta`, persisting per-instance `format`/`scale` (round-tripped through node summaries); the sync pass renders with the chosen format and scale. `propagate` extends group changes to sibling copies.
   - **Penpot is real in FigJam** — paste a Penpot link → `parsePenpotUrl` → node info; “Place on canvas” exports via the Penpot Companion relay (`export_shape`) → image rect; “Detect Selection in Penpot App” uses the pairing relay (`callRelay`). All previously stubs.
   - **FigJam panel height** — the plugin now calls `figma.ui.resize(360, 720)` for the FigJam editor only, and the min-height CSS that was clipping the mirror footer was removed.
+- **Replace now targets the plugin's OWN selection** — figjam-replace rewrites whatever nodes are selected at message time (tracked mirrors AND foreign images) in place; no more duplicate placements or hitting the wrong copy. Plugin-side selection also removes the mirror/plugin id round-trip that could resolve to stale nodes.
+- **Render cache (90s TTL)** — repeated Import/Replace/Sync of the same frame+scale+format reuse the last rendered data-URL instead of calling the Figma Render API every click: replacing the same frame 4x now costs 1 render, so the rate limit is no longer hit after a few replaces.
+- **Live Figma selection toggle is disabled during rate-limit cooldown** — it greys out with a "Paused" note and re-enables automatically (~20s).
 
 ### Fixed
 - **Scale now resizes the canvas object** — `figjamPlace` sizes the rect to the exported pixels (PNG already carries the render scale; SVG width/height × scale). 1× → design size, 2× → double, still crisp.

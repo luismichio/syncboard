@@ -189,6 +189,7 @@ export default function FigJamPluginPage() {
             availableScales={AVAILABLE_SCALES}
             liveFigmaSelection={hook.liveFigmaSelection}
             setLiveFigmaSelection={hook.setLiveFigmaSelection}
+            rateLimited={hook.rateLimited}
           />
         )}
       </section>

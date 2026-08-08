@@ -361,6 +361,95 @@ function figjamNodeSummary(n) {
 // `foreign` lists every OTHER selected node (e.g. images placed by hand or
 // other plugins): the Import tab can then REPLACE those too, not only the
 // mirrors SyncingBoard placed.
+// Replace mode (Import → Replace Selected): the plugin reads the CURRENT
+// selection at message time — the mirror never guesses which nodes are
+// selected (tracked mirrors AND foreign images behave identically). Every
+// selected node is replaced in place and its plugin data switches to the
+// new frame key; with no selection it degrades to the placement path.
+async function figjamReplace(payload) {
+  try {
+    if (!payload || typeof payload.dataUrl !== 'string') {
+      return { ok: false, error: 'missing dataUrl' };
+    }
+    const fileKey = String(payload.fileKey || '');
+    const nodeId = String(payload.nodeId || '');
+    if (!fileKey || !nodeId) {
+      return { ok: false, error: 'missing fileKey/nodeId' };
+    }
+    const targets = (figma.currentPage.selection || []).filter(function (n) {
+      return n && typeof n.fills !== 'undefined';
+    });
+    if (targets.length === 0) {
+      // Nothing selected to replace — fall back to plain placement.
+      return figjamPlace(payload);
+    }
+    const keepSize = payload.preserveSize === true;
+    let image;
+    try {
+      image = await figma.createImageAsync(payload.dataUrl);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return { ok: false, error: `createImageAsync failed (${detail})` };
+    }
+    const isSvg = String(payload.format || 'png').toLowerCase() === 'svg';
+    const scale = Number.isFinite(payload.scale) && payload.scale > 0 ? payload.scale : 1;
+    let targetW = null;
+    let targetH = null;
+    if (isSvg) {
+      const svg = svgDimensions(payload.dataUrl);
+      if (svg) {
+        targetW = Math.max(1, Math.round(svg.width * scale));
+        targetH = Math.max(1, Math.round(svg.height * scale));
+      }
+    } else {
+      const png = pngDimensions(payload.dataUrl);
+      if (png) {
+        targetW = Math.max(1, Math.round(png.width));
+        targetH = Math.max(1, Math.round(png.height));
+      }
+    }
+    for (const existing of targets) {
+      // Keep the user's crop position: carry the previous FILL transform
+      // over so replacing does not reset the image inside the rectangle.
+      let prevTransform;
+      try {
+        const prevFill = existing.fills && existing.fills[0];
+        if (prevFill && prevFill.type === 'IMAGE') prevTransform = prevFill.imageTransform;
+      } catch (e) {}
+      if (!keepSize && targetW && targetH) existing.resize(targetW, targetH);
+      const newFill = { type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' };
+      if (prevTransform) newFill.imageTransform = prevTransform;
+      existing.fills = [newFill];
+      try {
+        existing.setPluginData(
+          SB_META_KEY,
+          JSON.stringify({
+            fileKey: fileKey,
+            nodeId: nodeId,
+            key: figjamKey(fileKey, nodeId),
+            imageHash: image.hash,
+            name: payload.name || figjamMeta(existing).name || '',
+            format: payload.format || 'png',
+            scale: payload.scale || 1,
+            platform: payload.platform || 'figma',
+          })
+        );
+      } catch (e) {}
+    }
+    figma.currentPage.selection = targets;
+    return {
+      ok: true,
+      nodeId: targets[0].id,
+      key: figjamKey(fileKey, nodeId),
+      created: false,
+      updated: targets.length,
+    };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `figjam-replace failed (${detail})` };
+  }
+}
+
 function figjamSelectionSummary() {
   const selection = figma.currentPage.selection || [];
   const tracked = [];
@@ -452,6 +541,17 @@ figma.ui.onmessage = async (msg) => {
   if (msg.action === 'figjam-place') {
     // Destination: place (create or in-place update) a rendered figure.
     const result = await figjamPlace(msg.payload);
+    figma.ui.postMessage({
+      action: 'figjam-place-result',
+      requestId: msg.requestId,
+      ...result,
+    });
+    return;
+  }
+
+  if (msg.action === 'figjam-replace') {
+    // Replace: rewrite the CURRENT selection in place (plugin-side).
+    const result = await figjamReplace(msg.payload);
     figma.ui.postMessage({
       action: 'figjam-place-result',
       requestId: msg.requestId,

@@ -220,9 +220,35 @@ export function useFigJamPlugin() {
 
   const tokenRef = useRef<string | null>(figmaToken);
   const placeWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Render cache: replaces/imports of the same frame+scale+format reuse the
+  // last data-URL (90s TTL) instead of burning a Figma API render every
+  // click — repeated replaces used to hit the rate limit after ~4 tries.
+  const renderCacheRef = useRef(new Map<string, { value: unknown; at: number }>());
+  const [rateLimited, setRateLimited] = useState(false);
   // M3 live-push guard: a selection streamed from Figma does not overwrite a
   // link the user just pasted or a frame they just detected (10s window).
   const lastManualFigSourceRef = useRef(0);
+
+  const cachedFetch = useCallback(async <T>(key: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> => {
+    const hit = renderCacheRef.current.get(key) as { value: T; at: number } | undefined;
+    if (hit && Date.now() - hit.at < ttlMs) return hit.value;
+    const value = await fetcher();
+    renderCacheRef.current.set(key, { value, at: Date.now() });
+    if (renderCacheRef.current.size > 40) {
+      const oldest = Array.from(renderCacheRef.current.entries()).sort((a, b) => a[1].at - b[1].at)[0];
+      if (oldest) renderCacheRef.current.delete(oldest[0]);
+    }
+    return value;
+  }, []);
+
+  const noteError = useCallback((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/rate.?limit|429|cooldown/i.test(msg)) {
+      setRateLimited(true);
+      window.setTimeout(() => setRateLimited(false), 20_000);
+    }
+    return msg;
+  }, []);
   useEffect(() => {
     tokenRef.current = figmaToken;
   }, [figmaToken]);
@@ -372,6 +398,7 @@ export function useFigJamPlugin() {
       preserveSize?: boolean;
       width?: number;
       height?: number;
+      replace?: boolean;
     }) => {
       setIsSyncing(true);
       // Watchdog: if the plugin never confirms (figjam-place-result), don't
@@ -386,7 +413,10 @@ export function useFigJamPlugin() {
         });
       }, 25000);
       postToPlugin({
-        action: 'figjam-place',
+        // Replace mode reads the plugin's OWN selection — the plugin rewrites
+        // whatever nodes are selected right now (tracked mirrors AND foreign
+        // images), so the mirror never guesses ids.
+        action: payload.replace ? 'figjam-replace' : 'figjam-place',
         requestId: 'fjs-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
         payload: {
           fileKey: payload.fileKey,
@@ -456,7 +486,11 @@ export function useFigJamPlugin() {
       const safeFormat = format ?? 'png';
       status(`Rendering ${figmaNodeInfo.name || figmaNodeInfo.nodeId}…`, 'progress');
       try {
-        let dataUrl = await renderNode(figmaNodeInfo.fileKey, figmaNodeInfo.nodeId, safeScale, safeFormat);
+        let dataUrl = await cachedFetch(
+          `figma|${figmaNodeInfo.fileKey}|${figmaNodeInfo.nodeId}|${safeScale}|${safeFormat}`,
+          90_000,
+          () => renderNode(figmaNodeInfo.fileKey, figmaNodeInfo.nodeId, safeScale, safeFormat)
+        );
         // FigJam rejects SVG images — rasterize in the browser first.
         if (safeFormat === 'svg') {
           dataUrl = await svgToPngDataUrl(dataUrl, safeScale);
@@ -471,10 +505,10 @@ export function useFigJamPlugin() {
         });
       } catch (err) {
         setIsSyncing(false);
-        status(err instanceof Error ? err.message : 'Render error', 'error');
+        status(noteError(err), 'error');
       }
     },
-    [figmaNodeInfo, renderNode, placeOnBoard, status]
+    [figmaNodeInfo, cachedFetch, noteError, renderNode, placeOnBoard, status]
   );
 
   const detectLocalFigmaSelection = useCallback(async () => {
@@ -536,7 +570,11 @@ export function useFigJamPlugin() {
       try {
         const format = (first.format === 'svg' ? 'svg' : 'png') as 'png' | 'svg';
         const scale = first.scale ?? 1;
-        let dataUrl = await renderNode(first.fileKey, first.nodeId, scale, format);
+        let dataUrl = await cachedFetch(
+          `figma|${first.fileKey}|${first.nodeId}|${scale}|${format}`,
+          90_000,
+          () => renderNode(first.fileKey, first.nodeId, scale, format)
+        );
         // FigJam rejects SVG images — rasterize in the browser first.
         if (format === 'svg') {
           dataUrl = await svgToPngDataUrl(dataUrl, scale);
@@ -561,19 +599,19 @@ export function useFigJamPlugin() {
         }
       } catch (err) {
         setIsSyncing(false);
-        status(err instanceof Error ? err.message : 'Sync error', 'error');
+        status(noteError(err), 'error');
         return;
       }
     }
     // Re-read the selection so the plugin's updated meta (format/scale)
     // round-trips back into the cards.
     postToPlugin({ action: 'get-selection-state' });
-  }, [selectedItems, renderNode, placeOnBoard, status, syncAllCopies, preserveSize]);
+  }, [selectedItems, cachedFetch, noteError, renderNode, placeOnBoard, status, syncAllCopies, preserveSize]);
 
   // ---- Replace a selected board node (Import → Replace Selected) ----
-  // Targets the CURRENT selection — SyncingBoard mirrors OR any foreign
-  // image (placed by hand / other plugins); forceNodeIds tells the plugin to
-  // rewrite those nodes' meta to the new frame key.
+  // The plugin reads the CURRENT canvas selection at message time and
+  // replaces those nodes in place — tracked mirrors AND foreign images work
+  // identically, with no id round-trip between mirror and plugin.
   const replaceSelectedWidget = useCallback(
     async (
       platform: 'figma' | 'penpot',
@@ -583,12 +621,7 @@ export function useFigJamPlugin() {
       format: 'png' | 'svg',
       scale: number
     ) => {
-      const targets = selectedItems
-        .map((it) => it.id)
-        .filter((id): id is string => typeof id === 'string' && id.length > 0);
-      const foreignTargets = foreignSelection.map((f) => f.id).filter((id) => id.length > 0);
-      const forceNodeIds = targets.length > 0 ? targets : foreignTargets;
-      if (forceNodeIds.length === 0) {
+      if (selectedItems.length === 0 && foreignSelection.length === 0) {
         status('Select a mirror or any image on the canvas to replace it.', 'error');
         return;
       }
@@ -596,13 +629,21 @@ export function useFigJamPlugin() {
       try {
         let dataUrl: string;
         if (platform === 'penpot') {
-          const exported = await exportPenpotViaRelay(nodeId, format, scale);
+          const exported = await cachedFetch(
+            `penpot|${nodeId}|${scale}|${format}`,
+            120_000,
+            () => exportPenpotViaRelay(nodeId, format, scale)
+          );
           dataUrl = exported.dataUrl;
           if (format === 'svg') {
             dataUrl = await svgToPngDataUrl(dataUrl, scale, exported.width, exported.height);
           }
         } else {
-          dataUrl = await renderNode(fileKey, nodeId, scale, format);
+          dataUrl = await cachedFetch(
+            `figma|${fileKey}|${nodeId}|${scale}|${format}`,
+            90_000,
+            () => renderNode(fileKey, nodeId, scale, format)
+          );
           if (format === 'svg') {
             dataUrl = await svgToPngDataUrl(dataUrl, scale);
           }
@@ -615,15 +656,15 @@ export function useFigJamPlugin() {
           dataUrl,
           format,
           platform,
-          forceNodeIds,
           preserveSize,
+          replace: true,
         });
       } catch (err) {
         setIsSyncing(false);
-        status(err instanceof Error ? err.message : 'Replace error', 'error');
+        status(noteError(err), 'error');
       }
     },
-    [selectedItems, foreignSelection, renderNode, placeOnBoard, status, preserveSize]
+    [selectedItems, foreignSelection, cachedFetch, noteError, renderNode, placeOnBoard, status, preserveSize]
   );
 
   // ---- Group setting changes (format/scale on the Sync cards) ----
@@ -717,7 +758,11 @@ export function useFigJamPlugin() {
       setIsSyncing(true);
       status('Waiting for the Penpot Companion (open it on the same Pairing ID)…', 'progress');
       try {
-        const exported = await exportPenpotViaRelay(penpotNodeInfo.objectId, format, scale);
+        const exported = await cachedFetch(
+          `penpot|${penpotNodeInfo.objectId}|${scale}|${format}`,
+          120_000,
+          () => exportPenpotViaRelay(penpotNodeInfo.objectId, format, scale)
+        );
         const responseName = exported.name;
         if (responseName && responseName !== 'Selected Frame') {
           setPenpotNodeInfo((prev) => (prev ? { ...prev, name: responseName } : prev));
@@ -748,11 +793,11 @@ export function useFigJamPlugin() {
         });
       } catch (err: unknown) {
         setIsSyncing(false);
-        const errMsg = err instanceof Error ? err.message : 'Penpot import error';
+        const errMsg = noteError(err);
         status(`${errMsg} — open the Penpot Companion window and re-try.`, 'error');
       }
     },
-    [penpotNodeInfo, placeOnBoard, status, preserveSize]
+    [penpotNodeInfo, cachedFetch, noteError, placeOnBoard, status, preserveSize]
   );
 
   const pairingId = getOrCreatePairingId();
@@ -798,5 +843,6 @@ export function useFigJamPlugin() {
     pairingId,
     liveFigmaSelection,
     setLiveFigmaSelection,
+    rateLimited,
   } as const;
 }
