@@ -135,6 +135,7 @@ export default function FigJamPluginPage() {
             onGroupSettingChange={onGroupSettingChange}
             onRefreshNodeName={onRefreshNodeName}
             availableScales={AVAILABLE_SCALES}
+            mirrorMode
           />
         )}
         {activeTab === 'import' && (
