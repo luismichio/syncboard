@@ -2,6 +2,14 @@
 // One package runs in both Figma (design companion) and FigJam (target mirror).
 // Branch on figma.editorType so the design-file companion logic never runs in FigJam.
 const EDITOR_TYPE = typeof figma.editorType === 'string' ? figma.editorType : 'figma';
+
+// FigJam editor: give the mirror a taller plugin window so its cards + footer
+// fit without scrollbars. The Figma design sidebar keeps its default height.
+if (EDITOR_TYPE === 'figjam') {
+  try {
+    figma.ui.resize(360, 720);
+  } catch (e) {}
+}
 const IS_FIGJAM = EDITOR_TYPE !== 'figma';
 
 figma.showUI(__html__, {
@@ -173,20 +181,43 @@ async function figjamPlace(payload) {
       return { ok: false, error: `createImageAsync failed (${detail})` };
     }
 
-    // Recover the PNG's own pixel size from the data-URL so the rect gets
-    // the SOURCE frame's aspect ratio: FigJam's FILL crop then shows the
-    // whole image instead of cropping to whatever size the rect held before
-    // ("using the previous rectangle as crop area").
-    const png = pngDimensions(payload.dataUrl);
+    // Recover the PNG's own pixel size from the data-URL. The exported PNG
+    // is already scaled by the render request (design size x scale), so the
+    // rect gets exactly those pixels: scale=2 visibly doubles the canvas
+    // object while staying crisp. SVG has no pixels — parse its width/height
+    // attributes (design size) and multiply by scale for the same intent.
+    const isSvg = String(payload.format || 'png').toLowerCase() === 'svg';
     const scale = Number.isFinite(payload.scale) && payload.scale > 0 ? payload.scale : 1;
-    const targetW = png ? Math.max(1, Math.round(png.width / scale)) : null;
-    const targetH = png ? Math.max(1, Math.round(png.height / scale)) : null;
+    let targetW = null;
+    let targetH = null;
+    if (isSvg) {
+      const svg = svgDimensions(payload.dataUrl);
+      if (svg) {
+        targetW = Math.max(1, Math.round(svg.width * scale));
+        targetH = Math.max(1, Math.round(svg.height * scale));
+      }
+    } else {
+      const png = pngDimensions(payload.dataUrl);
+      if (png) {
+        targetW = Math.max(1, Math.round(png.width));
+        targetH = Math.max(1, Math.round(png.height));
+      }
+    }
 
   if (targetNodes.length > 0) {
     // In-place update: only the requested instances are resized + re-filled.
     for (const existing of targetNodes) {
+      // Keep the user's crop position: carry the previous FILL transform over
+      // so re-syncing does not reset the image inside the rectangle.
+      let prevTransform;
+      try {
+        const prevFill = existing.fills && existing.fills[0];
+        if (prevFill && prevFill.type === 'IMAGE') prevTransform = prevFill.imageTransform;
+      } catch (e) {}
       if (!keepSize && targetW && targetH) existing.resize(targetW, targetH);
-      existing.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' }];
+      const newFill = { type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' };
+      if (prevTransform) newFill.imageTransform = prevTransform;
+      existing.fills = [newFill];
       try {
         existing.setPluginData(SB_META_KEY, JSON.stringify({
           fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
@@ -210,7 +241,8 @@ async function figjamPlace(payload) {
     rect.x = Math.round(figma.viewport.center.x - W / 2);
     rect.y = Math.round(figma.viewport.center.y - H / 2);
   }
-  rect.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' }];
+  const newFill = { type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' };
+  rect.fills = [newFill];
   try {
     rect.setPluginData(SB_META_KEY, JSON.stringify({
       fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
@@ -240,6 +272,43 @@ function pngDimensions(dataUrl) {
     const width = dv.getUint32(16);
     const height = dv.getUint32(20);
     if (width > 0 && height > 0 && width < 100000 && height < 100000) {
+      return { width, height };
+    }
+  } catch (e) {}
+  return null;
+}
+
+// Parse dimension info out of an SVG data-URL: width/height attributes
+// first, then the viewBox. Returns design-space {width, height} or null.
+function svgDimensions(dataUrl) {
+  try {
+    const comma = dataUrl.indexOf(',');
+    if (comma < 0) return null;
+    const isB64 = !/^data:image\/svg[^;]*(;charset[^;]*)?;base64,/i.test(dataUrl.slice(0, comma + 1));
+    let text;
+    if (isB64 || dataUrl.slice(0, comma).indexOf('base64') > -1) {
+      const bytes = figma.base64Decode(dataUrl.slice(comma + 1));
+      text = String.fromCharCode.apply(null, new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+    } else {
+      text = decodeURIComponent(dataUrl.slice(comma + 1));
+    }
+    const head = text.slice(0, 4096);
+    const num = /\b(width|height)=["']([\d.]+)["']/g;
+    const w = /\bwidth=["']([\d.]+)/.exec(head);
+    const h = /\bheight=["']([\d.]+)/.exec(head);
+    let width = w ? parseFloat(w[1]) : NaN;
+    let height = h ? parseFloat(h[1]) : NaN;
+    if (!isFinite(width) || !isFinite(height)) {
+      const vb = /\bviewBox=["']([-\d.\s]+)["']/.exec(head);
+      if (vb && vb[1]) {
+        const parts = vb[1].trim().split(/[\s,]+/).map(Number);
+        if (parts.length === 4 && parts.every((n) => isFinite(n))) {
+          if (!isFinite(width)) width = parts[2];
+          if (!isFinite(height)) height = parts[3];
+        }
+      }
+    }
+    if (isFinite(width) && isFinite(height) && width > 0 && height > 0 && width < 100000 && height < 100000) {
       return { width, height };
     }
   } catch (e) {}

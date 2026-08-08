@@ -26,14 +26,8 @@ iframe {
   background-color: #f9fafb;
 }
 
-/* FigJam mode: taller plugin panel so the mirror fits without scrollbars.
-   Does not affect the Figma design editor. */
-html.sb-editor-figjam body {
-  min-height: 640px;
-}
-html.sb-editor-figjam #companion-iframe {
-  flex-basis: 100%;
-}
+/* FigJam mode: the mirrow fits in a taller plugin window — resized from
+   code.js (figma.ui.resize) for the FigJam editor only, Figma untouched. */
 /* Optional preview-host footer (testing before production / self-hosting) */
 .host-footer {
   border-top: 1px solid #1f232a;
@@ -177,14 +171,6 @@ let currentEditorType = 'figma';
 // FigJam target mirror based on the editor the plugin runs in.
 function applyEditorMode(editorType) {
   currentEditorType = (typeof editorType === 'string' && editorType) ? editorType : 'figma';
-  // FigJam panels are shorter than the Figma design sidebar; give the
-  // mirror room so no scrollbar appears (Figma editor stays untouched).
-  const root = document.documentElement;
-  if (currentEditorType === 'figjam') {
-    root.classList.add('sb-editor-figjam');
-  } else {
-    root.classList.remove('sb-editor-figjam');
-  }
   loadIframe();
 }
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthTokens } from '@/app/miro-plugin/useAuthTokens';
 import { parseFigmaUrl } from '@/lib/sync/figmaUrlParser';
 import { parsePenpotUrl } from '@/lib/sync/penpotUrlParser';
-import { callPenpotMcpTool, callRelay, getOrCreatePairingId } from '@/lib/sync/companionRelayClient';
+import { callRelay, getOrCreatePairingId } from '@/lib/sync/companionRelayClient';
 import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 import { SyncedImage } from '@/app/miro-plugin/useMiroSelection';
 import type { SyncStatus, SyncStatusType } from '@/app/miro-plugin/useMiroPlugin';
@@ -191,6 +191,8 @@ export function useFigJamPlugin() {
       nodeIds?: string[];
       allCopies?: boolean;
       preserveSize?: boolean;
+      width?: number;
+      height?: number;
     }) => {
       setIsSyncing(true);
       // Watchdog: if the plugin never confirms (figjam-place-result), don't
@@ -218,6 +220,8 @@ export function useFigJamPlugin() {
           nodeIds: payload.nodeIds,
           allCopies: payload.allCopies,
           preserveSize: payload.preserveSize,
+          width: payload.width,
+          height: payload.height,
         },
       });
     },
@@ -463,34 +467,74 @@ export function useFigJamPlugin() {
         return;
       }
       setIsSyncing(true);
+      status('Waiting for the Penpot Companion (open it on the same Pairing ID)…', 'progress');
       try {
-        const mcpResponse = await callPenpotMcpTool('export_shape', {
+        // Direct callRelay: same export path as callPenpotMcpTool but with a
+        // human-scale timeout — the companion may be closed, better to fail
+        // with guidance than to spin for two minutes.
+        const pairingId = getOrCreatePairingId();
+        if (!pairingId) {
+          throw new Error('Pairing ID is not set. Copy it from Settings first.');
+        }
+        const data = await callRelay({
+          pairingId,
+          platform: 'penpot',
+          action: 'export',
           shapeId: penpotNodeInfo.objectId,
           format,
           scale,
+          timeoutMs: 45_000,
         });
-        if (!mcpResponse.content || mcpResponse.content.length === 0) {
-          throw new Error('Penpot relay returned empty export.');
+        const payload = data as {
+          svg?: string;
+          base64?: string;
+          name?: string;
+          width?: number;
+          height?: number;
+        } | null;
+        if (!payload) {
+          throw new Error('Penpot relay returned an empty export.');
         }
-        const content = mcpResponse.content[0];
-        if (content.type !== 'image') {
-          throw new Error('Penpot relay did not return an image.');
+        const responseName = payload.name ? decodeHtmlEntities(payload.name) : undefined;
+        if (responseName && responseName !== 'Selected Frame') {
+          setPenpotNodeInfo((prev) => (prev ? { ...prev, name: responseName } : prev));
         }
-        const dataUrl = `data:${content.mimeType};base64,${content.data}`;
-        status(`Rendering ${penpotNodeInfo.name || penpotNodeInfo.objectId}…`, 'progress');
+        let dataUrl: string;
+        if (format === 'svg') {
+          if (!payload.svg) {
+            throw new Error('Penpot relay returned empty SVG export data.');
+          }
+          const svgBase64 = btoa(unescape(encodeURIComponent(payload.svg)));
+          dataUrl = `data:image/svg+xml;base64,${svgBase64}`;
+        } else {
+          if (!payload.base64) {
+            throw new Error('Penpot relay returned empty PNG export data.');
+          }
+          dataUrl = `data:image/png;base64,${payload.base64}`;
+        }
+        const naturalWidth = payload.width && payload.width > 0 ? Math.round(payload.width * scale) : 0;
+        const naturalHeight =
+          payload.height && payload.height > 0 ? Math.round(payload.height * scale) : 0;
+        const resolvedName =
+          (responseName && responseName !== 'Selected Frame' ? responseName : penpotNodeInfo.name) ||
+          'Penpot Frame';
+        status(`Rendering ${resolvedName}…`, 'progress');
         placeOnBoard({
           fileKey: penpotNodeInfo.fileId,
           nodeId: penpotNodeInfo.objectId,
-          name: penpotNodeInfo.name || penpotNodeInfo.objectId,
+          name: resolvedName,
           scale,
           format,
           platform: 'penpot',
           dataUrl,
+          width: naturalWidth || undefined,
+          height: naturalHeight || undefined,
           preserveSize,
         });
       } catch (err: unknown) {
         setIsSyncing(false);
-        status(err instanceof Error ? err.message : 'Penpot import error', 'error');
+        const errMsg = err instanceof Error ? err.message : 'Penpot import error';
+        status(`${errMsg} — open the Penpot Companion window and re-try.`, 'error');
       }
     },
     [penpotNodeInfo, placeOnBoard, status, preserveSize]

@@ -1,0 +1,18 @@
+figjam-mirror: scale resizes, crop position kept, taller FigJam panel, penpot import fixed
+
+- Scale semantics: figjamPlace now sizes the rect to the exported pixels
+  (PNG dims already include the render scale; SVG width/height x scale) —
+  1x = design size, 2x = double on canvas, crisp
+- Keep canvas size: previous IMAGE fill's imageTransform is carried onto the
+  new fill so the crop position survives re-syncs
+- FigJam panel height: figma.ui.resize(360, 720) in the FigJam editor only;
+  removed the min-height CSS that clipped the mirror footer (footer back)
+- SVG placement: new svgDimensions() parses width/height + viewBox out of the
+  SVG data-URL, so SVG imports are aspect-correct (were 240x160 default)
+- Penpot import: SVG branch base64-encodes relay SVG text into
+  data:image/svg+xml (was throwing "did not return an image"); real node
+  name/width/height applied; 45s timeout with "open the Penpot Companion"
+  hint instead of a 2-minute silent hang; penpot:<pairing> channel keeps
+  Figma companions from answering Penpot exports
+
+Test: tsc clean, yarn lint clean (pre-existing warnings only), 138/138

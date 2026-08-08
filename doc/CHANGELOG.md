@@ -17,7 +17,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - **Keep canvas size** — `preserveSize` is honored: the plugin skips resizing (FILL crop kept in FigJam by design) for in-place updates and new placements.
   - **Scale & format now apply** — the Sync card group controls call `figjam-set-meta`, persisting per-instance `format`/`scale` (round-tripped through node summaries); the sync pass renders with the chosen format and scale. `propagate` extends group changes to sibling copies.
   - **Penpot is real in FigJam** — paste a Penpot link → `parsePenpotUrl` → node info; “Place on canvas” exports via the Penpot Companion relay (`export_shape`) → image rect; “Detect Selection in Penpot App” uses the pairing relay (`callRelay`). All previously stubs.
-  - **FigJam panel height** — `ui.html` sets an `sb-editor-figjam` root class (min-height 640px, iframe fills) so the mirror renders without scrollbars; the Figma design editor height is untouched.
+  - **FigJam panel height** — the plugin now calls `figma.ui.resize(360, 720)` for the FigJam editor only, and the min-height CSS that was clipping the mirror footer was removed.
+
+### Fixed
+- **Scale now resizes the canvas object** — `figjamPlace` sizes the rect to the exported pixels (PNG already carries the render scale; SVG width/height × scale). 1× → design size, 2× → double, still crisp.
+- **Crop position survives re-syncs** — the previous IMAGE fill's `imageTransform` is carried onto the new fill, so “Keep canvas size” no longer resets your crop.
+- **SVG placement gets real dimensions** — new `svgDimensions()` parses width/height + viewBox out of the SVG data-URL so SVG imports are aspect-correct (were falling back to 240×160).
+- **Penpot import actually imports** — the SVG branch now base64-encodes the relay’s SVG text into a `data:image/svg+xml` URL (was throwing “did not return an image”); the relay’s real node name/width/height are applied; timeout is 45s with an “open the Penpot Companion” hint instead of a 2-minute silent hang.
+- **Penpot channel is isolated** — exports ride the `penpot:<pairing>` Ably channel, so a Figma companion on the same Pairing ID can never answer a Penpot export (the “is it reading the Figma file?” case).
 
 ### Fixed
 - FigJam Sync is now **fully selection-driven**: cards list every selected mirror *instance* (duplicates count as the images selected — group badge `xN`), `figjam-place` receives `nodeIds` for the selected instances and updates only those (a single selected duplicate no longer syncs all its copies), and the sync loop renders once per unique frame while applying to the selected instances only.
