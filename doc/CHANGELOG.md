@@ -27,6 +27,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Penpot channel is isolated** — exports ride the `penpot:<pairing>` Ably channel, so a Figma companion on the same Pairing ID can never answer a Penpot export (the “is it reading the Figma file?” case).
 - **M3 destination relay-pull** — “Detect Selection in Figma” in the FigJam mirror now pulls the active design-file selection over `figma:<pairing>` (`callRelay` → select), and the Figma design companion **streams every `selectionchange` live** so the mirror’s Import card fills as you click around the Figma file (10s guard so a pasted link isn’t immediately overwritten). The mirror subscribes as a subscribe-only Miro-role client — it never registers in the source presence set, so server-side companion detection is unaffected; `subscribeRelayLive()` keeps the Ably connection open while subscribed and releases it on unmount.
 - **Session IDs without `crypto.randomUUID`** — the Figma/FigJam embedded WebView
+- **SVG import/sync actually works in FigJam** — createImageAsync rejects SVG data-URLs ("Image type is unsupported"), so SVG from Figma AND Penpot is now rasterized to PNG in the browser (canvas at natural size x scale) before placement; scale semantics stay identical to PNG (1x = design size, 2x = double, crisp).
+- **Replace works for Penpot too** — Import "Replace Selected" no longer says "Miro-only": both Figma and Penpot sources rewrite the selected nodes via the new forceNodeIds on figjam-place.
+- **Replace works on foreign images** — the FigJam selection summary now carries tracked + foreign node ids, so images placed by hand/other plugins can be selected and replaced (their fiddly data is rewritten to the new frame key).
+- **Live Figma selection is now an opt-in toggle** (OFF by default) in FigJam Settings — no relay quota usage until you enable it; the Detect button stays the explicit path.
+- **FigJam Sync button label** — "SYNC SELECTED MIRRORS" -> "SYNC SELECTED".
+- **FigJam panel height** — figma.ui.resize(390, 880) moved to just after showUI (calling it before the UI existed was a no-op), so the panel grows for real.
   exposes `getRandomValues` but not `randomUUID`, which broke Figma AND Penpot
   detection and the M3 live subscription with "globalThis.crypto.randomUUID is not
   a function". `generateSessionId()` now falls back to `getRandomValues` →

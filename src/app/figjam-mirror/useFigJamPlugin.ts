@@ -35,12 +35,135 @@ interface BridgeMsg {
   action: string;
   selected?: FigjamTracked[];
   tracked?: FigjamTracked[];
+  foreign?: { id: string; name: string }[];
   data?: { id: string; name: string; fileKey: string } | null;
   ok?: boolean;
   key?: string;
   error?: string;
   created?: boolean;
   editorType?: string;
+}
+
+// FigJam's createImageAsync rejects SVG data-URLs ("Image type is
+// unsupported"), so SVG imports (Figma + Penpot) are rasterized to PNG in
+// the browser before placement. The canvas is sized at the SVG's natural
+// size × scale, so PNG pixels keep the same visual scale semantics as the
+// direct-PNG path (1× = design size, 2× = double, crisp).
+function decodeSvgDataUrl(dataUrl: string): string {
+  const comma = dataUrl.indexOf(',');
+  if (comma < 0) return '';
+  const head = dataUrl.slice(0, comma);
+  const body = dataUrl.slice(comma + 1);
+  if (head.includes('base64')) {
+    try {
+      const raw = atob(body);
+      const bytes = Uint8Array.from(raw, (c) => c.charCodeAt(0));
+      try {
+        return new TextDecoder('utf-8').decode(bytes);
+      } catch {
+        return raw;
+      }
+    } catch {
+      return '';
+    }
+  }
+  try {
+    return decodeURIComponent(body);
+  } catch {
+    return body;
+  }
+}
+
+function svgTextDimensions(text: string): { width: number; height: number } | null {
+  const head = text.slice(0, 4096);
+  const w = /\bwidth=["']([\d.]+)/.exec(head);
+  const h = /\bheight=["']([\d.]+)/.exec(head);
+  let width = w ? parseFloat(w[1]) : NaN;
+  let height = h ? parseFloat(h[1]) : NaN;
+  if (!isFinite(width) || !isFinite(height)) {
+    const vb = /\bviewBox=["']([-\d.\s]+)["']/.exec(head);
+    if (vb && vb[1]) {
+      const parts = vb[1].trim().split(/[\s,]+/).map(Number);
+      if (parts.length === 4 && parts.every((n) => isFinite(n))) {
+        if (!isFinite(width)) width = parts[2];
+        if (!isFinite(height)) height = parts[3];
+      }
+    }
+  }
+  if (isFinite(width) && isFinite(height) && width > 0 && height > 0 && width < 100000 && height < 100000) {
+    return { width, height };
+  }
+  return null;
+}
+
+async function svgToPngDataUrl(
+  svgDataUrl: string,
+  scale: number,
+  fallbackW?: number,
+  fallbackH?: number
+): Promise<string> {
+  const dims = svgTextDimensions(decodeSvgDataUrl(svgDataUrl));
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  const w = Math.max(1, Math.round((dims?.width || fallbackW || 240) * safeScale));
+  const h = Math.max(1, Math.round((dims?.height || fallbackH || 160) * safeScale));
+  const img = new Image();
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('SVG rasterization failed (the browser rejected this SVG).'));
+    img.src = svgDataUrl;
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is unavailable in this webview.');
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL('image/png');
+}
+
+async function exportPenpotViaRelay(
+  objectId: string,
+  format: 'png' | 'svg',
+  scale: number
+): Promise<{ dataUrl: string; name?: string; width?: number; height?: number }> {
+  const pairingId = getOrCreatePairingId();
+  if (!pairingId) {
+    throw new Error('Pairing ID is not set. Copy it from Settings first.');
+  }
+  const data = await callRelay({
+    pairingId,
+    platform: 'penpot',
+    action: 'export',
+    shapeId: objectId,
+    format,
+    scale,
+    timeoutMs: 45_000,
+  });
+  const payload = data as {
+    svg?: string;
+    base64?: string;
+    name?: string;
+    width?: number;
+    height?: number;
+  } | null;
+  if (!payload) {
+    throw new Error('Penpot relay returned an empty export.');
+  }
+  const name = payload.name ? decodeHtmlEntities(payload.name) : undefined;
+  let dataUrl: string;
+  if (format === 'svg') {
+    if (!payload.svg) {
+      throw new Error('Penpot relay returned empty SVG export data.');
+    }
+    const svgBase64 = btoa(unescape(encodeURIComponent(payload.svg)));
+    dataUrl = `data:image/svg+xml;base64,${svgBase64}`;
+  } else {
+    if (!payload.base64) {
+      throw new Error('Penpot relay returned empty PNG export data.');
+    }
+    dataUrl = `data:image/png;base64,${payload.base64}`;
+  }
+  return { dataUrl, name, width: payload.width, height: payload.height };
 }
 
 function postToPlugin(msg: Record<string, unknown>): void {
@@ -87,6 +210,12 @@ export function useFigJamPlugin() {
     name: string;
   } | null>(null);
   const [isDetectingPenpotLocal, setIsDetectingPenpotLocal] = useState(false);
+  // Foreign nodes (images placed by hand / other plugins): selected but not
+  // SyncingBoard mirrors — the Import tab can still REPLACE them.
+  const [foreignSelection, setForeignSelection] = useState<{ id: string; name: string }[]>([]);
+  // M3 live-push: opt-in toggle (OFF by default so the relay only runs on
+  // explicit Detect presses — no quota burn without the user asking).
+  const [liveFigmaSelection, setLiveFigmaSelection] = useState(false);
   const [editorType, setEditorType] = useState('figma');
 
   const tokenRef = useRef<string | null>(figmaToken);
@@ -102,11 +231,11 @@ export function useFigJamPlugin() {
     setSyncStatus({ message, type });
   }, []);
 
-  // M3 relay-pull: subscribe to the Figma design companion's live selection
-  // (figma:<pairing> channel, subscribe-only token) and fill the Import card
-  // as the user clicks around the Figma file — the two-files timeline.
+  // M3 relay-pull, opt-in: only when the user enables "Live Figma selection"
+  // in Settings does the mirror subscribe to the Figma companion's live
+  // selection (figma:<pairing>, subscribe-only token) — the two-files timeline.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !liveFigmaSelection) return;
     const pairingId = getOrCreatePairingId();
     let unsubscribe: (() => void) | null = null;
     let cancelled = false;
@@ -137,7 +266,7 @@ export function useFigJamPlugin() {
       cancelled = true;
       if (unsubscribe) unsubscribe();
     };
-  }, [status]);
+  }, [status, liveFigmaSelection]);
 
   // Mirrored board state + presence from the plugin.
   useEffect(() => {
@@ -151,6 +280,15 @@ export function useFigJamPlugin() {
           // selected on the FigJam canvas — empty selection = empty Sync (0),
           // never the full board registry.
           setSelectedItems(trackedToSynced(msg.tracked ?? []));
+          const foreign = Array.isArray(msg.foreign) ? msg.foreign : [];
+          setForeignSelection(
+            foreign
+              .filter((f: unknown): f is { id: string; name: string } => {
+                const row = f as { id?: unknown; name?: unknown };
+                return typeof row?.id === 'string' && row.id.length > 0;
+              })
+              .map((f) => ({ id: f.id, name: String(f.name || '') }))
+          );
           break;
         }
         case 'figjam-place-result': {
@@ -229,6 +367,7 @@ export function useFigJamPlugin() {
       format: 'png' | 'svg';
       platform?: 'figma' | 'penpot';
       nodeIds?: string[];
+      forceNodeIds?: string[];
       allCopies?: boolean;
       preserveSize?: boolean;
       width?: number;
@@ -258,6 +397,7 @@ export function useFigJamPlugin() {
           scale: payload.scale,
           dataUrl: payload.dataUrl,
           nodeIds: payload.nodeIds,
+          forceNodeIds: payload.forceNodeIds,
           allCopies: payload.allCopies,
           preserveSize: payload.preserveSize,
           width: payload.width,
@@ -316,7 +456,11 @@ export function useFigJamPlugin() {
       const safeFormat = format ?? 'png';
       status(`Rendering ${figmaNodeInfo.name || figmaNodeInfo.nodeId}…`, 'progress');
       try {
-        const dataUrl = await renderNode(figmaNodeInfo.fileKey, figmaNodeInfo.nodeId, safeScale, safeFormat);
+        let dataUrl = await renderNode(figmaNodeInfo.fileKey, figmaNodeInfo.nodeId, safeScale, safeFormat);
+        // FigJam rejects SVG images — rasterize in the browser first.
+        if (safeFormat === 'svg') {
+          dataUrl = await svgToPngDataUrl(dataUrl, safeScale);
+        }
         placeOnBoard({
           fileKey: figmaNodeInfo.fileKey,
           nodeId: figmaNodeInfo.nodeId,
@@ -392,7 +536,11 @@ export function useFigJamPlugin() {
       try {
         const format = (first.format === 'svg' ? 'svg' : 'png') as 'png' | 'svg';
         const scale = first.scale ?? 1;
-        const dataUrl = await renderNode(first.fileKey, first.nodeId, scale, format);
+        let dataUrl = await renderNode(first.fileKey, first.nodeId, scale, format);
+        // FigJam rejects SVG images — rasterize in the browser first.
+        if (format === 'svg') {
+          dataUrl = await svgToPngDataUrl(dataUrl, scale);
+        }
         placeOnBoard({
           fileKey: first.fileKey,
           nodeId: first.nodeId,
@@ -422,7 +570,10 @@ export function useFigJamPlugin() {
     postToPlugin({ action: 'get-selection-state' });
   }, [selectedItems, renderNode, placeOnBoard, status, syncAllCopies, preserveSize]);
 
-  // ---- Adopt (replace a selected board node) ----
+  // ---- Replace a selected board node (Import → Replace Selected) ----
+  // Targets the CURRENT selection — SyncingBoard mirrors OR any foreign
+  // image (placed by hand / other plugins); forceNodeIds tells the plugin to
+  // rewrite those nodes' meta to the new frame key.
   const replaceSelectedWidget = useCallback(
     async (
       platform: 'figma' | 'penpot',
@@ -432,20 +583,47 @@ export function useFigJamPlugin() {
       format: 'png' | 'svg',
       scale: number
     ) => {
-      if (platform !== 'figma') {
-        status('Penpot source is Miro-only for now', 'info');
+      const targets = selectedItems
+        .map((it) => it.id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0);
+      const foreignTargets = foreignSelection.map((f) => f.id).filter((id) => id.length > 0);
+      const forceNodeIds = targets.length > 0 ? targets : foreignTargets;
+      if (forceNodeIds.length === 0) {
+        status('Select a mirror or any image on the canvas to replace it.', 'error');
         return;
       }
       status(`Rendering ${nodeName || nodeId}…`, 'progress');
       try {
-        const dataUrl = await renderNode(fileKey, nodeId, scale, format);
-        placeOnBoard({ fileKey, nodeId, name: nodeName || nodeId, scale, dataUrl, format, preserveSize });
+        let dataUrl: string;
+        if (platform === 'penpot') {
+          const exported = await exportPenpotViaRelay(nodeId, format, scale);
+          dataUrl = exported.dataUrl;
+          if (format === 'svg') {
+            dataUrl = await svgToPngDataUrl(dataUrl, scale, exported.width, exported.height);
+          }
+        } else {
+          dataUrl = await renderNode(fileKey, nodeId, scale, format);
+          if (format === 'svg') {
+            dataUrl = await svgToPngDataUrl(dataUrl, scale);
+          }
+        }
+        placeOnBoard({
+          fileKey,
+          nodeId,
+          name: nodeName || nodeId,
+          scale,
+          dataUrl,
+          format,
+          platform,
+          forceNodeIds,
+          preserveSize,
+        });
       } catch (err) {
         setIsSyncing(false);
         status(err instanceof Error ? err.message : 'Replace error', 'error');
       }
     },
-    [renderNode, placeOnBoard, status, preserveSize]
+    [selectedItems, foreignSelection, renderNode, placeOnBoard, status, preserveSize]
   );
 
   // ---- Group setting changes (format/scale on the Sync cards) ----
@@ -539,52 +717,19 @@ export function useFigJamPlugin() {
       setIsSyncing(true);
       status('Waiting for the Penpot Companion (open it on the same Pairing ID)…', 'progress');
       try {
-        // Direct callRelay: same export path as callPenpotMcpTool but with a
-        // human-scale timeout — the companion may be closed, better to fail
-        // with guidance than to spin for two minutes.
-        const pairingId = getOrCreatePairingId();
-        if (!pairingId) {
-          throw new Error('Pairing ID is not set. Copy it from Settings first.');
-        }
-        const data = await callRelay({
-          pairingId,
-          platform: 'penpot',
-          action: 'export',
-          shapeId: penpotNodeInfo.objectId,
-          format,
-          scale,
-          timeoutMs: 45_000,
-        });
-        const payload = data as {
-          svg?: string;
-          base64?: string;
-          name?: string;
-          width?: number;
-          height?: number;
-        } | null;
-        if (!payload) {
-          throw new Error('Penpot relay returned an empty export.');
-        }
-        const responseName = payload.name ? decodeHtmlEntities(payload.name) : undefined;
+        const exported = await exportPenpotViaRelay(penpotNodeInfo.objectId, format, scale);
+        const responseName = exported.name;
         if (responseName && responseName !== 'Selected Frame') {
           setPenpotNodeInfo((prev) => (prev ? { ...prev, name: responseName } : prev));
         }
-        let dataUrl: string;
+        let dataUrl = exported.dataUrl;
+        // FigJam rejects SVG images — rasterize in the browser first.
         if (format === 'svg') {
-          if (!payload.svg) {
-            throw new Error('Penpot relay returned empty SVG export data.');
-          }
-          const svgBase64 = btoa(unescape(encodeURIComponent(payload.svg)));
-          dataUrl = `data:image/svg+xml;base64,${svgBase64}`;
-        } else {
-          if (!payload.base64) {
-            throw new Error('Penpot relay returned empty PNG export data.');
-          }
-          dataUrl = `data:image/png;base64,${payload.base64}`;
+          dataUrl = await svgToPngDataUrl(dataUrl, scale, exported.width, exported.height);
         }
-        const naturalWidth = payload.width && payload.width > 0 ? Math.round(payload.width * scale) : 0;
+        const naturalWidth = exported.width && exported.width > 0 ? Math.round(exported.width * scale) : 0;
         const naturalHeight =
-          payload.height && payload.height > 0 ? Math.round(payload.height * scale) : 0;
+          exported.height && exported.height > 0 ? Math.round(exported.height * scale) : 0;
         const resolvedName =
           (responseName && responseName !== 'Selected Frame' ? responseName : penpotNodeInfo.name) ||
           'Penpot Frame';
@@ -648,8 +793,10 @@ export function useFigJamPlugin() {
     setPropagate,
     applyGroupSettings,
     cooldownSeconds: 0,
-    isAnyImageSelected: selectedItems.length > 0,
+    isAnyImageSelected: selectedItems.length > 0 || foreignSelection.length > 0,
     replaceSelectedWidget,
     pairingId,
+    liveFigmaSelection,
+    setLiveFigmaSelection,
   } as const;
 }

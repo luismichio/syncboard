@@ -194,7 +194,7 @@ export function SyncTab({
               {cooldownSeconds > 0
           ? `COMMUNITY COOLDOWN · ${cooldownSeconds}s`
           : mirrorMode
-            ? (syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED MIRRORS')
+            ? (syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED')
             : (syncAllCopies ? 'SYNC + UPDATE ALL COPIES' : 'SYNC SELECTED')}
             </button>
 

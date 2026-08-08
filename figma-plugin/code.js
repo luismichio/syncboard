@@ -3,13 +3,9 @@
 // Branch on figma.editorType so the design-file companion logic never runs in FigJam.
 const EDITOR_TYPE = typeof figma.editorType === 'string' ? figma.editorType : 'figma';
 
-// FigJam editor: give the mirror a taller plugin window so its cards + footer
+// FigJam editor: give the mirror a tall plugin window so its cards + footer
 // fit without scrollbars. The Figma design sidebar keeps its default height.
-if (EDITOR_TYPE === 'figjam') {
-  try {
-    figma.ui.resize(360, 720);
-  } catch (e) {}
-}
+// Must run AFTER figma.showUI — resizing before the UI exists is a no-op.
 const IS_FIGJAM = EDITOR_TYPE !== 'figma';
 
 figma.showUI(__html__, {
@@ -17,6 +13,12 @@ figma.showUI(__html__, {
   height: 480,
   themeColors: true,
 });
+
+if (IS_FIGJAM) {
+  try {
+    figma.ui.resize(390, 880);
+  } catch (e) {}
+}
 
 let globalFileKey = 'unknown';
 let previewHost = '';
@@ -162,15 +164,33 @@ async function figjamPlace(payload) {
     const title = `${payload.name || nodeId} [FigmaSync|${fileKey}|${nodeId}]`;
 
     const existingAll = figjamFindAllByKey(fileKey, nodeId);
-    // Selection-driven default: update ONLY the instances the caller names.
-    // Sync tab sends the selected nodeIds; "update all copies" (allCopies)
-    // opts into every instance of the key.
-    const targetNodes =
-      payload.allCopies
-        ? existingAll
-        : (Array.isArray(payload.nodeIds) && payload.nodeIds.length > 0
-            ? existingAll.filter((n) => payload.nodeIds.includes(n.id))
-            : existingAll);
+    // Replace mode (Import → Replace Selected): forceNodeIds targets the
+    // SELECTED nodes directly — mirrors AND foreign nodes (images placed by
+    // hand or other plugins). Their plugin data is rewritten to the new key.
+    let targetNodes = null;
+    if (Array.isArray(payload.forceNodeIds) && payload.forceNodeIds.length > 0) {
+      targetNodes = payload.forceNodeIds
+        .map(function (id) {
+          try {
+            const node = figma.getNodeById(String(id));
+            return node && typeof node.fills !== 'undefined' ? node : null;
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter(Boolean);
+    }
+    if (!targetNodes || targetNodes.length === 0) {
+      // Selection-driven default: update ONLY the instances the caller names.
+      // Sync tab sends the selected nodeIds; "update all copies" (allCopies)
+      // opts into every instance of the key.
+      targetNodes =
+        payload.allCopies
+          ? existingAll
+          : (Array.isArray(payload.nodeIds) && payload.nodeIds.length > 0
+              ? existingAll.filter((n) => payload.nodeIds.includes(n.id))
+              : existingAll);
+    }
     // "Keep canvas size": never resize, the FILL crop stays by design.
     const keepSize = payload.preserveSize === true;
     let image;
@@ -320,10 +340,6 @@ function pushFileKey() {
   figma.ui.postMessage({ action: 'file-key', fileKey: resolveFileKey() });
 }
 
-// Selection state sent to the mirror: ONLY the currently selected tracked
-// rectangles (the Sync tab + badge are selection-driven, like Miro).
-// The summary carries each node's persisted format/scale/platform so the
-// mirror cards round-trip the group settings.
 function figjamNodeSummary(n) {
   const meta = figjamMeta(n);
   return {
@@ -338,24 +354,38 @@ function figjamNodeSummary(n) {
   };
 }
 
+// Selection state sent to the mirror: ONLY the currently selected tracked
+// rectangles (the Sync tab + badge are selection-driven, like Miro).
+// The summary carries each node's persisted format/scale/platform so the
+// mirror cards round-trip the group settings.
+// `foreign` lists every OTHER selected node (e.g. images placed by hand or
+// other plugins): the Import tab can then REPLACE those too, not only the
+// mirrors SyncingBoard placed.
 function figjamSelectionSummary() {
   const selection = figma.currentPage.selection || [];
-  return selection
-    .filter(function (n) {
-      try {
-        return typeof n.getPluginData === 'function' && !!n.getPluginData(SB_META_KEY);
-      } catch (e) {
-        return false;
-      }
-    })
-    .map(figjamNodeSummary);
+  const tracked = [];
+  const foreign = [];
+  for (const n of selection) {
+    if (!n) continue;
+    let isTracked = false;
+    try {
+      isTracked = typeof n.getPluginData === 'function' && !!n.getPluginData(SB_META_KEY);
+    } catch (e) {}
+    if (isTracked) {
+      tracked.push(figjamNodeSummary(n));
+    } else {
+      foreign.push({ id: n.id, name: n.name || '' });
+    }
+  }
+  return { tracked, foreign };
 }
 
 // Listen to selection changes on the active page: the mirror's Sync tab is
 // SELECTION-DRIVEN (like Miro) — the badge counts selected tracked mirrors
 // and cards show only the selected ones.
 figma.on('selectionchange', () => {
-  figma.ui.postMessage({ action: 'figjam-selection', tracked: figjamSelectionSummary() });
+  const sbSel = figjamSelectionSummary();
+  figma.ui.postMessage({ action: 'figjam-selection', tracked: sbSel.tracked, foreign: sbSel.foreign });
   // M3 relay-pull: in the Figma design editor, also stream the current
   // selection to the companion UI so it can publish it to the pairing
   // channel (the FigJam mirror fills its Import card live).
@@ -431,7 +461,8 @@ figma.ui.onmessage = async (msg) => {
   }
 
   if (msg.action === 'get-selection-state') {
-    figma.ui.postMessage({ action: 'figjam-selection', tracked: figjamSelectionSummary() });
+    const sbSel = figjamSelectionSummary();
+  figma.ui.postMessage({ action: 'figjam-selection', tracked: sbSel.tracked, foreign: sbSel.foreign });
     return;
   }
 
@@ -464,7 +495,8 @@ figma.ui.onmessage = async (msg) => {
           n.setPluginData(SB_META_KEY, JSON.stringify(updated));
         });
     } catch (e) {}
-    figma.ui.postMessage({ action: 'figjam-selection', tracked: figjamSelectionSummary() });
+    const sbSel = figjamSelectionSummary();
+  figma.ui.postMessage({ action: 'figjam-selection', tracked: sbSel.tracked, foreign: sbSel.foreign });
     return;
   }
 

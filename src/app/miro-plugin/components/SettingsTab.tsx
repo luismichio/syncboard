@@ -16,6 +16,8 @@ interface SettingsTabProps {
   useTauri: boolean;
   defaultPngScale: number;
   onDefaultPngScaleChange: (value: number) => void;
+  liveFigmaSelection?: boolean;
+  setLiveFigmaSelection?: (value: boolean) => void;
   availableScales: number[];
   hideMiro?: boolean;
 }
@@ -35,6 +37,8 @@ export function SettingsTab({
   useTauri,
   defaultPngScale,
   onDefaultPngScaleChange,
+  liveFigmaSelection = false,
+  setLiveFigmaSelection = () => {},
   availableScales,
   hideMiro = false,
 }: SettingsTabProps) {
@@ -191,6 +195,22 @@ export function SettingsTab({
                 <option key={s} value={s}>{s}x</option>
               ))}
             </select>
+          </div>
+
+          <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
+            <div className="flex flex-col gap-0.5 pr-2">
+              <span className="text-xs font-semibold text-text-page">Live Figma selection</span>
+              <span className="text-[9px] text-text-muted leading-tight">
+                Auto-fill Import from the Figma design selection (uses relay quota — off by default)
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              checked={liveFigmaSelection}
+              onChange={(e) => setLiveFigmaSelection(e.target.checked)}
+              className="accent-accent w-3 h-3 shrink-0 cursor-pointer"
+              aria-label="Live Figma selection"
+            />
           </div>
 
           <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">
