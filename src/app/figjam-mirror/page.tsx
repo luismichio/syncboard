@@ -164,6 +164,8 @@ export default function FigJamPluginPage() {
             detectLocalPenpotSelection={hook.detectLocalPenpotSelection}
             importPenpotScreen={hook.importPenpotScreen}
             replaceSelectedWidget={hook.replaceSelectedWidget}
+            onClearFigmaNodeInfo={hook.resetImportState}
+            onClearPenpotNodeInfo={hook.resetImportState}
           />
         )}
         {activeTab === 'settings' && (
@@ -190,6 +192,13 @@ export default function FigJamPluginPage() {
             liveFigmaSelection={hook.liveFigmaSelection}
             setLiveFigmaSelection={hook.setLiveFigmaSelection}
             rateLimited={hook.rateLimited}
+            figmaApiCalls={hook.figmaApiCalls}
+            figmaCacheHits={hook.figmaCacheHits}
+            figmaRateInfo={
+              hook.rateInfo
+                ? `${hook.rateInfo.planTier} · ${hook.rateInfo.limitType} · retry-after ${hook.rateInfo.retryAfter}s`
+                : null
+            }
           />
         )}
       </section>

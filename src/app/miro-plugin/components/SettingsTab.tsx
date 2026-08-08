@@ -19,6 +19,9 @@ interface SettingsTabProps {
   liveFigmaSelection?: boolean;
   setLiveFigmaSelection?: (value: boolean) => void;
   rateLimited?: boolean;
+  figmaApiCalls?: number;
+  figmaCacheHits?: number;
+  figmaRateInfo?: string | null;
   availableScales: number[];
   hideMiro?: boolean;
 }
@@ -41,6 +44,9 @@ export function SettingsTab({
   liveFigmaSelection = false,
   setLiveFigmaSelection = () => {},
   rateLimited = false,
+  figmaApiCalls = 0,
+  figmaCacheHits = 0,
+  figmaRateInfo = null,
   availableScales,
   hideMiro = false,
 }: SettingsTabProps) {
@@ -216,6 +222,25 @@ export function SettingsTab({
               className={"accent-accent w-3 h-3 shrink-0 cursor-pointer " + (rateLimited ? 'opacity-40 cursor-not-allowed' : '')}
               aria-label="Live Figma selection"
             />
+          </div>
+
+          {/* API-call telemetry — why Figma rate-limits can show up and how
+              many calls each session burns. Renders hit the REST API; cache
+              hits don't. */}
+          <div className="p-3 rounded-lg bg-bg-card border border-border-card">
+            <span className="text-xs font-semibold text-text-page">Figma API usage (this session)</span>
+            <div className="mt-1 font-mono text-[9px] text-text-muted leading-relaxed">
+              <div>
+                render calls: <span className="text-text-page">{figmaApiCalls}</span> · cache hits:{' '}
+                <span className="text-text-page">{figmaCacheHits}</span>
+              </div>
+              <div>Served from cache: same frame+scale+format within 90s costs 0 calls.</div>
+              {figmaRateInfo ? (
+                <div className="text-red-600 dark:text-red-400 mt-1">
+                  rate limit: {figmaRateInfo}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <div className="p-3 rounded-lg bg-bg-card border border-border-card flex justify-between items-center">

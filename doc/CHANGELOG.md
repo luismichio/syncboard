@@ -21,6 +21,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Replace now targets the plugin's OWN selection** — figjam-replace rewrites whatever nodes are selected at message time (tracked mirrors AND foreign images) in place; no more duplicate placements or hitting the wrong copy. Plugin-side selection also removes the mirror/plugin id round-trip that could resolve to stale nodes.
 - **Render cache (90s TTL)** — repeated Import/Replace/Sync of the same frame+scale+format reuse the last rendered data-URL instead of calling the Figma Render API every click: replacing the same frame 4x now costs 1 render, so the rate limit is no longer hit after a few replaces.
 - **Live Figma selection toggle is disabled during rate-limit cooldown** — it greys out with a "Paused" note and re-enables automatically (~20s).
+- **"Place on Canvas" always creates a NEW copy** — the same-key in-place update used to silently overwrite the previously placed copy, so doing it again looked like "replacing the last image".
+- **Replacing Figma component instances now really replaces** — instances/locked artwork ignore fill writes; the plugin verifies the fill landed and otherwise swaps the node object at its own position (old component removed, new image placed at the same x/y/size).
+- **Figma call telemetry** — Settings now show "Figma API usage (this session)": render calls + cache hits, plus the last rate-limit (X-Figma-Tier / limit type / Retry-After) when present.
+- **One automatic grace retry on 429** — the mirror waits Figma's Retry-After (max 15s) and retries the render once before surfacing the error.
+- **Dismiss button on the import card** — an "x" clears the source (Figma or Penpot) so Place/Replace are not left "active" after the job is done.
 
 ### Fixed
 - **Scale now resizes the canvas object** — `figjamPlace` sizes the rect to the exported pixels (PNG already carries the render scale; SVG width/height × scale). 1× → design size, 2× → double, still crisp.

@@ -225,13 +225,23 @@ export function useFigJamPlugin() {
   // click — repeated replaces used to hit the rate limit after ~4 tries.
   const renderCacheRef = useRef(new Map<string, { value: unknown; at: number }>());
   const [rateLimited, setRateLimited] = useState(false);
+  // Session API-call telemetry: renders hit Figma's REST API (the expensive,
+  // rate-limited call); cache hits do not. Surfaced in Settings so the user
+  // can see exactly how many calls each session burns.
+  const [figmaApiCalls, setFigmaApiCalls] = useState(0);
+  const [figmaCacheHits, setFigmaCacheHits] = useState(0);
+  const [rateInfo, setRateInfo] = useState<{ planTier: string; limitType: string; retryAfter: number } | null>(null);
+  const bumpApiCalls = useCallback((n = 1) => setFigmaApiCalls((c) => c + n), []);
   // M3 live-push guard: a selection streamed from Figma does not overwrite a
   // link the user just pasted or a frame they just detected (10s window).
   const lastManualFigSourceRef = useRef(0);
 
   const cachedFetch = useCallback(async <T>(key: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> => {
     const hit = renderCacheRef.current.get(key) as { value: T; at: number } | undefined;
-    if (hit && Date.now() - hit.at < ttlMs) return hit.value;
+    if (hit && Date.now() - hit.at < ttlMs) {
+      setFigmaCacheHits((h) => h + 1);
+      return hit.value;
+    }
     const value = await fetcher();
     renderCacheRef.current.set(key, { value, at: Date.now() });
     if (renderCacheRef.current.size > 40) {
@@ -364,24 +374,57 @@ export function useFigJamPlugin() {
     if (!token) throw new Error('Missing Figma connection — connect Figma in Settings.');
     const scaleSafe = scale ?? 1;
     const formatSafe = format ?? 'png';
-    const res = await fetch('/api/figma/render-batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ fileKey, nodeIds: [nodeId], format: formatSafe, scale: scaleSafe }),
-    });
-    if (!res.ok) {
-      const errData = (await res.json().catch(() => ({}))) as { error?: string };
-      const errText = errData.error || `Render HTTP ${res.status}`;
-      if (res.status === 429 || errText.includes('rate_limit_exceeded')) {
-        throw new Error('Figma is rate-limiting right now — wait a few seconds and retry.');
+    const url = '/api/figma/render-batch';
+    const body = JSON.stringify({ fileKey, nodeIds: [nodeId], format: formatSafe, scale: scaleSafe });
+    const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
+    const attempt = async (): Promise<string> => {
+      bumpApiCalls();
+      const res = await fetch(url, { method: 'POST', headers, body });
+      if (!res.ok) {
+        const errData = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          retryAfter?: number | null;
+          planTier?: string | null;
+          limitType?: string | null;
+        };
+        const errText = errData.error || `Render HTTP ${res.status}`;
+        const isRate = res.status === 429 || errText.includes('rate_limit_exceeded');
+        let retryAfter = 9;
+        if (isRate) {
+          retryAfter = errData.retryAfter && errData.retryAfter > 0 ? errData.retryAfter : 9;
+          setRateInfo({
+            planTier: String(errData.planTier || 'unknown'),
+            limitType: String(errData.limitType || 'unknown'),
+            retryAfter,
+          });
+          setRateLimited(true);
+          window.setTimeout(() => setRateLimited(false), Math.max(retryAfter, 5) * 1000 + 5_000);
+          // One graceful retry after Figma's Retry-After window.
+          await new Promise((resolve) => setTimeout(resolve, Math.min(retryAfter, 15) * 1000));
+          bumpApiCalls();
+          const retry = await fetch(url, { method: 'POST', headers, body });
+          if (retry.ok) {
+            const data = (await retry.json()) as { images?: Record<string, string | null> };
+            const dataUrl = data.images?.[nodeId];
+            if (dataUrl) return dataUrl;
+          }
+        }
+        throw new Error(
+          isRate
+            ? `Figma is rate-limiting (plan: ${String(errData.planTier || 'unknown')}) — try again in ~${Math.min(
+                retryAfter || 9,
+                15
+              )}s.`
+            : errText
+        );
       }
-      throw new Error(errText);
-    }
-    const data = (await res.json()) as { images?: Record<string, string | null> };
-    const dataUrl = data.images?.[nodeId];
-    if (!dataUrl) throw new Error('Figma render returned no image for the node.');
-    return dataUrl;
-  }, []);
+      const data = (await res.json()) as { images?: Record<string, string | null> };
+      const dataUrl = data.images?.[nodeId];
+      if (!dataUrl) throw new Error('Figma render returned no image for the node.');
+      return dataUrl;
+    };
+    return attempt();
+  }, [bumpApiCalls]);
 
   const placeOnBoard = useCallback(
     (payload: {
@@ -399,6 +442,7 @@ export function useFigJamPlugin() {
       width?: number;
       height?: number;
       replace?: boolean;
+      placeNew?: boolean;
     }) => {
       setIsSyncing(true);
       // Watchdog: if the plugin never confirms (figjam-place-result), don't
@@ -432,6 +476,7 @@ export function useFigJamPlugin() {
           preserveSize: payload.preserveSize,
           width: payload.width,
           height: payload.height,
+          placeNew: payload.placeNew,
         },
       });
     },
@@ -456,6 +501,7 @@ export function useFigJamPlugin() {
         name: parsed.nodeId,
       };
       if (tokenRef.current) {
+        bumpApiCalls();
         try {
           const res = await fetch(
             `/api/figma/node-info?fileKey=${encodeURIComponent(parsed.fileKey)}&nodeId=${encodeURIComponent(parsed.nodeId)}`,
@@ -502,6 +548,7 @@ export function useFigJamPlugin() {
           scale: safeScale,
           dataUrl,
           format: safeFormat,
+          placeNew: true,
         });
       } catch (err) {
         setIsSyncing(false);
@@ -790,6 +837,7 @@ export function useFigJamPlugin() {
           width: naturalWidth || undefined,
           height: naturalHeight || undefined,
           preserveSize,
+          placeNew: true,
         });
       } catch (err: unknown) {
         setIsSyncing(false);
@@ -801,6 +849,14 @@ export function useFigJamPlugin() {
   );
 
   const pairingId = getOrCreatePairingId();
+
+  const resetImportState = useCallback(() => {
+    setFigmaNodeInfo(null);
+    setPenpotNodeInfo(null);
+    setFigmaInput('');
+    setPenpotInput('');
+    setFigmaParseError(null);
+  }, []);
 
   return {
     isInitMode: false,
@@ -844,5 +900,9 @@ export function useFigJamPlugin() {
     liveFigmaSelection,
     setLiveFigmaSelection,
     rateLimited,
+    figmaApiCalls,
+    figmaCacheHits,
+    rateInfo,
+    resetImportState,
   } as const;
 }

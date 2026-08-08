@@ -50,6 +50,8 @@ figmaConnected?: boolean;
     format: 'png' | 'svg',
     scale: number
   ) => Promise<void>;
+  onClearFigmaNodeInfo?: () => void;
+  onClearPenpotNodeInfo?: () => void;
 }
 
 export function ImportTab({
@@ -84,6 +86,8 @@ figmaConnected,
   detectLocalPenpotSelection,
   importPenpotScreen,
   replaceSelectedWidget,
+  onClearFigmaNodeInfo,
+  onClearPenpotNodeInfo,
 }: ImportTabProps) {
   return (
     <div className="flex-grow flex flex-col gap-4">
@@ -178,6 +182,18 @@ figmaConnected,
                         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                       </svg>
                     </button>
+                    {onClearFigmaNodeInfo ? (
+                      <button
+                        onClick={onClearFigmaNodeInfo}
+                        className="shrink-0 flex items-center justify-center w-6 h-6 rounded hover:bg-bg transition cursor-pointer text-text-muted hover:text-red-500"
+                        title="Dismiss this import"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    ) : null}
                   </div>
 
                   <FormatScaleSelector
@@ -299,6 +315,18 @@ figmaConnected,
                     <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                   </svg>
                 </button>
+                {onClearPenpotNodeInfo ? (
+                  <button
+                    onClick={onClearPenpotNodeInfo}
+                    className="shrink-0 flex items-center justify-center w-6 h-6 rounded hover:bg-bg transition cursor-pointer text-text-muted hover:text-red-500"
+                    title="Dismiss this import"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                ) : null}
               </div>
 
               <FormatScaleSelector

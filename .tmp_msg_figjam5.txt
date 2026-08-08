@@ -1,0 +1,21 @@
+fix(figjam): place-always-new, instance swap-replace, call telemetry + 429 retry
+
+- "Place on Canvas" now ALWAYS creates a fresh rect (placeNew flag in
+  figjam-place): importing the same frame twice no longer silently
+  overwrites the previously placed copy.
+- Replacing Figma COMPONENT instances actually replaces now: instances and
+  locked artwork silently ignore fill writes, so the plugin verifies the
+  IMAGE fill landed (fillImageMatches) and otherwise removes the old node
+  and creates the new image rect at the same x/y/size. Same guard in the
+  sync in-place path.
+- Figma API usage telemetry in Settings: render calls + cache hits this
+  session, and the last 429 details (Figma tier header, rate-limit type,
+  Retry-After) surfaced from the render-batch route as-is.
+- renderNode retries once on 429 after Figma's Retry-After (cap 15s) before
+  surfacing the error; Live toggle deactivates during the cooldown as before.
+- Import card gets a dismiss (x) button for both sources, so Place/Replace
+  are not left enabled after the job completes.
+
+Test: tsc clean, lint 0 errors, 138/138. Local yarn build blocked by the
+pre-existing Next 16 workStore prerender invariant (Node 24, unrelated
+routes); CI builds with Node 20.

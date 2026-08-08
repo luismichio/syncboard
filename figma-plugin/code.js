@@ -147,6 +147,19 @@ function figjamTrackedSummary() {
 }
 
 // Place (create or in-place update) a rendered figure as an image Rectangle.
+
+// True when a node really accepted the given image fill. Fill writes on
+// locked instances/components are silently ignored — the caller then swaps
+// the node object instead of leaving the old artwork overlapping the new.
+function fillImageMatches(node, newFill) {
+  try {
+    const f = node.fills && node.fills[0];
+    return !!f && f.type === 'IMAGE' && f.imageHash === newFill.imageHash;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function figjamPlace(payload) {
   // Whole-body try/catch: FigJam runs this inside the editor and any
   // synchronous throw (node lookup, createRectangle, appendChild...) would
@@ -163,7 +176,11 @@ async function figjamPlace(payload) {
     }
     const title = `${payload.name || nodeId} [FigmaSync|${fileKey}|${nodeId}]`;
 
-    const existingAll = figjamFindAllByKey(fileKey, nodeId);
+    // IMPORT NEW: Import's "Place on Canvas" must ALWAYS create a fresh
+    // rect — it must never rewrite an existing copy of the same frame key
+    // (that made a second placement silently overwrite the first).
+    const placeNew = payload.placeNew === true;
+    const existingAll = placeNew ? [] : figjamFindAllByKey(fileKey, nodeId);
     // Replace mode (Import → Replace Selected): forceNodeIds targets the
     // SELECTED nodes directly — mirrors AND foreign nodes (images placed by
     // hand or other plugins). Their plugin data is rewritten to the new key.
@@ -226,6 +243,7 @@ async function figjamPlace(payload) {
 
   if (targetNodes.length > 0) {
     // In-place update: only the requested instances are resized + re-filled.
+    const resultNodes = [];
     for (const existing of targetNodes) {
       // Keep the user's crop position: carry the previous FILL transform over
       // so re-syncing does not reset the image inside the rectangle.
@@ -234,22 +252,53 @@ async function figjamPlace(payload) {
         const prevFill = existing.fills && existing.fills[0];
         if (prevFill && prevFill.type === 'IMAGE') prevTransform = prevFill.imageTransform;
       } catch (e) {}
+      const gx0 = existing.x;
+      const gy0 = existing.y;
+      const gw0 = existing.width;
+      const gh0 = existing.height;
+      const prevName = existing.name;
       if (!keepSize && targetW && targetH) existing.resize(targetW, targetH);
       const newFill = { type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' };
       if (prevTransform) newFill.imageTransform = prevTransform;
       existing.fills = [newFill];
+      if (fillImageMatches(existing, newFill)) {
+        try {
+          existing.setPluginData(SB_META_KEY, JSON.stringify({
+            fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
+            imageHash: image.hash, name: payload.name || figjamMeta(existing).name || '',
+            format: payload.format || 'png',
+            scale: payload.scale || 1,
+            platform: payload.platform || 'figma',
+          }));
+        } catch (e) {}
+        resultNodes.push(existing);
+        continue;
+      }
+      // Cannot edit this node's fills (locked component / other plugin
+      // artwork): physically replace the node at its own position.
+      existing.remove();
+      const body = figma.createRectangle();
+      body.name = title || prevName;
+      const swapW = keepSize ? gw0 : (targetW || gw0);
+      const swapH = keepSize ? gh0 : (targetH || gh0);
+      body.resize(Math.max(1, swapW), Math.max(1, swapH));
+      body.x = gx0;
+      body.y = gy0;
+      body.fills = [newFill];
       try {
-        existing.setPluginData(SB_META_KEY, JSON.stringify({
+        body.setPluginData(SB_META_KEY, JSON.stringify({
           fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
-          imageHash: image.hash, name: payload.name || figjamMeta(existing).name || '',
+          imageHash: image.hash, name: payload.name || prevName,
           format: payload.format || 'png',
           scale: payload.scale || 1,
           platform: payload.platform || 'figma',
         }));
       } catch (e) {}
+      figma.currentPage.appendChild(body);
+      resultNodes.push(body);
     }
-    figma.currentPage.selection = targetNodes;
-    return { ok: true, nodeId: targetNodes[0].id, key: figjamKey(fileKey, nodeId), created: false, updated: targetNodes.length };
+    figma.currentPage.selection = resultNodes;
+    return { ok: true, nodeId: resultNodes[0].id, key: figjamKey(fileKey, nodeId), created: false, updated: resultNodes.length };
   }
 
   const rect = figma.createRectangle();
@@ -408,6 +457,7 @@ async function figjamReplace(payload) {
         targetH = Math.max(1, Math.round(png.height));
       }
     }
+    const resultNodes = [];
     for (const existing of targets) {
       // Keep the user's crop position: carry the previous FILL transform
       // over so replacing does not reset the image inside the rectangle.
@@ -416,33 +466,69 @@ async function figjamReplace(payload) {
         const prevFill = existing.fills && existing.fills[0];
         if (prevFill && prevFill.type === 'IMAGE') prevTransform = prevFill.imageTransform;
       } catch (e) {}
+      const gx0 = existing.x;
+      const gy0 = existing.y;
+      const gw0 = existing.width;
+      const gh0 = existing.height;
+      const prevName = existing.name;
       if (!keepSize && targetW && targetH) existing.resize(targetW, targetH);
       const newFill = { type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' };
       if (prevTransform) newFill.imageTransform = prevTransform;
       existing.fills = [newFill];
+      if (fillImageMatches(existing, newFill)) {
+        try {
+          existing.setPluginData(
+            SB_META_KEY,
+            JSON.stringify({
+              fileKey: fileKey,
+              nodeId: nodeId,
+              key: figjamKey(fileKey, nodeId),
+              imageHash: image.hash,
+              name: payload.name || figjamMeta(existing).name || '',
+              format: payload.format || 'png',
+              scale: payload.scale || 1,
+              platform: payload.platform || 'figma',
+            })
+          );
+        } catch (e) {}
+        resultNodes.push(existing);
+        continue;
+      }
+      // Cannot change this node's fill (locked component) — swap it.
+      existing.remove();
+      const body = figma.createRectangle();
+      body.name = payload.name || prevName;
+      const swapW = keepSize ? gw0 : (targetW || gw0);
+      const swapH = keepSize ? gh0 : (targetH || gh0);
+      body.resize(Math.max(1, swapW), Math.max(1, swapH));
+      body.x = gx0;
+      body.y = gy0;
+      body.fills = [newFill];
       try {
-        existing.setPluginData(
+        body.setPluginData(
           SB_META_KEY,
           JSON.stringify({
             fileKey: fileKey,
             nodeId: nodeId,
             key: figjamKey(fileKey, nodeId),
             imageHash: image.hash,
-            name: payload.name || figjamMeta(existing).name || '',
+            name: payload.name || prevName,
             format: payload.format || 'png',
             scale: payload.scale || 1,
             platform: payload.platform || 'figma',
           })
         );
       } catch (e) {}
+      figma.currentPage.appendChild(body);
+      resultNodes.push(body);
     }
-    figma.currentPage.selection = targets;
+    figma.currentPage.selection = resultNodes;
     return {
       ok: true,
-      nodeId: targets[0].id,
+      nodeId: resultNodes[0].id,
       key: figjamKey(fileKey, nodeId),
       created: false,
-      updated: targets.length,
+      updated: resultNodes.length,
     };
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
