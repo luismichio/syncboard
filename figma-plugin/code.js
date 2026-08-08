@@ -152,7 +152,7 @@ async function figjamPlace(payload) {
     // the SOURCE frame's aspect ratio: FigJam's FILL crop then shows the
     // whole image instead of cropping to whatever size the rect held before
     // ("using the previous rectangle as crop area").
-    const png = pngDataSize(payload.dataUrl);
+    const png = pngDimensions(payload.dataUrl);
     const scale = Number.isFinite(payload.scale) && payload.scale > 0 ? payload.scale : 1;
     const targetW = png ? Math.max(1, Math.round(png.width / scale)) : null;
     const targetH = png ? Math.max(1, Math.round(png.height / scale)) : null;

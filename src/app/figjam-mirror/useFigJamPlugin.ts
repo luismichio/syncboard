@@ -91,14 +91,10 @@ export function useFigJamPlugin() {
       switch (msg.action) {
         case 'figjam-state': {
           const tracked = msg.selected ?? msg.tracked ?? [];
-          const incoming = trackedToSynced(tracked);
-          setSelectedItems((prev) => {
-            if (incoming.length === 0) return prev;
-            const byKey = new Map<string, SyncedImage>();
-            prev.forEach((p) => byKey.set(`${p.fileKey}|${p.nodeId}`, p));
-            incoming.forEach((i) => byKey.set(`${i.fileKey}|${i.nodeId}`, i));
-            return Array.from(byKey.values());
-          });
+          // The board summary is authoritative — an empty report means nothing
+          // is tracked, so REPLACE (a stale keep-on-empty caused "Sync" to act
+          // as if a selection was still active after an empty board).
+          setSelectedItems(trackedToSynced(tracked));
           break;
         }
         case 'figjam-place-result': {
