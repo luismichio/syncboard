@@ -250,6 +250,23 @@ figma.on('selectionchange', () => {
   });
 });
 
+// Keep the mirror's tracked list truthful: any board mutation (delete,
+// duplicate, rename...) pushes a refreshed figjam-state. Debounced so
+// bulk operations don't spam the bridge.
+let figjamStateTimer = null;
+try {
+  figma.on('documentchange', () => {
+    if (figjamStateTimer) clearTimeout(figjamStateTimer);
+    figjamStateTimer = setTimeout(() => {
+      figjamStateTimer = null;
+      figma.ui.postMessage({ action: 'figjam-state', tracked: figjamTrackedSummary() });
+    }, 400);
+  });
+} catch (e) {
+  // documentchange may be unavailable in some editor contexts; the mirror
+  // also polls figjam-list as a fallback.
+}
+
 // Message listener from UI
 figma.ui.onmessage = async (msg) => {
   if (!msg || typeof msg !== 'object') return;

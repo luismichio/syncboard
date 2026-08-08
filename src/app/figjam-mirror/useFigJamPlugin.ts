@@ -143,7 +143,14 @@ export function useFigJamPlugin() {
 
     window.addEventListener('message', onBridge);
     postToPlugin({ action: 'figjam-list' });
-    return () => window.removeEventListener('message', onBridge);
+    // Poll the tracked list while the panel is open: deletions/duplicates on
+    // the board happen outside this messaging pair, so keep the registry in
+    // sync even if the plugin's documentchange event is unavailable.
+    const poll = setInterval(() => postToPlugin({ action: 'figjam-list' }), 5000);
+    return () => {
+      window.removeEventListener('message', onBridge);
+      clearInterval(poll);
+    };
   }, []);
 
   const renderNode = useCallback(async (fileKey: string, nodeId: string, scale?: number) => {
