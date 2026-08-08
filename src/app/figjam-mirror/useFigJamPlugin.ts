@@ -44,16 +44,25 @@ function postToPlugin(msg: Record<string, unknown>): void {
 }
 
 function trackedToSynced(items: FigjamTracked[]): SyncedImage[] {
-  return items.map((t) => ({
-    id: t.id || t.key || '',
-    title: t.name || t.key || t.id || '',
-    fileKey: t.fileKey || '',
-    nodeId: t.nodeId || '',
-    nodeName: t.name || '',
-    format: 'png',
-    scale: 1,
-    platform: 'figma',
-  }));
+  // One card per unique frame key — duplicates (copies on the board) are
+  // covered by the plugin's all-instances in-place update, not separate
+  // rows (keeps the card count aligned with the source frames).
+  const byKey = new Map<string, SyncedImage>();
+  for (const t of items) {
+    const key = `${t.fileKey || ''}|${t.nodeId || ''}`;
+    if (!key || key === '|' || byKey.has(key)) continue;
+    byKey.set(key, {
+      id: t.id || t.key || key,
+      title: t.name || t.key || key,
+      fileKey: t.fileKey || '',
+      nodeId: t.nodeId || '',
+      nodeName: t.name || '',
+      format: 'png',
+      scale: 1,
+      platform: 'figma',
+    });
+  }
+  return Array.from(byKey.values());
 }
 
 export function useFigJamPlugin() {
@@ -148,7 +157,11 @@ export function useFigJamPlugin() {
     });
     if (!res.ok) {
       const errData = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(errData.error || `Render HTTP ${res.status}`);
+      const errText = errData.error || `Render HTTP ${res.status}`;
+      if (res.status === 429 || errText.includes('rate_limit_exceeded')) {
+        throw new Error('Figma is rate-limiting right now — wait a few seconds and retry.');
+      }
+      throw new Error(errText);
     }
     const data = (await res.json()) as { images?: Record<string, string | null> };
     const dataUrl = data.images?.[nodeId];
@@ -274,7 +287,12 @@ export function useFigJamPlugin() {
           scale: item.scale ?? 1,
           dataUrl,
         });
-        if (i < frames.length - 1) status(`Mirroring ${i + 1}/${frames.length}…`, 'progress');
+        if (i < frames.length - 1) {
+          status(`Mirroring ${i + 1}/${frames.length}…`, 'progress');
+          // Pacing: Figma's REST API rate-limits bursts; keep a short gap
+          // between renders so multi-frame syncs don't trip 429.
+          await new Promise((resolve) => setTimeout(resolve, 700));
+        }
       } catch (err) {
         setIsSyncing(false);
         status(err instanceof Error ? err.message : 'Mirror error', 'error');

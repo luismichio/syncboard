@@ -91,14 +91,25 @@ function figjamAllTracked() {
 }
 
 function figjamFindByKey(fileKey, nodeId) {
-  return figjamAllTracked().find(function (n) {
-    try {
-      const meta = JSON.parse(n.getPluginData(SB_META_KEY) || '{}');
-      return meta.fileKey === fileKey && meta.nodeId === nodeId;
-    } catch (e) {
-      return false;
-    }
-  }) || null;
+  return figjamFindAllByKey(fileKey, nodeId)[0] || null;
+}
+
+// Duplicates of a rect share the pluginData key but are separate nodes;
+// syncing must update ALL of them in place (the mirror counts them as one
+// frame, and copies stay in sync like Miro's in-place updates).
+function figjamFindAllByKey(fileKey, nodeId) {
+  try {
+    return figjamAllTracked().filter(function (n) {
+      try {
+        const meta = JSON.parse(n.getPluginData(SB_META_KEY) || '{}');
+        return meta.fileKey === fileKey && meta.nodeId === nodeId;
+      } catch (e) {
+        return false;
+      }
+    });
+  } catch (e) {
+    return [];
+  }
 }
 
 function figjamMeta(node) {
@@ -138,8 +149,8 @@ async function figjamPlace(payload) {
       return { ok: false, error: 'missing fileKey/nodeId' };
     }
     const title = `${payload.name || nodeId} [FigmaSync|${fileKey}|${nodeId}]`;
-    const existing = figjamFindByKey(fileKey, nodeId);
 
+    const existingAll = figjamFindAllByKey(fileKey, nodeId);
     let image;
     try {
       image = await figma.createImageAsync(payload.dataUrl);
@@ -157,20 +168,22 @@ async function figjamPlace(payload) {
     const targetW = png ? Math.max(1, Math.round(png.width / scale)) : null;
     const targetH = png ? Math.max(1, Math.round(png.height / scale)) : null;
 
-  if (existing) {
-    // In-place update: match the rect to the source frame size, then swap
-    // the IMAGE fill hash; keep identity + position.
-    if (targetW && targetH) existing.resize(targetW, targetH);
-    existing.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' }];
-    try {
-      existing.setPluginData(SB_META_KEY, JSON.stringify({
-        fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
-        imageHash: image.hash, name: payload.name || figjamMeta(existing).name || '',
-        format: payload.format || 'png', scale: payload.scale || 1,
-      }));
-    } catch (e) {}
-    figma.currentPage.selection = [existing];
-    return { ok: true, nodeId: existing.id, key: figjamKey(fileKey, nodeId), created: false };
+  if (existingAll.length > 0) {
+    // In-place update: every node carrying this key (duplicates included)
+    // gets resized to the source frame size and the new fill hash.
+    for (const existing of existingAll) {
+      if (targetW && targetH) existing.resize(targetW, targetH);
+      existing.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' }];
+      try {
+        existing.setPluginData(SB_META_KEY, JSON.stringify({
+          fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
+          imageHash: image.hash, name: payload.name || figjamMeta(existing).name || '',
+          format: payload.format || 'png', scale: payload.scale || 1,
+        }));
+      } catch (e) {}
+    }
+    figma.currentPage.selection = existingAll;
+    return { ok: true, nodeId: existingAll[0].id, key: figjamKey(fileKey, nodeId), created: false };
   }
 
   const rect = figma.createRectangle();

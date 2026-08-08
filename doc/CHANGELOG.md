@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.16.1] - 2026-08-07
 
 ### Fixed
+- FigJam duplicates no longer drift: `figjamPlace` updates **every** rectangle carrying the same `fileKey|nodeId` in place, the mirror card dedupes by key (copies don't spawn extra rows — one frame = one row), and the sync loop paces 700ms between frames plus surfaces a friendly "Figma is rate-limiting" message on 429/`rate_limit_exceeded` (so the 4-attempt burst stops breaking the flow).
 - `figjamPlace` PNG-dimension helper: the call site referenced a misspelled `pngDataSize` (vs defined `pngDimensions`) — the error surfaced as `figjam-place failed ('pngDataSize' is not defined)`; renamed the call.
 - FigJam mirror: `figjam-state` is now authoritative — an empty board report clears `selectedItems` (the old keep-on-empty merge kept "Sync" acting as if a selection was still active when the board had nothing tracked).
 - Placed FigJam figures now match the source frame size: `figjamPlace` decodes the PNG's own IHDR dimensions (via `figma.base64Decode`) and resizes the rectangle to the frame's aspect before the FILL swap — previously an updated rect kept its old size and FigJam's FILL cropped the image to the old rect ("using the previous rectangle as crop area").
