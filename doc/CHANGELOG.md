@@ -26,6 +26,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Penpot import actually imports** — the SVG branch now base64-encodes the relay’s SVG text into a `data:image/svg+xml` URL (was throwing “did not return an image”); the relay’s real node name/width/height are applied; timeout is 45s with an “open the Penpot Companion” hint instead of a 2-minute silent hang.
 - **Penpot channel is isolated** — exports ride the `penpot:<pairing>` Ably channel, so a Figma companion on the same Pairing ID can never answer a Penpot export (the “is it reading the Figma file?” case).
 - **M3 destination relay-pull** — “Detect Selection in Figma” in the FigJam mirror now pulls the active design-file selection over `figma:<pairing>` (`callRelay` → select), and the Figma design companion **streams every `selectionchange` live** so the mirror’s Import card fills as you click around the Figma file (10s guard so a pasted link isn’t immediately overwritten). The mirror subscribes as a subscribe-only Miro-role client — it never registers in the source presence set, so server-side companion detection is unaffected; `subscribeRelayLive()` keeps the Ably connection open while subscribed and releases it on unmount.
+- **Session IDs without `crypto.randomUUID`** — the Figma/FigJam embedded WebView
+  exposes `getRandomValues` but not `randomUUID`, which broke Figma AND Penpot
+  detection and the M3 live subscription with "globalThis.crypto.randomUUID is not
+  a function". `generateSessionId()` now falls back to `getRandomValues` →
+  `Math.random` while always producing a valid UUID v4.
 
 ### Fixed
 - FigJam Sync is now **fully selection-driven**: cards list every selected mirror *instance* (duplicates count as the images selected — group badge `xN`), `figjam-place` receives `nodeIds` for the selected instances and updates only those (a single selected duplicate no longer syncs all its copies), and the sync loop renders once per unique frame while applying to the selected instances only.

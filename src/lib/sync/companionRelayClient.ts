@@ -66,9 +66,43 @@ function clearIdleCloseTimer(): void {
 
 function getRelaySessionId(): string {
   if (!relaySessionId) {
-    relaySessionId = globalThis.crypto.randomUUID();
+    relaySessionId = generateSessionId();
   }
   return relaySessionId;
+}
+
+/**
+ * UUID v4 that does not assume crypto.randomUUID: the Figma/FigJam plugin
+ * embed (and older embedded WebViews) expose crypto.getRandomValues but not
+ * randomUUID. Mirrors the fallback the companion UIs use for their tab ids.
+ */
+export function generateSessionId(): string {
+  const cryptoObj =
+    typeof globalThis !== 'undefined'
+      ? (globalThis as typeof globalThis & { crypto?: Crypto }).crypto
+      : undefined;
+  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+    try {
+      return cryptoObj.randomUUID();
+    } catch {
+      // Fall through to the manual build.
+    }
+  }
+  const bytes = new Uint8Array(16);
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+    try {
+      cryptoObj.getRandomValues(bytes);
+    } catch {
+      // Fall through to Math.random.
+    }
+  }
+  for (let i = 0; i < 16; i++) {
+    if (bytes[i] === 0) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function stopSessionHeartbeat(): void {
