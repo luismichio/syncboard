@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthTokens } from '@/app/miro-plugin/useAuthTokens';
 import { parseFigmaUrl } from '@/lib/sync/figmaUrlParser';
+import { parsePenpotUrl } from '@/lib/sync/penpotUrlParser';
+import { callPenpotMcpTool, callRelay, getOrCreatePairingId } from '@/lib/sync/companionRelayClient';
+import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 import { SyncedImage } from '@/app/miro-plugin/useMiroSelection';
-import { getOrCreatePairingId } from '@/lib/sync/pairingId';
 import type { SyncStatus, SyncStatusType } from '@/app/miro-plugin/useMiroPlugin';
 
 /**
@@ -24,6 +26,9 @@ interface FigjamTracked {
   fileKey?: string;
   nodeId?: string;
   name?: string;
+  format?: 'png' | 'svg';
+  scale?: number;
+  platform?: 'figma' | 'penpot';
 }
 
 interface BridgeMsg {
@@ -46,17 +51,16 @@ function postToPlugin(msg: Record<string, unknown>): void {
 function trackedToSynced(items: FigjamTracked[]): SyncedImage[] {
   // One card per SELECTED image instance (duplicates are distinct board
   // nodes and count as separate selections — the SyncTab group badge shows
-  // "xN"). No key-dedupe here: the sync loop dedupes by key for the render
-  // but sends the exact nodeIds to update only what is selected.
+  // "xN"). Persisted per-instance format/scale/platform round-trip here.
   return items.map((t) => ({
     id: t.id || t.key || '',
     title: t.name || t.key || t.id || '',
     fileKey: t.fileKey || '',
     nodeId: t.nodeId || '',
     nodeName: t.name || '',
-    format: 'png',
-    scale: 1,
-    platform: 'figma',
+    format: t.format || 'png',
+    scale: t.scale || 1,
+    platform: t.platform || 'figma',
   }));
 }
 
@@ -74,6 +78,15 @@ export function useFigJamPlugin() {
   } | null>(null);
   const [isDetectingLocal, setIsDetectingLocal] = useState(false);
   const [syncAllCopies, setSyncAllCopies] = useState(false);
+  const [preserveSize, setPreserveSize] = useState(false);
+  const [propagate, setPropagate] = useState(false);
+  const [penpotInput, setPenpotInput] = useState('');
+  const [penpotNodeInfo, setPenpotNodeInfo] = useState<{
+    fileId: string;
+    objectId: string;
+    name: string;
+  } | null>(null);
+  const [isDetectingPenpotLocal, setIsDetectingPenpotLocal] = useState(false);
   const [editorType, setEditorType] = useState('figma');
 
   const tokenRef = useRef<string | null>(figmaToken);
@@ -142,14 +155,15 @@ export function useFigJamPlugin() {
     return () => window.removeEventListener('message', onBridge);
   }, []);
 
-  const renderNode = useCallback(async (fileKey: string, nodeId: string, scale?: number) => {
+  const renderNode = useCallback(async (fileKey: string, nodeId: string, scale?: number, format?: 'png' | 'svg') => {
     const token = tokenRef.current;
     if (!token) throw new Error('Missing Figma connection — connect Figma in Settings.');
     const scaleSafe = scale ?? 1;
+    const formatSafe = format ?? 'png';
     const res = await fetch('/api/figma/render-batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ fileKey, nodeIds: [nodeId], format: 'png', scale: scaleSafe }),
+      body: JSON.stringify({ fileKey, nodeIds: [nodeId], format: formatSafe, scale: scaleSafe }),
     });
     if (!res.ok) {
       const errData = (await res.json().catch(() => ({}))) as { error?: string };
@@ -166,7 +180,18 @@ export function useFigJamPlugin() {
   }, []);
 
   const placeOnBoard = useCallback(
-    (payload: { fileKey: string; nodeId: string; name: string; scale: number; dataUrl: string; nodeIds?: string[] }) => {
+    (payload: {
+      fileKey: string;
+      nodeId: string;
+      name: string;
+      scale: number;
+      dataUrl: string;
+      format: 'png' | 'svg';
+      platform?: 'figma' | 'penpot';
+      nodeIds?: string[];
+      allCopies?: boolean;
+      preserveSize?: boolean;
+    }) => {
       setIsSyncing(true);
       // Watchdog: if the plugin never confirms (figjam-place-result), don't
       // leave the UI stuck in "Rendering…" forever — surface it instead.
@@ -186,10 +211,13 @@ export function useFigJamPlugin() {
           fileKey: payload.fileKey,
           nodeId: payload.nodeId,
           name: payload.name,
-          format: 'png',
+          format: payload.format,
+          platform: payload.platform || 'figma',
           scale: payload.scale,
           dataUrl: payload.dataUrl,
           nodeIds: payload.nodeIds,
+          allCopies: payload.allCopies,
+          preserveSize: payload.preserveSize,
         },
       });
     },
@@ -240,17 +268,18 @@ export function useFigJamPlugin() {
         return;
       }
       const safeScale = scale ?? 1;
+      const safeFormat = format ?? 'png';
       status(`Rendering ${figmaNodeInfo.name || figmaNodeInfo.nodeId}…`, 'progress');
       try {
-        const dataUrl = await renderNode(figmaNodeInfo.fileKey, figmaNodeInfo.nodeId, safeScale);
+        const dataUrl = await renderNode(figmaNodeInfo.fileKey, figmaNodeInfo.nodeId, safeScale, safeFormat);
         placeOnBoard({
           fileKey: figmaNodeInfo.fileKey,
           nodeId: figmaNodeInfo.nodeId,
           name: figmaNodeInfo.name || 'Unnamed',
           scale: safeScale,
           dataUrl,
+          format: safeFormat,
         });
-        void format;
       } catch (err) {
         setIsSyncing(false);
         status(err instanceof Error ? err.message : 'Render error', 'error');
@@ -266,12 +295,13 @@ export function useFigJamPlugin() {
 
   // ---- Sync all mirrors ----
   const syncSelectedScreens = useCallback(async () => {
-    const frames = selectedItems.filter((n) => n.fileKey && n.nodeId && n.format === 'png');
+    const frames = selectedItems.filter((n) => n.fileKey && n.nodeId);
     if (frames.length === 0) {
       status('Nothing selected on the canvas', 'info');
       return;
     }
-    // One render per unique frame key; update ONLY the selected instances.
+    // One render per unique frame key; update the requested instances
+    // (selected ids, or all copies when the "update all copies" toggle is on).
     const byKey = new Map<string, SyncedImage[]>();
     for (const f of frames) {
       const k = `${f.fileKey}|${f.nodeId}`;
@@ -286,14 +316,20 @@ export function useFigJamPlugin() {
       const items = byKey.get(keys[i]) as SyncedImage[];
       const first = items[0];
       try {
-        const dataUrl = await renderNode(first.fileKey, first.nodeId, first.scale);
+        const format = (first.format === 'svg' ? 'svg' : 'png') as 'png' | 'svg';
+        const scale = first.scale ?? 1;
+        const dataUrl = await renderNode(first.fileKey, first.nodeId, scale, format);
         placeOnBoard({
           fileKey: first.fileKey,
           nodeId: first.nodeId,
           name: first.nodeName || first.nodeId,
-          scale: first.scale ?? 1,
+          scale,
+          format,
+          platform: (first.platform ?? 'figma') as 'figma' | 'penpot',
           dataUrl,
           nodeIds: items.map((it) => it.id).filter((id) => typeof id === 'string' && id.length > 0),
+          allCopies: syncAllCopies,
+          preserveSize,
         });
         if (i < keys.length - 1) {
           status(`Syncing ${i + 1}/${keys.length}…`, 'progress');
@@ -307,7 +343,10 @@ export function useFigJamPlugin() {
         return;
       }
     }
-  }, [selectedItems, renderNode, placeOnBoard, status]);
+    // Re-read the selection so the plugin's updated meta (format/scale)
+    // round-trips back into the cards.
+    postToPlugin({ action: 'get-selection-state' });
+  }, [selectedItems, renderNode, placeOnBoard, status, syncAllCopies, preserveSize]);
 
   // ---- Adopt (replace a selected board node) ----
   const replaceSelectedWidget = useCallback(
@@ -325,15 +364,136 @@ export function useFigJamPlugin() {
       }
       status(`Rendering ${nodeName || nodeId}…`, 'progress');
       try {
-        const dataUrl = await renderNode(fileKey, nodeId, scale);
-        placeOnBoard({ fileKey, nodeId, name: nodeName || nodeId, scale, dataUrl });
-        void format;
+        const dataUrl = await renderNode(fileKey, nodeId, scale, format);
+        placeOnBoard({ fileKey, nodeId, name: nodeName || nodeId, scale, dataUrl, format, preserveSize });
       } catch (err) {
         setIsSyncing(false);
         status(err instanceof Error ? err.message : 'Replace error', 'error');
       }
     },
-    [renderNode, placeOnBoard, status]
+    [renderNode, placeOnBoard, status, preserveSize]
+  );
+
+  // ---- Group setting changes (format/scale on the Sync cards) ----
+  // Persist to the plugin nodes via figjam-set-meta; propagate extends to
+  // sibling copies of the same frame key.
+  const applyGroupSettings = useCallback(
+    (itemIds: string[], key: 'format' | 'scale', value: unknown) => {
+      const ids = itemIds.filter((id) => typeof id === 'string' && id.length > 0);
+      if (ids.length === 0) return;
+      const payload: Record<string, unknown> = { action: 'figjam-set-meta', nodeIds: ids };
+      if (key === 'format') {
+        const fmt = String(value);
+        payload.format = fmt === 'svg' ? 'svg' : 'png';
+      } else {
+        const num = Number(value);
+        if (Number.isFinite(num) && num > 0) payload.scale = num;
+      }
+      payload.propagate = propagate;
+      postToPlugin(payload);
+      // Optimistic card update.
+      setSelectedItems((prev) =>
+        prev.map((it) =>
+          ids.includes(it.id)
+            ? {
+                ...it,
+                format: payload.format ? (payload.format as 'png' | 'svg') : it.format,
+                scale: payload.scale ? Number(payload.scale) : it.scale,
+              }
+            : it
+        )
+      );
+    },
+    [propagate]
+  );
+
+  // ---- Penpot (paste link + detect via the Penpot Companion relay) ----
+  const parsePenpotLink = useCallback((url: string): boolean => {
+    setPenpotInput(url);
+    const parsed = parsePenpotUrl(url);
+    if (parsed) {
+      setPenpotNodeInfo({
+        fileId: parsed.fileId,
+        objectId: parsed.objectId,
+        name: 'Selected Frame',
+      });
+      status('Valid Penpot link detected.');
+      return true;
+    }
+    setPenpotNodeInfo(null);
+    status('That does not look like a Penpot file link', 'error');
+    return false;
+  }, [status]);
+
+  const detectLocalPenpotSelection = useCallback(async () => {
+    setIsDetectingPenpotLocal(true);
+    try {
+      const pairingId = getOrCreatePairingId();
+      if (!pairingId) {
+        throw new Error('Pairing ID is not set. Open settings and copy a valid pairing ID first.');
+      }
+      const data = await callRelay({
+        pairingId,
+        platform: 'penpot',
+        action: 'select',
+        timeoutMs: 8000,
+      });
+      const payload = data as { id?: string; name?: string; fileId?: string } | null;
+      if (!payload?.id) {
+        throw new Error('No frame currently selected in Penpot.');
+      }
+      setPenpotNodeInfo({
+        fileId: payload.fileId || 'unknown-file',
+        objectId: payload.id,
+        name: payload.name ? decodeHtmlEntities(payload.name) : 'Penpot Frame',
+      });
+      status(`Detected Penpot frame: "${payload.name || payload.id}"`, 'info');
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      status(`Detection failed: ${errMsg} (Tip: open the Penpot Companion and connect the same Pairing ID.)`, 'error');
+    } finally {
+      setIsDetectingPenpotLocal(false);
+    }
+  }, [status]);
+
+  const importPenpotScreen = useCallback(
+    async (format: 'png' | 'svg' = 'svg', scale: number = 1) => {
+      if (!penpotNodeInfo) {
+        status('Paste a Penpot file link first', 'error');
+        return;
+      }
+      setIsSyncing(true);
+      try {
+        const mcpResponse = await callPenpotMcpTool('export_shape', {
+          shapeId: penpotNodeInfo.objectId,
+          format,
+          scale,
+        });
+        if (!mcpResponse.content || mcpResponse.content.length === 0) {
+          throw new Error('Penpot relay returned empty export.');
+        }
+        const content = mcpResponse.content[0];
+        if (content.type !== 'image') {
+          throw new Error('Penpot relay did not return an image.');
+        }
+        const dataUrl = `data:${content.mimeType};base64,${content.data}`;
+        status(`Rendering ${penpotNodeInfo.name || penpotNodeInfo.objectId}…`, 'progress');
+        placeOnBoard({
+          fileKey: penpotNodeInfo.fileId,
+          nodeId: penpotNodeInfo.objectId,
+          name: penpotNodeInfo.name || penpotNodeInfo.objectId,
+          scale,
+          format,
+          platform: 'penpot',
+          dataUrl,
+          preserveSize,
+        });
+      } catch (err: unknown) {
+        setIsSyncing(false);
+        status(err instanceof Error ? err.message : 'Penpot import error', 'error');
+      }
+    },
+    [penpotNodeInfo, placeOnBoard, status, preserveSize]
   );
 
   const pairingId = getOrCreatePairingId();
@@ -359,15 +519,20 @@ export function useFigJamPlugin() {
     parseFigmaLink,
     detectLocalFigmaSelection,
     importFigmaScreen,
-    penpotInput: '',
-    penpotNodeInfo: null,
-    isDetectingPenpotLocal: false,
-    parsePenpotLink: async (): Promise<boolean> => false,
-    detectLocalPenpotSelection: async (): Promise<void> => undefined,
-    importPenpotScreen: async (): Promise<void> => undefined,
+    penpotInput,
+    penpotNodeInfo,
+    isDetectingPenpotLocal,
+    parsePenpotLink,
+    detectLocalPenpotSelection,
+    importPenpotScreen,
     syncSelectedScreens,
     syncAllCopies,
     setSyncAllCopies,
+    preserveSize,
+    setPreserveSize,
+    propagate,
+    setPropagate,
+    applyGroupSettings,
     cooldownSeconds: 0,
     isAnyImageSelected: selectedItems.length > 0,
     replaceSelectedWidget,

@@ -11,6 +11,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [0.16.1] - 2026-08-07
 
+### Added
+- FigJam mirror parity pass (all 8 reported gaps, 6 shipped this turn):
+  - **Update all copies** — the Sync toggle now sends `allCopies` to `figjam-place`; the plugin updates every instance of the key. Per-selection sync still targets only the selected `nodeIds`.
+  - **Keep canvas size** — `preserveSize` is honored: the plugin skips resizing (FILL crop kept in FigJam by design) for in-place updates and new placements.
+  - **Scale & format now apply** — the Sync card group controls call `figjam-set-meta`, persisting per-instance `format`/`scale` (round-tripped through node summaries); the sync pass renders with the chosen format and scale. `propagate` extends group changes to sibling copies.
+  - **Penpot is real in FigJam** — paste a Penpot link → `parsePenpotUrl` → node info; “Place on canvas” exports via the Penpot Companion relay (`export_shape`) → image rect; “Detect Selection in Penpot App” uses the pairing relay (`callRelay`). All previously stubs.
+  - **FigJam panel height** — `ui.html` sets an `sb-editor-figjam` root class (min-height 640px, iframe fills) so the mirror renders without scrollbars; the Figma design editor height is untouched.
+
 ### Fixed
 - FigJam Sync is now **fully selection-driven**: cards list every selected mirror *instance* (duplicates count as the images selected — group badge `xN`), `figjam-place` receives `nodeIds` for the selected instances and updates only those (a single selected duplicate no longer syncs all its copies), and the sync loop renders once per unique frame while applying to the selected instances only.
 - FigJam duplicates no longer drift: `figjamPlace` updates **every** rectangle carrying the same `fileKey|nodeId` in place, the mirror card dedupes by key (copies don't spawn extra rows — one frame = one row), and the sync loop paces 700ms between frames plus surfaces a friendly "Figma is rate-limiting" message on 429/`rate_limit_exceeded` (so the 4-attempt burst stops breaking the flow).

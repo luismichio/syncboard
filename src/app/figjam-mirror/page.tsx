@@ -44,8 +44,6 @@ function buildGroupedItems(selectedItems: SyncedImage[]): GroupedSyncedImage[] {
 }
 
 export default function FigJamPluginPage() {
-  const [propagate, setPropagate] = useState(false);
-  const [preserveSize, setPreserveSize] = useState(false);
   const hook = useFigJamPlugin();
   const [activeTab, setActiveTab] = useState<MiroPluginTab>('sync');
   const [importPlatform, setImportPlatform] = useState<ImportPlatform>('figma');
@@ -104,9 +102,8 @@ export default function FigJamPluginPage() {
 
   const groupedItems = useMemo(() => buildGroupedItems(hook.selectedItems), [hook.selectedItems]);
 
-  const onGroupSettingChange = async (): Promise<void> => {
-    // FigJam mirrors persist their own metadata on the plugin node; group
-    // setting changes re-apply on the next sync pass. No board-side write.
+  const onGroupSettingChange = (ids: string[], key: 'format' | 'scale', value: unknown): void => {
+    hook.applyGroupSettings(ids, key, value);
   };
 
   const onRefreshNodeName = async (): Promise<void> => {
@@ -124,10 +121,10 @@ export default function FigJamPluginPage() {
             groupedItems={groupedItems}
             syncAllCopies={hook.syncAllCopies}
             setSyncAllCopies={hook.setSyncAllCopies}
-            preserveSize={preserveSize}
-            setPreserveSize={setPreserveSize}
-            propagate={propagate}
-            setPropagate={setPropagate}
+            preserveSize={hook.preserveSize}
+            setPreserveSize={hook.setPreserveSize}
+            propagate={hook.propagate}
+            setPropagate={hook.setPropagate}
             isSyncing={hook.isSyncing}
             cooldownSeconds={hook.cooldownSeconds}
             hasMiroToken={true}
@@ -150,8 +147,8 @@ export default function FigJamPluginPage() {
             availableScales={AVAILABLE_SCALES}
             isSyncing={hook.isSyncing}
             isAnyImageSelected={hook.isAnyImageSelected}
-            preserveSize={preserveSize}
-            setPreserveSize={setPreserveSize}
+            preserveSize={hook.preserveSize}
+            setPreserveSize={hook.setPreserveSize}
             figmaToken={hook.figmaToken}
             figmaInput={hook.figmaInput}
             figmaParseError={hook.figmaParseError}

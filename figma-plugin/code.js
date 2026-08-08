@@ -129,6 +129,9 @@ function figjamTrackedSummary() {
       fileKey: meta.fileKey || '',
       nodeId: meta.nodeId || '',
       name: meta.name || n.name || '',
+      format: meta.format || 'png',
+      scale: meta.scale || 1,
+      platform: meta.platform || 'figma',
     };
   });
 }
@@ -151,13 +154,17 @@ async function figjamPlace(payload) {
     const title = `${payload.name || nodeId} [FigmaSync|${fileKey}|${nodeId}]`;
 
     const existingAll = figjamFindAllByKey(fileKey, nodeId);
-    // Selection-driven sync: when the caller names specific instances, update
-    // ONLY those (the Sync tab sends the selected nodeIds; Import flows without
-    // nodeIds keep the all-instances behavior).
+    // Selection-driven default: update ONLY the instances the caller names.
+    // Sync tab sends the selected nodeIds; "update all copies" (allCopies)
+    // opts into every instance of the key.
     const targetNodes =
-      Array.isArray(payload.nodeIds) && payload.nodeIds.length > 0
-        ? existingAll.filter((n) => payload.nodeIds.includes(n.id))
-        : existingAll;
+      payload.allCopies
+        ? existingAll
+        : (Array.isArray(payload.nodeIds) && payload.nodeIds.length > 0
+            ? existingAll.filter((n) => payload.nodeIds.includes(n.id))
+            : existingAll);
+    // "Keep canvas size": never resize, the FILL crop stays by design.
+    const keepSize = payload.preserveSize === true;
     let image;
     try {
       image = await figma.createImageAsync(payload.dataUrl);
@@ -178,13 +185,15 @@ async function figjamPlace(payload) {
   if (targetNodes.length > 0) {
     // In-place update: only the requested instances are resized + re-filled.
     for (const existing of targetNodes) {
-      if (targetW && targetH) existing.resize(targetW, targetH);
+      if (!keepSize && targetW && targetH) existing.resize(targetW, targetH);
       existing.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' }];
       try {
         existing.setPluginData(SB_META_KEY, JSON.stringify({
           fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
           imageHash: image.hash, name: payload.name || figjamMeta(existing).name || '',
-          format: payload.format || 'png', scale: payload.scale || 1,
+          format: payload.format || 'png',
+          scale: payload.scale || 1,
+          platform: payload.platform || 'figma',
         }));
       } catch (e) {}
     }
@@ -196,7 +205,7 @@ async function figjamPlace(payload) {
   rect.name = title;
   const W = targetW || (Number.isFinite(payload.width) ? payload.width : 240);
   const H = targetH || (Number.isFinite(payload.height) ? payload.height : 160);
-  rect.resize(W, H);
+  if (!keepSize) rect.resize(W, H);
   if (figma.viewport && Number.isFinite(figma.viewport.center.x) && Number.isFinite(figma.viewport.center.y)) {
     rect.x = Math.round(figma.viewport.center.x - W / 2);
     rect.y = Math.round(figma.viewport.center.y - H / 2);
@@ -207,6 +216,7 @@ async function figjamPlace(payload) {
       fileKey: fileKey, nodeId: nodeId, key: figjamKey(fileKey, nodeId),
       imageHash: image.hash,
       name: payload.name || '', format: payload.format || 'png', scale: payload.scale || 1,
+      platform: payload.platform || 'figma',
     }));
   } catch (e) {}
   figma.currentPage.appendChild(rect);
@@ -243,6 +253,22 @@ function pushFileKey() {
 
 // Selection state sent to the mirror: ONLY the currently selected tracked
 // rectangles (the Sync tab + badge are selection-driven, like Miro).
+// The summary carries each node's persisted format/scale/platform so the
+// mirror cards round-trip the group settings.
+function figjamNodeSummary(n) {
+  const meta = figjamMeta(n);
+  return {
+    id: n.id,
+    key: meta.key || figjamKey(meta.fileKey || '', meta.nodeId || ''),
+    fileKey: meta.fileKey || '',
+    nodeId: meta.nodeId || '',
+    name: meta.name || n.name || '',
+    format: meta.format || 'png',
+    scale: meta.scale || 1,
+    platform: meta.platform || 'figma',
+  };
+}
+
 function figjamSelectionSummary() {
   const selection = figma.currentPage.selection || [];
   return selection
@@ -253,16 +279,7 @@ function figjamSelectionSummary() {
         return false;
       }
     })
-    .map(function (n) {
-      const meta = figjamMeta(n);
-      return {
-        id: n.id,
-        key: meta.key || figjamKey(meta.fileKey || '', meta.nodeId || ''),
-        fileKey: meta.fileKey || '',
-        nodeId: meta.nodeId || '',
-        name: meta.name || n.name || '',
-      };
-    });
+    .map(figjamNodeSummary);
 }
 
 // Listen to selection changes on the active page: the mirror's Sync tab is
@@ -333,6 +350,39 @@ figma.ui.onmessage = async (msg) => {
   }
 
   if (msg.action === 'get-selection-state') {
+    figma.ui.postMessage({ action: 'figjam-selection', tracked: figjamSelectionSummary() });
+    return;
+  }
+
+  // Persist per-instance render settings (format/scale) from the mirror's
+  // Sync tab group controls; propagate extends to sibling copies of the key.
+  if (msg.action === 'figjam-set-meta') {
+    const ids = Array.isArray(msg.nodeIds) ? msg.nodeIds : [];
+    const next = {};
+    if (typeof msg.format === 'string') next.format = msg.format;
+    if (Number.isFinite(msg.scale) && msg.scale > 0) next.scale = msg.scale;
+    if (typeof msg.platform === 'string') next.platform = msg.platform;
+    try {
+      figjamAllTracked()
+        .filter(function (n) {
+          if (ids.includes(n.id)) return true;
+          if (msg.propagate) {
+            const meta = figjamMeta(n);
+            return ids.some(function (id) {
+              const node = figjamAllTracked().find(function (m) { return m.id === id; });
+              if (!node) return false;
+              const m = figjamMeta(node);
+              return meta.fileKey === m.fileKey && meta.nodeId === m.nodeId;
+            });
+          }
+          return false;
+        })
+        .forEach(function (n) {
+          const meta = figjamMeta(n);
+          const updated = Object.assign({}, meta, next, { key: figjamKey(meta.fileKey || '', meta.nodeId || '') });
+          n.setPluginData(SB_META_KEY, JSON.stringify(updated));
+        });
+    } catch (e) {}
     figma.ui.postMessage({ action: 'figjam-selection', tracked: figjamSelectionSummary() });
     return;
   }
