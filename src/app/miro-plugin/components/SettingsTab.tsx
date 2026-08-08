@@ -22,6 +22,7 @@ interface SettingsTabProps {
   figmaApiCalls?: number;
   figmaCacheHits?: number;
   figmaRateInfo?: string | null;
+  rateWindow?: { count: number; limit: number };
   availableScales: number[];
   hideMiro?: boolean;
 }
@@ -47,6 +48,7 @@ export function SettingsTab({
   figmaApiCalls = 0,
   figmaCacheHits = 0,
   figmaRateInfo = null,
+  rateWindow = { count: 0, limit: 10 },
   availableScales,
   hideMiro = false,
 }: SettingsTabProps) {
@@ -233,6 +235,19 @@ export function SettingsTab({
               <div>
                 render calls: <span className="text-text-page">{figmaApiCalls}</span> · cache hits:{' '}
                 <span className="text-text-page">{figmaCacheHits}</span>
+              </div>
+              <div className="mt-1">
+                window usage:{' '}
+                <span
+                  className={
+                    rateWindow.count >= rateWindow.limit
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-text-page'
+                  }
+                >
+                  {rateWindow.count}/{rateWindow.limit}
+                </span>{' '}
+                in last 60s (rolling window)
               </div>
               <div>Served from cache: same frame+scale+format within 90s costs 0 calls.</div>
               {figmaRateInfo ? (

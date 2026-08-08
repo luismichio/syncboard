@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Figma call telemetry** — Settings now show "Figma API usage (this session)": render calls + cache hits, plus the last rate-limit (X-Figma-Tier / limit type / Retry-After) when present.
 - **One automatic grace retry on 429** — the mirror waits Figma's Retry-After (max 15s) and retries the render once before surfacing the error.
 - **Dismiss button on the import card** — an "x" clears the source (Figma or Penpot) so Place/Replace are not left "active" after the job is done.
+- **Rolling-window rate counter + pre-call pacer** — Figma REST limits are a rolling 60s window (Pro = 10 calls/min per developers.figma.com/docs/rest-api/rate-limits/): every request occupies a slot for 60s, then it is freed (count drops one-by-one, not all at once). Settings now shows live "window usage: N/10 in last 60s", and the mirror WAITS for a free slot before issuing renders/node-info calls, so normal use never trips 429s in the first place.
 
 ### Fixed
 - **Scale now resizes the canvas object** — `figjamPlace` sizes the rect to the exported pixels (PNG already carries the render scale; SVG width/height × scale). 1× → design size, 2× → double, still crisp.

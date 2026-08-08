@@ -231,7 +231,57 @@ export function useFigJamPlugin() {
   const [figmaApiCalls, setFigmaApiCalls] = useState(0);
   const [figmaCacheHits, setFigmaCacheHits] = useState(0);
   const [rateInfo, setRateInfo] = useState<{ planTier: string; limitType: string; retryAfter: number } | null>(null);
-  const bumpApiCalls = useCallback((n = 1) => setFigmaApiCalls((c) => c + n), []);
+  // Figma REST API rate limits are a ROLLING 60-second window (Pro = 10
+  // calls/min per developers.figma.com/docs/rest-api/rate-limits): every
+  // request occupies a slot for 60s, then frees it. We keep timestamps so
+  // the UI can show live usage and the pacer can wait for a free slot
+  // BEFORE issuing a call (no more 429s from normal use).
+  const RENDER_WINDOW_MS = 60_000;
+  const RENDER_WINDOW_LIMIT = 10;
+  const apiWindowRef = useRef<number[]>([]);
+  const [rateWindow, setRateWindow] = useState<{ count: number; limit: number }>({ count: 0, limit: RENDER_WINDOW_LIMIT });
+
+  const pruneWindow = useCallback(() => {
+    const now = Date.now();
+    apiWindowRef.current = apiWindowRef.current.filter((t) => now - t < RENDER_WINDOW_MS);
+  }, []);
+
+  const bumpApiCalls = useCallback((n = 1) => {
+    const now = Date.now();
+    pruneWindow();
+    for (let i = 0; i < n; i++) apiWindowRef.current.push(now);
+    setFigmaApiCalls((c) => c + n);
+    setRateWindow({ count: apiWindowRef.current.length, limit: RENDER_WINDOW_LIMIT });
+  }, [pruneWindow]);
+
+  // Wait until a slot frees up in the rolling window (oldest call expires
+  // 60s after it was made). Cap each wait at 10s increments; if the caller
+  // keeps hitting a full window the 429 + Retry-After path still guards.
+  const waitForRateSlot = useCallback(async (): Promise<void> => {
+    pruneWindow();
+    while (apiWindowRef.current.length >= RENDER_WINDOW_LIMIT) {
+      const now = Date.now();
+      const oldest = apiWindowRef.current[0];
+      const waitMs = oldest + RENDER_WINDOW_MS - now;
+      if (waitMs <= 0) break;
+      setRateWindow({ count: apiWindowRef.current.length, limit: RENDER_WINDOW_LIMIT });
+      await new Promise((resolve) => setTimeout(resolve, Math.min(Math.max(waitMs, 5_000), 40_000)));
+      pruneWindow();
+    }
+  }, [pruneWindow]);
+
+  // Keep the displayed window fresh (a slot frees 60s after its call).
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      pruneWindow();
+      setRateWindow((prev) =>
+        prev.count === apiWindowRef.current.length
+          ? prev
+          : { count: apiWindowRef.current.length, limit: RENDER_WINDOW_LIMIT }
+      );
+    }, 1_000);
+    return () => window.clearInterval(id);
+  }, [pruneWindow]);
   // M3 live-push guard: a selection streamed from Figma does not overwrite a
   // link the user just pasted or a frame they just detected (10s window).
   const lastManualFigSourceRef = useRef(0);
@@ -378,6 +428,9 @@ export function useFigJamPlugin() {
     const body = JSON.stringify({ fileKey, nodeIds: [nodeId], format: formatSafe, scale: scaleSafe });
     const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
     const attempt = async (): Promise<string> => {
+      // Rolling-window pacer: hold back until a 60s slot frees up so normal
+      // use never trips Figma's 10/min Pro limit.
+      await waitForRateSlot();
       bumpApiCalls();
       const res = await fetch(url, { method: 'POST', headers, body });
       if (!res.ok) {
@@ -424,7 +477,7 @@ export function useFigJamPlugin() {
       return dataUrl;
     };
     return attempt();
-  }, [bumpApiCalls]);
+  }, [bumpApiCalls, waitForRateSlot]);
 
   const placeOnBoard = useCallback(
     (payload: {
@@ -501,6 +554,7 @@ export function useFigJamPlugin() {
         name: parsed.nodeId,
       };
       if (tokenRef.current) {
+        await waitForRateSlot();
         bumpApiCalls();
         try {
           const res = await fetch(
@@ -555,7 +609,7 @@ export function useFigJamPlugin() {
         status(noteError(err), 'error');
       }
     },
-    [figmaNodeInfo, cachedFetch, noteError, renderNode, placeOnBoard, status]
+    [figmaNodeInfo, cachedFetch, noteError, renderNode, placeOnBoard, status, waitForRateSlot]
   );
 
   const detectLocalFigmaSelection = useCallback(async () => {
@@ -903,6 +957,7 @@ export function useFigJamPlugin() {
     figmaApiCalls,
     figmaCacheHits,
     rateInfo,
+    rateWindow,
     resetImportState,
   } as const;
 }

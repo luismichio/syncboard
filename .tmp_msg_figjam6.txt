@@ -1,0 +1,19 @@
+feat(figjam): rolling-window rate counter + pre-call pacing (10/min Pro)
+
+Figma REST API rate limits are a ROLLING 60-second window per their docs:
+Pro = 10 calls/min. Each request occupies a slot for 60s and frees it
+one-by-one (not a fixed wall-clock reset), and every REST call counts
+(renders + node-info).
+
+- Live counter: Settings shows "window usage: N/10 in last 60s", refreshed
+  every second; turns red when the window is full.
+- Pre-call pacer: renderNode and link-parse now WAIT for a free slot
+  (oldest call expires 60s after it was made) before issuing the request,
+  so normal use self-throttles instead of tripping 429s. The 429 +
+  Retry-After retry path stays as the final guard.
+- Window-wide pacing replaces the per-call waits at the callers; cache
+  (90s TTL) still means repeat frames cost 0 calls.
+
+Test: tsc clean, lint 0 errors, 138/138. Local yarn build blocked by the
+pre-existing Next 16 workStore prerender invariant (Node 24, unrelated
+routes); CI builds with Node 20.

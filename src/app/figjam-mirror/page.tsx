@@ -199,6 +199,7 @@ export default function FigJamPluginPage() {
                 ? `${hook.rateInfo.planTier} · ${hook.rateInfo.limitType} · retry-after ${hook.rateInfo.retryAfter}s`
                 : null
             }
+            rateWindow={hook.rateWindow}
           />
         )}
       </section>
