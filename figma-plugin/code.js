@@ -356,6 +356,18 @@ function figjamSelectionSummary() {
 // and cards show only the selected ones.
 figma.on('selectionchange', () => {
   figma.ui.postMessage({ action: 'figjam-selection', tracked: figjamSelectionSummary() });
+  // M3 relay-pull: in the Figma design editor, also stream the current
+  // selection to the companion UI so it can publish it to the pairing
+  // channel (the FigJam mirror fills its Import card live).
+  if (EDITOR_TYPE === 'figma') {
+    const selection = figma.currentPage.selection;
+    figma.ui.postMessage({
+      action: 'selection-changed-locally',
+      data: selection[0]
+        ? { name: selection[0].name, id: selection[0].id, fileKey: resolveFileKey() }
+        : null,
+    });
+  }
 });
 
 // Message listener from UI

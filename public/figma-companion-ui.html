@@ -662,8 +662,24 @@ let currentPairingId = '';
       }
 
       if (response.action === "selection-changed-locally") {
-        const name = response.data ? response.data.name : 'None';
+        const d = response.data ? response.data : null;
+        const name = d && d.name ? d.name : 'None';
         log(`Selected node: ${name}`);
+        // M3 relay-pull: stream the current Figma selection to the pairing
+        // channel so the FigJam mirror (or any destination client) can fill
+        // its Import card live — no button press needed.
+        if (ablyChannel && currentPairingId && d && d.id) {
+          ablyChannel.publish('selection', {
+            name: d.name || '',
+            id: d.id,
+            fileKey: d.fileKey || '',
+            ts: Date.now(),
+          }).then(() => {
+            log(`Selection published to ${currentPairingId}: ${name}`);
+          }).catch((e) => {
+            log(`Ably publish failed: ${e.message}`);
+          });
+        }
       }
 
       if (response.action === "selection-result") {

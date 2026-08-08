@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthTokens } from '@/app/miro-plugin/useAuthTokens';
 import { parseFigmaUrl } from '@/lib/sync/figmaUrlParser';
 import { parsePenpotUrl } from '@/lib/sync/penpotUrlParser';
-import { callRelay, getOrCreatePairingId } from '@/lib/sync/companionRelayClient';
+import { callRelay, getOrCreatePairingId, subscribeRelayLive } from '@/lib/sync/companionRelayClient';
 import { decodeHtmlEntities } from '@/lib/decodeHtmlEntities';
 import { SyncedImage } from '@/app/miro-plugin/useMiroSelection';
 import type { SyncStatus, SyncStatusType } from '@/app/miro-plugin/useMiroPlugin';
@@ -91,6 +91,9 @@ export function useFigJamPlugin() {
 
   const tokenRef = useRef<string | null>(figmaToken);
   const placeWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // M3 live-push guard: a selection streamed from Figma does not overwrite a
+  // link the user just pasted or a frame they just detected (10s window).
+  const lastManualFigSourceRef = useRef(0);
   useEffect(() => {
     tokenRef.current = figmaToken;
   }, [figmaToken]);
@@ -98,6 +101,43 @@ export function useFigJamPlugin() {
   const status = useCallback((message: string, type: SyncStatusType = 'info') => {
     setSyncStatus({ message, type });
   }, []);
+
+  // M3 relay-pull: subscribe to the Figma design companion's live selection
+  // (figma:<pairing> channel, subscribe-only token) and fill the Import card
+  // as the user clicks around the Figma file — the two-files timeline.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const pairingId = getOrCreatePairingId();
+    let unsubscribe: (() => void) | null = null;
+    let cancelled = false;
+    void subscribeRelayLive(pairingId, 'figma', 'selection', (payload) => {
+      if (cancelled) return;
+      const src = payload as { id?: string; name?: string; fileKey?: string };
+      if (!src.id) return;
+      if (Date.now() - lastManualFigSourceRef.current < 10_000) return;
+      const fileKey = src.fileKey?.trim() || 'unknown';
+      const name = decodeHtmlEntities(src.name || 'Figma Frame');
+      setFigmaNodeInfo({ fileKey, nodeId: src.id, name });
+      setFigmaInput(`https://www.figma.com/file/${fileKey}/?node-id=${encodeURIComponent(src.id)}`);
+      setFigmaParseError(null);
+      status(`Figma: "${name}" selected`, 'info');
+    })
+      .then((cleanup) => {
+        if (cancelled) {
+          cleanup();
+        } else {
+          unsubscribe = cleanup;
+        }
+      })
+      .catch(() => {
+        // Companion channel may be empty right now — the detect button
+        // still performs an explicit one-shot pull later.
+      });
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [status]);
 
   // Mirrored board state + presence from the plugin.
   useEffect(() => {
@@ -237,6 +277,7 @@ export function useFigJamPlugin() {
         status('That does not look like a Figma file link', 'error');
         return;
       }
+      lastManualFigSourceRef.current = Date.now();
       setFigmaParseError(null);
       setFigmaInput(url);
       const capture: { fileKey: string; nodeId: string; name: string } = {
@@ -262,7 +303,7 @@ export function useFigJamPlugin() {
       status('Figma frame ready to place', 'info');
       return;
     },
-    []
+    [status]
   );
 
   const importFigmaScreen = useCallback(
@@ -294,8 +335,37 @@ export function useFigJamPlugin() {
 
   const detectLocalFigmaSelection = useCallback(async () => {
     setIsDetectingLocal(true);
-    postToPlugin({ action: 'get-selection', requestId: 'fj-det-' + Date.now() });
-  }, []);
+    try {
+      const pairingId = getOrCreatePairingId();
+      if (!pairingId) {
+        throw new Error('Pairing ID is not set. Open settings and copy a valid pairing ID first.');
+      }
+      // M3 relay-pull: ask the Figma design companion (same Pairing ID) for
+      // its current selection over the figma:<pairing> channel.
+      const data = await callRelay({
+        pairingId,
+        platform: 'figma',
+        action: 'select',
+        timeoutMs: 8000,
+      });
+      const payload = data as { id?: string; name?: string; fileKey?: string } | null;
+      if (!payload?.id) {
+        throw new Error('No frame currently selected in the Figma file.');
+      }
+      const fileKey = payload.fileKey?.trim() || 'unknown';
+      const nodeId = payload.id;
+      const name = decodeHtmlEntities(payload.name || 'Figma Frame');
+      lastManualFigSourceRef.current = Date.now();
+      setFigmaNodeInfo({ fileKey, nodeId, name });
+      setFigmaInput(`https://www.figma.com/file/${fileKey}/?node-id=${encodeURIComponent(nodeId)}`);
+      status(`Detected Figma frame: "${name}"`, 'info');
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      status(`Detection failed: ${errMsg} — open the Figma Companion plugin and connect the same Pairing ID.`, 'error');
+    } finally {
+      setIsDetectingLocal(false);
+    }
+  }, [status]);
 
   // ---- Sync all mirrors ----
   const syncSelectedScreens = useCallback(async () => {
