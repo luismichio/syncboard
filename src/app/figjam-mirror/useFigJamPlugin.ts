@@ -44,25 +44,20 @@ function postToPlugin(msg: Record<string, unknown>): void {
 }
 
 function trackedToSynced(items: FigjamTracked[]): SyncedImage[] {
-  // One card per unique frame key — duplicates (copies on the board) are
-  // covered by the plugin's all-instances in-place update, not separate
-  // rows (keeps the card count aligned with the source frames).
-  const byKey = new Map<string, SyncedImage>();
-  for (const t of items) {
-    const key = `${t.fileKey || ''}|${t.nodeId || ''}`;
-    if (!key || key === '|' || byKey.has(key)) continue;
-    byKey.set(key, {
-      id: t.id || t.key || key,
-      title: t.name || t.key || key,
-      fileKey: t.fileKey || '',
-      nodeId: t.nodeId || '',
-      nodeName: t.name || '',
-      format: 'png',
-      scale: 1,
-      platform: 'figma',
-    });
-  }
-  return Array.from(byKey.values());
+  // One card per SELECTED image instance (duplicates are distinct board
+  // nodes and count as separate selections — the SyncTab group badge shows
+  // "xN"). No key-dedupe here: the sync loop dedupes by key for the render
+  // but sends the exact nodeIds to update only what is selected.
+  return items.map((t) => ({
+    id: t.id || t.key || '',
+    title: t.name || t.key || t.id || '',
+    fileKey: t.fileKey || '',
+    nodeId: t.nodeId || '',
+    nodeName: t.name || '',
+    format: 'png',
+    scale: 1,
+    platform: 'figma',
+  }));
 }
 
 export function useFigJamPlugin() {
@@ -171,7 +166,7 @@ export function useFigJamPlugin() {
   }, []);
 
   const placeOnBoard = useCallback(
-    (payload: { fileKey: string; nodeId: string; name: string; scale: number; dataUrl: string }) => {
+    (payload: { fileKey: string; nodeId: string; name: string; scale: number; dataUrl: string; nodeIds?: string[] }) => {
       setIsSyncing(true);
       // Watchdog: if the plugin never confirms (figjam-place-result), don't
       // leave the UI stuck in "Rendering…" forever — surface it instead.
@@ -194,6 +189,7 @@ export function useFigJamPlugin() {
           format: 'png',
           scale: payload.scale,
           dataUrl: payload.dataUrl,
+          nodeIds: payload.nodeIds,
         },
       });
     },
@@ -272,31 +268,42 @@ export function useFigJamPlugin() {
   const syncSelectedScreens = useCallback(async () => {
     const frames = selectedItems.filter((n) => n.fileKey && n.nodeId && n.format === 'png');
     if (frames.length === 0) {
-      status('Nothing to mirror yet', 'info');
+      status('Nothing selected on the canvas', 'info');
       return;
     }
-    status(`Mirroring ${frames.length} frame(s)…`, 'progress');
+    // One render per unique frame key; update ONLY the selected instances.
+    const byKey = new Map<string, SyncedImage[]>();
+    for (const f of frames) {
+      const k = `${f.fileKey}|${f.nodeId}`;
+      const list = byKey.get(k) ?? [];
+      list.push(f);
+      byKey.set(k, list);
+    }
+    const keys = Array.from(byKey.keys());
+    status(`Syncing ${keys.length} frame(s)…`, 'progress');
     setIsSyncing(true);
-    for (let i = 0; i < frames.length; i++) {
-      const item = frames[i];
+    for (let i = 0; i < keys.length; i++) {
+      const items = byKey.get(keys[i]) as SyncedImage[];
+      const first = items[0];
       try {
-        const dataUrl = await renderNode(item.fileKey, item.nodeId, item.scale);
+        const dataUrl = await renderNode(first.fileKey, first.nodeId, first.scale);
         placeOnBoard({
-          fileKey: item.fileKey,
-          nodeId: item.nodeId,
-          name: item.nodeName || item.nodeId,
-          scale: item.scale ?? 1,
+          fileKey: first.fileKey,
+          nodeId: first.nodeId,
+          name: first.nodeName || first.nodeId,
+          scale: first.scale ?? 1,
           dataUrl,
+          nodeIds: items.map((it) => it.id).filter((id) => typeof id === 'string' && id.length > 0),
         });
-        if (i < frames.length - 1) {
-          status(`Mirroring ${i + 1}/${frames.length}…`, 'progress');
+        if (i < keys.length - 1) {
+          status(`Syncing ${i + 1}/${keys.length}…`, 'progress');
           // Pacing: Figma's REST API rate-limits bursts; keep a short gap
           // between renders so multi-frame syncs don't trip 429.
           await new Promise((resolve) => setTimeout(resolve, 700));
         }
       } catch (err) {
         setIsSyncing(false);
-        status(err instanceof Error ? err.message : 'Mirror error', 'error');
+        status(err instanceof Error ? err.message : 'Sync error', 'error');
         return;
       }
     }

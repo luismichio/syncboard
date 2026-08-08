@@ -151,6 +151,13 @@ async function figjamPlace(payload) {
     const title = `${payload.name || nodeId} [FigmaSync|${fileKey}|${nodeId}]`;
 
     const existingAll = figjamFindAllByKey(fileKey, nodeId);
+    // Selection-driven sync: when the caller names specific instances, update
+    // ONLY those (the Sync tab sends the selected nodeIds; Import flows without
+    // nodeIds keep the all-instances behavior).
+    const targetNodes =
+      Array.isArray(payload.nodeIds) && payload.nodeIds.length > 0
+        ? existingAll.filter((n) => payload.nodeIds.includes(n.id))
+        : existingAll;
     let image;
     try {
       image = await figma.createImageAsync(payload.dataUrl);
@@ -168,10 +175,9 @@ async function figjamPlace(payload) {
     const targetW = png ? Math.max(1, Math.round(png.width / scale)) : null;
     const targetH = png ? Math.max(1, Math.round(png.height / scale)) : null;
 
-  if (existingAll.length > 0) {
-    // In-place update: every node carrying this key (duplicates included)
-    // gets resized to the source frame size and the new fill hash.
-    for (const existing of existingAll) {
+  if (targetNodes.length > 0) {
+    // In-place update: only the requested instances are resized + re-filled.
+    for (const existing of targetNodes) {
       if (targetW && targetH) existing.resize(targetW, targetH);
       existing.fills = [{ type: 'IMAGE', imageHash: image.hash, scaleMode: 'FILL' }];
       try {
@@ -182,8 +188,8 @@ async function figjamPlace(payload) {
         }));
       } catch (e) {}
     }
-    figma.currentPage.selection = existingAll;
-    return { ok: true, nodeId: existingAll[0].id, key: figjamKey(fileKey, nodeId), created: false };
+    figma.currentPage.selection = targetNodes;
+    return { ok: true, nodeId: targetNodes[0].id, key: figjamKey(fileKey, nodeId), created: false, updated: targetNodes.length };
   }
 
   const rect = figma.createRectangle();

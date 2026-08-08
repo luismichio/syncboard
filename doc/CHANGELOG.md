@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.16.1] - 2026-08-07
 
 ### Fixed
+- FigJam Sync is now **fully selection-driven**: cards list every selected mirror *instance* (duplicates count as the images selected — group badge `xN`), `figjam-place` receives `nodeIds` for the selected instances and updates only those (a single selected duplicate no longer syncs all its copies), and the sync loop renders once per unique frame while applying to the selected instances only.
 - FigJam duplicates no longer drift: `figjamPlace` updates **every** rectangle carrying the same `fileKey|nodeId` in place, the mirror card dedupes by key (copies don't spawn extra rows — one frame = one row), and the sync loop paces 700ms between frames plus surfaces a friendly "Figma is rate-limiting" message on 429/`rate_limit_exceeded` (so the 4-attempt burst stops breaking the flow).
 - `figjamPlace` PNG-dimension helper: the call site referenced a misspelled `pngDataSize` (vs defined `pngDimensions`) — the error surfaced as `figjam-place failed ('pngDataSize' is not defined)`; renamed the call.
 - FigJam mirror: `figjam-state` is now authoritative — an empty board report clears `selectedItems` (the old keep-on-empty merge kept "Sync" acting as if a selection was still active when the board had nothing tracked).
